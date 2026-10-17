@@ -1,13 +1,14 @@
 import {load} from '../load';
+import {storageKey} from '../../keys';
 
 describe('prefs local storage load', () => {
 	beforeEach(() => window.localStorage.clear());
 	afterAll(() => window.localStorage.clear());
 
 	it('restores preferences', async () => {
-		window.localStorage.setItem('twine-prefs', 'mock-id,mock-id-2');
+		window.localStorage.setItem(storageKey('prefs'), 'mock-id,mock-id-2');
 		window.localStorage.setItem(
-			'twine-prefs-mock-id',
+			storageKey('prefs', 'mock-id'),
 			JSON.stringify({
 				name: 'foo',
 				id: 'mock-id',
@@ -15,7 +16,7 @@ describe('prefs local storage load', () => {
 			})
 		);
 		window.localStorage.setItem(
-			'twine-prefs-mock-id-2',
+			storageKey('prefs', 'mock-id-2'),
 			JSON.stringify({
 				name: 'bar',
 				id: 'mock-id-2',

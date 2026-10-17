@@ -1,5 +1,6 @@
 import {save} from '../save';
 import {fakeLoadedStoryFormat} from '../../../../../test-util';
+import {storageKey} from '../../keys';
 
 describe('story formats local storage save', () => {
 	beforeEach(() => window.localStorage.clear());
@@ -10,12 +11,12 @@ describe('story formats local storage save', () => {
 
 		save(formats);
 
-		const ids = window.localStorage.getItem('twine-storyformats')!.split(',');
+		const ids = window.localStorage.getItem(storageKey('storyformats'))!.split(',');
 		const format1 = JSON.parse(
-			window.localStorage.getItem(`twine-storyformats-${ids[0]}`)!
+			window.localStorage.getItem(storageKey('storyformats', ids[0]))!
 		);
 		const format2 = JSON.parse(
-			window.localStorage.getItem(`twine-storyformats-${ids[1]}`)!
+			window.localStorage.getItem(storageKey('storyformats', ids[1]))!
 		);
 
 		// This will change IDs on us--we can't do a simple compare.

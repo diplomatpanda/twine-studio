@@ -6,18 +6,25 @@ import {
 } from '../scratch-file';
 import {shell} from 'electron';
 import {AppPrefName, getAppPref} from '../app-prefs';
+import {join} from 'path';
 
 jest.mock('electron');
 jest.mock('fs-extra');
 jest.mock('../app-prefs');
 
+const mockScratchDirectory = join(
+	'mock-electron-app-path-documents',
+	'common.appName',
+	'electron.scratchDirectoryName'
+);
+const mockScratchPath = (filename: string) =>
+	join(mockScratchDirectory, filename);
+
 describe('scratchDirectoryPath', () => {
 	const getAppPrefMock = getAppPref as jest.Mock;
 
 	it('returns a localized path to a Scratch directory under the Twine directory by default', () =>
-		expect(scratchDirectoryPath()).toBe(
-			'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName'
-		));
+		expect(scratchDirectoryPath()).toBe(mockScratchDirectory));
 
 	it('returns the app pref scratchFolderPath if set', () => {
 		getAppPrefMock.mockImplementation((name: AppPrefName) => {
@@ -41,6 +48,25 @@ describe('cleanScratchDirectoryPath', () => {
 		jest.spyOn(console, 'log').mockReturnValue();
 	});
 
+	it('resolves when the scratch directory does not exist', async () => {
+		const error = Object.assign(new Error('missing directory'), {
+			code: 'ENOENT'
+		});
+		readdirMock.mockRejectedValue(error);
+
+		await expect(cleanScratchDirectory()).resolves.toBeUndefined();
+		expect(removeMock).not.toHaveBeenCalled();
+	});
+
+	it('propagates errors other than a missing directory', async () => {
+		const error = Object.assign(new Error('permission denied'), {
+			code: 'EACCES'
+		});
+		readdirMock.mockRejectedValue(error);
+
+		await expect(cleanScratchDirectory()).rejects.toBe(error);
+	});
+
 	describe('If the scratchFileCleanupAge app pref is undefined', () => {
 		beforeEach(() => getAppPrefMock.mockReturnValue(undefined));
 
@@ -51,10 +77,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html':
+					case mockScratchPath('deleteme.html'):
 						// older than the limit by 1ms
 						return {mtimeMs: Date.now() - 1001 * 60 * 60 * 24 * 3};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html':
+					case mockScratchPath('deleteme2.html'):
 						// older by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60 * 24 * 4};
 					default:
@@ -63,12 +89,8 @@ describe('cleanScratchDirectoryPath', () => {
 			});
 			await cleanScratchDirectory();
 			expect(removeMock.mock.calls).toEqual([
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html'
-				],
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html'
-				]
+				[mockScratchPath('deleteme.html')],
+				[mockScratchPath('deleteme2.html')]
 			]);
 		});
 
@@ -79,10 +101,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme.html':
+					case mockScratchPath('dontdeleteme.html'):
 						// younger than the limit by 1ms
 						return {mtimeMs: Date.now() - 999 * 60 * 60 * 24 * 3};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme2.html':
+					case mockScratchPath('dontdeleteme2.html'):
 						// younger by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60 * 24 * 2};
 					default:
@@ -141,10 +163,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html':
+					case mockScratchPath('deleteme.html'):
 						// older than the limit by 1ms
 						return {mtimeMs: Date.now() - 1001 * 60 * 60};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html':
+					case mockScratchPath('deleteme2.html'):
 						// older by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60 * 24};
 					default:
@@ -153,12 +175,8 @@ describe('cleanScratchDirectoryPath', () => {
 			});
 			await cleanScratchDirectory();
 			expect(removeMock.mock.calls).toEqual([
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html'
-				],
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html'
-				]
+				[mockScratchPath('deleteme.html')],
+				[mockScratchPath('deleteme2.html')]
 			]);
 		});
 
@@ -169,10 +187,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme.html':
+					case mockScratchPath('dontdeleteme.html'):
 						// younger than the limit by 1ms
 						return {mtimeMs: Date.now() - 999 * 60 * 60};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme2.html':
+					case mockScratchPath('dontdeleteme2.html'):
 						// younger by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60};
 					default:
@@ -230,10 +248,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html':
+					case mockScratchPath('deleteme.html'):
 						// older than the limit by 1ms
 						return {mtimeMs: Date.now() - 1001 * 60 * 60 * 24 * 3};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html':
+					case mockScratchPath('deleteme2.html'):
 						// older by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60 * 24 * 4};
 					default:
@@ -242,12 +260,8 @@ describe('cleanScratchDirectoryPath', () => {
 			});
 			await cleanScratchDirectory();
 			expect(removeMock.mock.calls).toEqual([
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme.html'
-				],
-				[
-					'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/deleteme2.html'
-				]
+				[mockScratchPath('deleteme.html')],
+				[mockScratchPath('deleteme2.html')]
 			]);
 		});
 
@@ -258,10 +272,10 @@ describe('cleanScratchDirectoryPath', () => {
 			]);
 			statMock.mockImplementation((name: string) => {
 				switch (name) {
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme.html':
+					case mockScratchPath('dontdeleteme.html'):
 						// younger than the limit by 1ms
 						return {mtimeMs: Date.now() - 999 * 60 * 60 * 24 * 3};
-					case 'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/dontdeleteme2.html':
+					case mockScratchPath('dontdeleteme2.html'):
 						// younger by 1 day
 						return {mtimeMs: Date.now() - 1000 * 60 * 60 * 24 * 2};
 					default:
@@ -319,11 +333,7 @@ describe('openHtmlWithScratchFile', () => {
 	it('resolves after writing a file in the scratch directory', async () => {
 		await openHtmlWithScratchFile('mock-data', 'mock-filename.html');
 		expect(writeFileMock.mock.calls).toEqual([
-			[
-				'mock-electron-app-path-documents/common.appName/electron.scratchDirectoryName/mock-filename.html',
-				'mock-data',
-				'utf8'
-			]
+			[mockScratchPath('mock-filename.html'), 'mock-data', 'utf8']
 		]);
 	});
 

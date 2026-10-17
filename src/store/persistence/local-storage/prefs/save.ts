@@ -1,15 +1,16 @@
 import {v4 as uuid} from '@lukeed/uuid';
 import {PrefsState} from '../../../prefs';
+import {storageKey} from '../keys';
 
 export function save(state: PrefsState) {
 	// Delete existing prefs in local storage, since we aren't bothering to
 	// preserve IDs.
 
-	const previouslySerialized = window.localStorage.getItem('twine-prefs');
+	const previouslySerialized = window.localStorage.getItem(storageKey('prefs'));
 
 	if (previouslySerialized) {
 		previouslySerialized.split(',').forEach(id => {
-			window.localStorage.removeItem(`twine-prefs-${id}`);
+			window.localStorage.removeItem(storageKey('prefs', id));
 		});
 	}
 
@@ -22,7 +23,7 @@ export function save(state: PrefsState) {
 
 		ids.push(id);
 		window.localStorage.setItem(
-			`twine-prefs-${id}`,
+			storageKey('prefs', id),
 			JSON.stringify({
 				id,
 				name,
@@ -31,5 +32,5 @@ export function save(state: PrefsState) {
 		);
 	}
 
-	window.localStorage.setItem('twine-prefs', ids.join(','));
+	window.localStorage.setItem(storageKey('prefs'), ids.join(','));
 }

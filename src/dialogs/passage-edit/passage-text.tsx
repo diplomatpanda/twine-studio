@@ -8,10 +8,11 @@ import {StoryFormat} from '../../store/story-formats';
 import {useCodeMirrorPassageHints} from '../../store/use-codemirror-passage-hints';
 import {useFormatCodeMirrorMode} from '../../store/use-format-codemirror-mode';
 import {codeMirrorOptionsFromPrefs} from '../../util/codemirror-options';
+import {ChoiceComposer} from '../../components/passage/choice-composer';
 
 export interface PassageTextProps {
 	disabled?: boolean;
-	onChange: (value: string) => void;
+	onChange: (value: string, undoDescription?: string) => void;
 	onEditorChange: (value: CodeMirror.Editor) => void;
 	passage: Passage;
 	story: Story;
@@ -35,6 +36,7 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 	const mode =
 		useFormatCodeMirrorMode(storyFormat.name, storyFormat.version) ?? 'text';
 	const codeAreaContainerRef = React.useRef<HTMLDivElement>(null);
+	const editorRef = React.useRef<CodeMirror.Editor>();
 	const {t} = useTranslation();
 
 	// These are refs so that changing them doesn't trigger a rerender, and more
@@ -58,6 +60,27 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 			commitPendingChange();
 		}
 	}, [commitPendingChange]);
+
+	// Keep the latest callback without flushing on every parent rerender. The
+	// story reducer persists synchronously in the browser, before navigation.
+	const flushPendingRef = React.useRef(flushPendingChange);
+	flushPendingRef.current = flushPendingChange;
+
+	React.useEffect(() => {
+		const flush = () => flushPendingRef.current();
+		const flushWhenHidden = () => {
+			if (document.visibilityState === 'hidden') flush();
+		};
+		window.addEventListener('beforeunload', flush);
+		window.addEventListener('pagehide', flush);
+		document.addEventListener('visibilitychange', flushWhenHidden);
+		return () => {
+			window.removeEventListener('beforeunload', flush);
+			window.removeEventListener('pagehide', flush);
+			document.removeEventListener('visibilitychange', flushWhenHidden);
+			flush();
+		};
+	}, []);
 
 	// Effects to handle debouncing updates upward. The idea here is that the
 	// component maintains a local state so that the CodeMirror instance always is
@@ -109,6 +132,7 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 
 	const handleMount = React.useCallback(
 		(editor: CodeMirror.Editor) => {
+			editorRef.current = editor;
 			onEditorChange(editor);
 
 			// The potential combination of loading a mode and the dialog entrance
@@ -162,21 +186,48 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 	);
 
 	return (
-		<DialogEditor ref={codeAreaContainerRef}>
-			<CodeArea
-				editorDidMount={handleMount}
-				fontFamily={prefs.passageEditorFontFamily}
-				fontScale={prefs.passageEditorFontScale}
-				id={`passage-dialog-passage-text-code-area-${passage.id}`}
-				label={t('dialogs.passageEdit.passageTextEditorLabel')}
-				labelHidden
-				onBlur={flushPendingChange}
-				onChangeEditor={onEditorChange}
-				onChangeText={handleLocalChangeText}
-				options={options}
-				useCodeMirror={prefs.useCodeMirror}
-				value={localText}
+		<>
+			<ChoiceComposer
+				disabled={disabled}
+				formatName={storyFormat.name}
+				formatVersion={storyFormat.version}
+				id={passage.id}
+				passageNames={story.passages.map(p => p.name)}
+				onAdd={source => {
+					const editor = prefs.useCodeMirror ? editorRef.current : undefined;
+					const text = editor ? editor.getValue() : localText;
+					const addition = `${text ? '\n\n' : ''}${source}`;
+					if (editor) {
+						editor.replaceRange(addition, editor.posFromIndex(text.length));
+						editor.focus();
+					} else {
+						// A controlled textarea does not create a native undo entry for
+						// programmatic value changes. Record this as one story action,
+						// including any newly linked passage, in the main Undo toolbar.
+						window.clearTimeout(onChangeTimeout.current);
+						onChangeTimeout.current = undefined;
+						setLocalText(text + addition);
+						onChange(text + addition, t('studio.choice.undo'));
+						codeAreaContainerRef.current?.querySelector('textarea')?.focus();
+					}
+				}}
 			/>
-		</DialogEditor>
+			<DialogEditor ref={codeAreaContainerRef}>
+				<CodeArea
+					editorDidMount={handleMount}
+					fontFamily={prefs.passageEditorFontFamily}
+					fontScale={prefs.passageEditorFontScale}
+					id={`passage-dialog-passage-text-code-area-${passage.id}`}
+					label={t('dialogs.passageEdit.passageTextEditorLabel')}
+					labelHidden
+					onBlur={flushPendingChange}
+					onChangeEditor={onEditorChange}
+					onChangeText={handleLocalChangeText}
+					options={options}
+					useCodeMirror={prefs.useCodeMirror}
+					value={localText}
+				/>
+			</DialogEditor>
+		</>
 	);
 };

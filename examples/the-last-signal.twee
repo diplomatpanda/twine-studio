@@ -1,0 +1,19 @@
+:: StoryTitle
+The Last Signal
+
+:: StoryData
+{
+  "ifid": "1C80535B-DC94-4021-BF4F-E4D2FE24A9EE",
+  "format": "Harlowe",
+  "format-version": "3.3.9",
+  "start": "Untitled Passage"
+}
+
+:: Untitled Passage {"position":"400,300","size":"100,100"}
+A radio whispers your name. [[Answer the signal|Answer]] or [[Turn it off|Silence]]
+
+:: Answer {"position":"337,425","size":"100,100"}
+You answer. Across the years, your daughter hears you. The signal becomes a promise. The End.
+
+:: Silence {"position":"462,425","size":"100,100"}
+You turn the dial to silence. Outside, dawn arrives on time. For once, tomorrow belongs to you. The End.

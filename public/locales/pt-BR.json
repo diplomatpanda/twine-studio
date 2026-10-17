@@ -10,7 +10,7 @@
   },
   "common": {
     "add": "Adicionar",
-    "appName": "Twine",
+		"appName": "Twine Studio",
     "back": "Voltar",
     "build": "Compilar",
     "cancel": "Cancelar",

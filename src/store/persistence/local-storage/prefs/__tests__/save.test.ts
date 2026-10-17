@@ -1,5 +1,6 @@
 import {save} from '../save';
 import {fakePrefs} from '../../../../../test-util';
+import {storageKey} from '../../keys';
 
 describe('prefs local storage save', () => {
 	beforeEach(() => window.localStorage.clear());
@@ -10,14 +11,14 @@ describe('prefs local storage save', () => {
 
 		save(prefs);
 
-		const ids = window.localStorage.getItem('twine-prefs')!.split(',');
+		const ids = window.localStorage.getItem(storageKey('prefs'))!.split(',');
 
 		expect(ids.length).toBe(Object.keys(prefs).length);
 
 		const saved: any = {};
 
 		ids.forEach(id => {
-			const savedPref = window.localStorage.getItem(`twine-prefs-${id}`);
+			const savedPref = window.localStorage.getItem(storageKey('prefs', id));
 
 			expect(typeof savedPref).toBe('string');
 			const restored = JSON.parse(savedPref as string);

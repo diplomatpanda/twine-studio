@@ -1,4 +1,25 @@
-## twinejs
+# Twine Studio
+
+An independent, in-development fork of Twine 2.12.1. Not endorsed by the Twine
+project. Upstream history, attribution and GPL-3.0 license are retained.
+
+Run `npm ci`, then `npm start` and open the local URL printed by Vite. Run
+`npm run build:web` for the standalone `dist/web` browser app and copied Electron
+renderer. Run `npm run build:electron-main` for the desktop main process.
+`npm run test:ci`, `npm run lint`, and `npm run e2e -- --project=chromium` verify
+the application; first install test browsers with `npx playwright install chromium`.
+
+The passage editor adds a plain-language **Add choice** helper for Harlowe 3 and
+SugarCube 2. Enter the text your reader sees and an existing or new destination.
+The link is appended to your passage; normal source editing remains available.
+
+See [release readiness](docs/release-readiness.md), [product plan](docs/product-plan.md),
+[compatibility](docs/compatibility-matrix.md), and [provenance](docs/fork-provenance.md).
+The original example [The Last Signal](examples/the-last-signal.html) is a playable
+three-passage story that can also be imported for editing. Its original prose is
+CC0; the embedded Harlowe runtime retains its separate license.
+
+## Upstream Twine documentation and attribution
 
 by Chris Klimas, Lorenzo Ancora, Leon Arnott, Daithi O Crualaoich, Ingrid Cheung,
 Thomas Michael Edwards, Micah Fitch, Juhana Leinonen, Michael Savich, and Ross Smith
@@ -23,9 +44,9 @@ Binary packages for Twine are available on the
 and Linux. Community-created builds exist on other platforms, such as the Snap
 Store or Arch User Repository. As always, only install from sources you trust.
 
-### INSTALL
+### Development
 
-Run `npm install` at the top level of the directory to install all goodies.
+Run `npm ci` at the top level to install the locked dependencies.
 
 Working with the documentation requires installing
 [mdbook](https://rust-lang.github.io/mdBook/), which is not a Node-based
@@ -37,18 +58,15 @@ your operating system's package manager.
 Run `npm start` to begin serving a development version of Twine locally. This
 server will automatically update with changes you make.
 
-Run `npm run start:electron` to run a development version of the Electron app.
-**Running this can damage files in your Twine storied folder. Take a backup copy
-of this folder before proceeding.** Most of the app will automatically update as
-you work, but if you want the app to read story files initially again, you will
-need to restart the process.
+Run `npm run start:electron` to run a development version of Twine Studio. It
+uses the fork's own profile and Documents folders. For a disposable verification
+profile, build web and Electron first, then run `node scripts/verify-desktop.cjs`.
 
 To create a release, run `npm run build`. Finished files will be found under
 `dist/`. In order to build Windows apps on macOS or Linux, you will need to have
 [Wine](https://www.winehq.org/) and [makensis](http://nsis.sourceforge.net/)
-installed. A file named `2.json` is created under `dist/` which contains
-information relevant to the autoupdater process, and is currently posted to
-https://twinery.org/latestversion/2.json.
+installed. Packaging has not yet been accepted for public release. The fork does
+not use upstream Twine's application update feed.
 
 The build process looks for these environment variables when notarizing a macOS
 build:

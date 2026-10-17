@@ -15,7 +15,7 @@ export default defineConfig({
 	define: {
 		// Make app name and version available to code.
 		// https://stackoverflow.com/a/74860417/7569568
-		'process.env.VITE_APP_NAME': JSON.stringify(packageJson.name),
+		'process.env.VITE_APP_NAME': JSON.stringify(packageJson.productName),
 		'process.env.VITE_APP_VERSION': JSON.stringify(packageJson.version)
 	},
 	plugins: [
@@ -33,6 +33,8 @@ export default defineConfig({
 		react(),
 		VitePWA({
 			manifest: {
+				name: 'Twine Studio',
+				short_name: 'Twine Studio',
 				icons: [
 					{
 						src: './icons/pwa.png',
@@ -55,6 +57,6 @@ export default defineConfig({
 		})
 	],
 	server: {
-		open: true
+		open: false
 	}
 });

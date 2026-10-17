@@ -172,13 +172,31 @@ describe('initIpc()', () => {
 		});
 	});
 
-	it('adds a listener for save-json events that calls openWithTempFile()', async () => {
-		const listener = onMock.mock.calls.find(call => call[0] === 'save-json');
-		const testData = {};
+	describe('the listener it adds for save-json events', () => {
+		const getListener = () =>
+			onMock.mock.calls.find(call => call[0] === 'save-json');
 
-		expect(listener).not.toBeUndefined();
-		listener[1]({}, 'test-filename', testData);
-		expect(saveJsonFileMock).toHaveBeenCalledWith('test-filename', testData);
+		it.each(['prefs.json', 'story-formats.json'])(
+			'accepts the renderer filename %s', async filename => {
+				const testData = {};
+
+				const listener = getListener();
+				expect(listener).not.toBeUndefined();
+				await listener![1]({}, filename, testData);
+				expect(saveJsonFileMock).toHaveBeenCalledWith(filename, testData);
+			}
+		);
+
+		it.each(['test-filename.json', '../prefs.json', '..\\prefs.json', 'C:\\temp\\prefs.json'])(
+			'rejects an unsafe filename %s before writing', async filename => {
+				const listener = getListener();
+				expect(listener).not.toBeUndefined();
+				await expect(listener![1]({}, filename, {})).rejects.toThrow(
+					'Invalid JSON filename.'
+				);
+				expect(saveJsonFileMock).not.toHaveBeenCalledWith(filename, {});
+			}
+		);
 	});
 
 	describe('the listener it adds for save-story-html events', () => {

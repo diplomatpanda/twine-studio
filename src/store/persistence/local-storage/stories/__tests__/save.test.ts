@@ -9,6 +9,7 @@ import {
 } from '../save';
 import {Story} from '../../../../stories/stories.types';
 import {fakeStory} from '../../../../../test-util';
+import {storageKey} from '../../keys';
 
 describe('stories local storage save', () => {
 	let story: Story;
@@ -22,11 +23,11 @@ describe('stories local storage save', () => {
 			storyIds: story.id
 		};
 		window.localStorage.setItem(
-			`twine-passages-${story.passages[0].id}`,
+			storageKey('passages', story.passages[0].id),
 			JSON.stringify(story.passages[0])
 		);
 		window.localStorage.setItem(
-			`twine-stories-${story.id}`,
+			storageKey('stories', story.id),
 			JSON.stringify({...story, passages: undefined})
 		);
 	});
@@ -36,8 +37,8 @@ describe('stories local storage save', () => {
 		it('passes a transaction object to the updater callback containing story and passage IDs in local storage', () => {
 			const updater = jest.fn();
 
-			window.localStorage.setItem('twine-passages', 'a,b,c');
-			window.localStorage.setItem('twine-stories', 'd,e,f');
+			window.localStorage.setItem(storageKey('passages'), 'a,b,c');
+			window.localStorage.setItem(storageKey('stories'), 'd,e,f');
 			doUpdateTransaction(updater);
 			expect(updater.mock.calls).toEqual([
 				[{passageIds: 'a,b,c', storyIds: 'd,e,f'}]
@@ -56,10 +57,10 @@ describe('stories local storage save', () => {
 				transaction.passageIds = 'update1,update2';
 				transaction.storyIds = 'update3,update4';
 			});
-			expect(window.localStorage.getItem('twine-passages')).toBe(
+				expect(window.localStorage.getItem(storageKey('passages'))).toBe(
 				'update1,update2'
 			);
-			expect(window.localStorage.getItem('twine-stories')).toBe(
+				expect(window.localStorage.getItem(storageKey('stories'))).toBe(
 				'update3,update4'
 			);
 		});
@@ -70,7 +71,7 @@ describe('stories local storage save', () => {
 
 		it('deletes the passage from local storage', () =>
 			expect(
-				window.localStorage.getItem(`twine-passages-${story.passages[0].id}`)
+				window.localStorage.getItem(storageKey('passages', story.passages[0].id))
 			).toBeNull());
 
 		it('removes the passage ID from the transaction', () =>
@@ -82,7 +83,7 @@ describe('stories local storage save', () => {
 
 		it('deletes the passage from local storage', () =>
 			expect(
-				window.localStorage.getItem(`twine-passages-${story.passages[0].id}`)
+				window.localStorage.getItem(storageKey('passages', story.passages[0].id))
 			).toBeNull());
 
 		it('removes the passage ID from the transaction', () =>
@@ -94,7 +95,7 @@ describe('stories local storage save', () => {
 
 		it('deletes the passage from local storage', () =>
 			expect(
-				window.localStorage.getItem(`twine-stories-${story.id}`)
+				window.localStorage.getItem(storageKey('stories', story.id))
 			).toBeNull());
 
 		it('removes the story ID from the transaction', () =>
@@ -102,7 +103,7 @@ describe('stories local storage save', () => {
 
 		it('takes no action related to child passages', () => {
 			expect(
-				window.localStorage.getItem(`twine-passages-${story.passages[0].id}`)
+				window.localStorage.getItem(storageKey('passages', story.passages[0].id))
 			).not.toBeNull();
 			expect(transaction.passageIds).toBe(story.passages[0].id);
 		});
@@ -118,7 +119,7 @@ describe('stories local storage save', () => {
 
 		it('serializes the story to local storage', () =>
 			expect(
-				JSON.parse(window.localStorage.getItem(`twine-stories-${story.id}`)!)
+				JSON.parse(window.localStorage.getItem(storageKey('stories', story.id))!)
 			).toEqual({
 				...story,
 				lastUpdate: expect.any(String),
@@ -130,7 +131,7 @@ describe('stories local storage save', () => {
 
 		it('does not serialize passages to local storage', () =>
 			expect(
-				window.localStorage.getItem(`twine-passages-${story.passages[0].id}`)!
+				window.localStorage.getItem(storageKey('passages', story.passages[0].id))!
 			).toBeNull());
 
 		it('does not place passage IDs in the transaction', () =>
@@ -148,7 +149,7 @@ describe('stories local storage save', () => {
 		it('serializes the passage to local storage', () =>
 			expect(
 				JSON.parse(
-					window.localStorage.getItem(`twine-passages-${story.passages[0].id}`)!
+					window.localStorage.getItem(storageKey('passages', story.passages[0].id))!
 				)
 			).toEqual(story.passages[0]));
 
@@ -157,7 +158,7 @@ describe('stories local storage save', () => {
 
 		it('does not serialize the parent story to local storage', () =>
 			expect(
-				window.localStorage.getItem(`twine-stories-${story.id}`)!
+				window.localStorage.getItem(storageKey('stories', story.id))!
 			).toBeNull());
 
 		it('does not place the parent story ID in the transaction', () =>

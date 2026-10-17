@@ -1,7 +1,11 @@
 import {loadJsonFile, loadJsonFileSync, saveJsonFile} from '../json-file';
 import {readJson, readJsonSync, writeJson} from 'fs-extra';
+import {join} from 'path';
 
 jest.mock('fs-extra');
+
+const mockUserDataFile = (filename: string) =>
+	join('mock-electron-app-path-userData', filename);
 
 describe('loadJsonFile()', () => {
 	const readJsonMock = readJson as jest.Mock;
@@ -11,9 +15,7 @@ describe('loadJsonFile()', () => {
 
 		readJsonMock.mockResolvedValue(mockData);
 		expect(await loadJsonFile('test.json')).toBe(mockData);
-		expect(readJsonMock.mock.calls).toEqual([
-			['mock-electron-app-path-userData/test.json']
-		]);
+		expect(readJsonMock.mock.calls).toEqual([[mockUserDataFile('test.json')]]);
 	});
 
 	it('rejects if there is an error reading the file', async () => {
@@ -33,7 +35,7 @@ describe('loadJsonFileSync()', () => {
 		readJsonSyncMock.mockReturnValue(mockData);
 		expect(loadJsonFileSync('test.json')).toBe(mockData);
 		expect(readJsonSyncMock.mock.calls).toEqual([
-			['mock-electron-app-path-userData/test.json']
+			[mockUserDataFile('test.json')]
 		]);
 	});
 
@@ -55,7 +57,7 @@ describe('saveJsonFile()', () => {
 
 		await saveJsonFile('test.json', mockData);
 		expect(writeJsonMock.mock.calls).toEqual([
-			['mock-electron-app-path-userData/test.json', mockData]
+			[mockUserDataFile('test.json'), mockData]
 		]);
 	});
 

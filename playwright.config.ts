@@ -99,8 +99,10 @@ const config: PlaywrightTestConfig = {
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: 'npm run start',
-		port: 5173
+		command:
+			'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5189 --strictPort',
+		url: 'http://127.0.0.1:5189',
+		reuseExistingServer: false
 	}
 };
 

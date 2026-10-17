@@ -1,7 +1,14 @@
 import {readFile} from 'fs-extra';
+import {join} from 'path';
 import {getUserCss} from '../user-css';
 
 jest.mock('fs-extra');
+
+const mockUserCssPath = join(
+	'mock-electron-app-path-documents',
+	'common.appName',
+	'electron.userCss.filename'
+);
 
 describe('getUserCss', () => {
 	const readFileMock = readFile as jest.Mock;
@@ -10,12 +17,7 @@ describe('getUserCss', () => {
 		readFileMock.mockReturnValue('mock-css');
 
 		expect(await getUserCss()).toBe('mock-css');
-		expect(readFileMock.mock.calls).toEqual([
-			[
-				'mock-electron-app-path-documents/common.appName/electron.userCss.filename',
-				'utf8'
-			]
-		]);
+		expect(readFileMock.mock.calls).toEqual([[mockUserCssPath, 'utf8']]);
 	});
 
 	it('returns undefined and  if the file could not be read', async () => {

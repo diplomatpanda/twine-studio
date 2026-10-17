@@ -1,8 +1,9 @@
 import {StoryFormatsState} from '../../../story-formats/story-formats.types';
+import {storageKey} from '../keys';
 
 export async function load(): Promise<StoryFormatsState> {
 	const result: StoryFormatsState = [];
-	const serialized = window.localStorage.getItem('twine-storyformats');
+	const serialized = window.localStorage.getItem(storageKey('storyformats'));
 
 	if (!serialized) {
 		return [];
@@ -11,12 +12,12 @@ export async function load(): Promise<StoryFormatsState> {
 	serialized.split(',').forEach(id => {
 		try {
 			const serializedFormat = window.localStorage.getItem(
-				`twine-storyformats-${id}`
+				storageKey('storyformats', id)
 			);
 
 			if (!serializedFormat) {
 				console.warn(
-					`No story format stored at twine-storyformats-${id}, skipping`
+					`No story format stored at ${storageKey('storyformats', id)}, skipping`
 				);
 				return;
 			}
@@ -25,7 +26,7 @@ export async function load(): Promise<StoryFormatsState> {
 		} catch (e) {
 			console.warn(
 				`Story format ${id} had corrupt serialized value, skipping`,
-				window.localStorage.getItem(`twine-storyformats-${id}`)
+				window.localStorage.getItem(storageKey('storyformats', id))
 			);
 		}
 	});

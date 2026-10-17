@@ -5,6 +5,7 @@
 
 import {Passage, Story} from '../../../stories/stories.types';
 import {addUnique, remove} from '../comma-list';
+import {storageKey} from '../keys';
 
 export interface StorageTransaction {
 	passageIds: string;
@@ -21,14 +22,14 @@ export type StorageUpdater = (transaction: StorageTransaction) => void;
  */
 export function doUpdateTransaction(updater: StorageUpdater) {
 	const transaction = {
-		passageIds: window.localStorage.getItem('twine-passages') ?? '',
-		storyIds: window.localStorage.getItem('twine-stories') ?? ''
+		passageIds: window.localStorage.getItem(storageKey('passages')) ?? '',
+		storyIds: window.localStorage.getItem(storageKey('stories')) ?? ''
 	};
 
 	updater(transaction);
 
-	window.localStorage.setItem('twine-stories', transaction.storyIds);
-	window.localStorage.setItem('twine-passages', transaction.passageIds);
+	window.localStorage.setItem(storageKey('stories'), transaction.storyIds);
+	window.localStorage.setItem(storageKey('passages'), transaction.passageIds);
 }
 
 /**
@@ -45,7 +46,7 @@ export function saveStory(transaction: StorageTransaction, story: Story) {
 	// as those are serialized under separate keys.
 
 	window.localStorage.setItem(
-		`twine-stories-${story.id}`,
+		storageKey('stories', story.id),
 		JSON.stringify({...story, passages: undefined})
 	);
 }
@@ -60,7 +61,7 @@ export function deleteStory(transaction: StorageTransaction, story: Story) {
 	}
 
 	transaction.storyIds = remove(transaction.storyIds, story.id);
-	window.localStorage.removeItem(`twine-stories-${story.id}`);
+	window.localStorage.removeItem(storageKey('stories', story.id));
 }
 
 /**
@@ -73,7 +74,7 @@ export function savePassage(transaction: StorageTransaction, passage: Passage) {
 
 	transaction.passageIds = addUnique(transaction.passageIds, passage.id);
 	window.localStorage.setItem(
-		`twine-passages-${passage.id}`,
+		storageKey('passages', passage.id),
 		JSON.stringify(passage)
 	);
 }
@@ -100,5 +101,5 @@ export function deletePassageById(
 	passageId: string
 ) {
 	transaction.passageIds = remove(transaction.passageIds, passageId);
-	window.localStorage.removeItem(`twine-passages-${passageId}`);
+	window.localStorage.removeItem(storageKey('passages', passageId));
 }

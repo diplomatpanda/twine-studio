@@ -10,7 +10,7 @@
 	},
 	"common": {
 		"add": "Add",
-		"appName": "Twine",
+		"appName": "Twine Studio",
 		"back": "Back",
 		"build": "Build",
 		"cancel": "Cancel",
@@ -159,7 +159,7 @@
 			"license": "This application is released under the <a href=\"https://www.gnu.org/licenses/gpl-3.0.html\">GPL v3 license</a>, but any work created with it may be released under any terms, including commercial ones.",
 			"localizationHeader": "Localizations",
 			"title": "About Twine {{version}}",
-			"twineDescription": "Twine is an open-source application for telling interactive, nonlinear stories."
+			"twineDescription": "Twine Studio is an independent fork of Twine for writing interactive, nonlinear stories. It is not endorsed by the Twine project."
 		},
 		"appDonation": {
 			"donate": "Donate To Twine Development",
@@ -391,14 +391,14 @@
 			}
 		},
 		"welcome": {
-			"autosave": "<p>There's now a folder named Twine in your Documents folder. Inside that is a Stories folder, where all your work will be saved. Twine saves as you work, so you don't have to worry about remembering to save it yourself. You can always open the folder your stories are saved to by using the <strong>Show Library</strong> item in the <strong>Twine</strong> menu.</p><p>Because Twine is always saving your work, the files in your story library will be locked from editing while Twine is open.</p><p>If you'd like to open a Twine story file you received from someone else, you can import it into your library using the <strong>Import From File</strong> link in the story list.</p>",
+			"autosave": "<p>Your desktop stories are saved in Documents/Twine Studio/Stories by default. Use Show Library to find them. Keep exported backups of important work.</p><p>To bring in an existing story, use Import From File in the library. Studio does not automatically migrate your original Twine library.</p>",
 			"autosaveTitle": "Your work is automatically saved.",
 			"browserStorage": "<p>That means you don't need to create an account to use Twine 2, and everything you create isn't stored on a server somewhere else&mdash;it stays right in your browser.</p><p>Two <strong>very important</strong> things to remember, though. Since your work is saved only in your browser, if you clear its saved data, then you'll lose your work! Not good. Remember to use that <strong>Archive</strong> button often. You can also publish individual stories to files using the menu on each story in the story list. Both archive and story files can always be re-imported into Twine.</p><p>Secondly, <strong>anyone who can use this browser can see and make changes to your work.</strong> So if you've got a nosy kid brother, look into setting up a separate profile for yourself.</p>",
 			"browserStorageTitle": "Your work is only saved in your browser",
 			"done": "<p>Thanks for reading, and have fun with Twine.</p>",
 			"doneTitle": "That's it!",
 			"gotoStoryList": "Go to the Story List",
-			"greeting": "<p>Twine is an open-source tool for telling interactive, nonlinear stories. There are a few things you should know before you get started.</p>",
+			"greeting": "<p>Welcome to <strong>Twine Studio</strong>, an independent fork of Twine. Write a passage, add choices, and play your story.</p><p>You can start writing immediately. AI is not required. This fork is not endorsed by the Twine project.</p>",
 			"greetingTitle": "Hi!",
 			"tellMeMore": "Tell Me More",
 			"help": "<p><strong>If you've never used Twine before, then welcome!</strong> The <a href=\"https://twinery.org/cookbook\">Twine Cookbook</a> is a great resource for learning how to use it. If you haven't used Twine before, it's a great place to start.</p>",
@@ -451,5 +451,19 @@
 		"removeTag": "Remove Tag",
 		"renameTag": "Rename Tag",
 		"replaceAllText": "Replace All"
+	},
+	"studio": {
+		"choice": {
+			"add": "Add choice",
+			"help": "Add a choice at the end of this passage. Your reader will see the choice text.",
+			"label": "Choice text",
+			"destination": "Destination passage",
+			"existing": "This choice will lead to the existing passage.",
+			"new": "A new passage will be created for you.",
+			"plainText": "Use plain words, numbers, spaces, and punctuation. Use the source editor for special syntax.",
+			"insert": "Insert choice",
+			"unsupported": "The choice helper supports Harlowe 3 and SugarCube 2. You can still write links directly in the source for this format.",
+			"undo": "Add choice"
+		}
 	}
 }

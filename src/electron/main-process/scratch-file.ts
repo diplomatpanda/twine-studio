@@ -17,7 +17,7 @@ export function scratchDirectoryPath() {
 				app.getPath('documents'),
 				i18n.t('common.appName'),
 				i18n.t('electron.scratchDirectoryName')
-		  );
+			);
 }
 
 /**
@@ -37,9 +37,15 @@ export async function cleanScratchDirectory() {
 	// milliseconds -> seconds -> minutes -> hours -> days
 	const tooOld = 1000 * 60 * (isFinite(agePref) ? agePref : 60 * 24 * 3);
 	const now = Date.now();
-	const scratchFiles = (
-		await readdir(scratchDirectoryPath(), {withFileTypes: true})
-	).filter(file => !file.isDirectory() && /\.html$/.test(file.name));
+	let scratchFiles;
+	try {
+		scratchFiles = (
+			await readdir(scratchDirectoryPath(), {withFileTypes: true})
+		).filter(file => !file.isDirectory() && /\.html$/.test(file.name));
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+		throw error;
+	}
 
 	return Promise.all(
 		scratchFiles.map(async file => {

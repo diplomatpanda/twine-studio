@@ -1,7 +1,8 @@
 import {PrefsState} from '../../../prefs';
+import {storageKey} from '../keys';
 
 export async function load(): Promise<Partial<PrefsState>> {
-	const serialized = window.localStorage.getItem('twine-prefs');
+	const serialized = window.localStorage.getItem(storageKey('prefs'));
 	const result: Partial<PrefsState> = {};
 
 	if (!serialized) {
@@ -10,10 +11,10 @@ export async function load(): Promise<Partial<PrefsState>> {
 
 	serialized.split(',').forEach(id => {
 		try {
-			const serializedPref = window.localStorage.getItem(`twine-prefs-${id}`);
+			const serializedPref = window.localStorage.getItem(storageKey('prefs', id));
 
 			if (!serializedPref) {
-				console.warn(`No preference stored at twine-prefs-${id}`);
+				console.warn(`No preference stored at ${storageKey('prefs', id)}`);
 				return;
 			}
 
@@ -23,7 +24,7 @@ export async function load(): Promise<Partial<PrefsState>> {
 		} catch (e) {
 			console.warn(
 				`Preference ${id} had corrupt serialized value, skipping`,
-				window.localStorage.getItem(`twine-prefs-${id}`),
+				window.localStorage.getItem(storageKey('prefs', id)),
 				e
 			);
 		}

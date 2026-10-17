@@ -1,0 +1,20 @@
+.choice-composer {
+	padding: 0.5rem 1rem;
+	border-bottom: 1px solid var(--light-gray);
+}
+
+.choice-composer form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.choice-composer form p {
+	flex-basis: 100%;
+	margin: 0.25rem 0;
+}
+
+.choice-composer .text-input {
+	flex: 1 1 12rem;
+}

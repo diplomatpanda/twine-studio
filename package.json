@@ -1,6 +1,6 @@
 {
-	"name": "Twine",
-	"version": "2.12.1",
+	"name": "twine-studio",
+	"version": "0.1.0-alpha.1",
 	"description": "a GUI for creating nonlinear stories",
 	"author": "Chris Klimas <chris@twinery.org>",
 	"license": "GPL-3.0",
@@ -116,7 +116,7 @@
 		"build": "run-s clean build:electron",
 		"build:docs": "cd docs/en && mdbook build",
 		"build:web": "tsc && vite build",
-		"postbuild:web": "cpy --cwd 'dist/web' './**' '../../electron-build/renderer'; cd dist && cross-replace zip -r twine-$npm_package_version-web.zip web && cd ..",
+		"postbuild:web": "node scripts/prepare-electron-renderer.cjs",
 		"build:electron": "npm-run-all --parallel build:web build:electron-main --serial build:electron-bundle",
 		"build:electron-main": "tsc --project tsconfig.electron.json",
 		"build:electron-bundle": "electron-builder --config electron-builder.config.js --linux --mac --windows --publish=never",
@@ -125,11 +125,13 @@
 		"lint": "eslint src",
 		"start": "vite",
 		"start:docs": "cd docs/en && mdbook serve",
-		"start:electron": "NODE_ENV=development npm-run-all --serial clean --parallel build:web build:electron-main --serial start:electron:boot",
+		"start:electron": "npm-run-all --serial clean --parallel build:web build:electron-main --serial start:electron:boot",
 		"start:electron:boot": "electron electron-build/main/src/electron/main-process/index.js",
 		"test": "jest --watch",
-		"test:coverage": "jest --coverage"
+		"test:coverage": "jest --coverage",
+		"test:ci": "jest --runInBand"
 	},
 	"homepage": "./",
-	"main": "electron-build/electron/src/electron/main-process/index.js"
+	"main": "electron-build/electron/src/electron/main-process/index.js",
+	"productName": "Twine Studio"
 }

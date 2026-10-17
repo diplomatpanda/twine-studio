@@ -61,6 +61,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
 		return (
 			<>
 				<button
+					type={props.buttonType}
 					aria-checked={ariaChecked}
 					aria-label={iconOnly ? props.label : undefined}
 					aria-pressed={selectable ? selected : undefined}

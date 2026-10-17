@@ -20,8 +20,10 @@ import {initPrefixTriggerGlobally} from '../../../codemirror/prefix-trigger';
 
 initPrefixTriggerGlobally();
 
-export interface CodeAreaProps
-	extends Omit<IControlledCodeMirror, 'onBeforeChange' | 'onBlur'> {
+export interface CodeAreaProps extends Omit<
+	IControlledCodeMirror,
+	'onBeforeChange' | 'onBlur'
+> {
 	fontFamily?: string;
 	fontScale?: number;
 	// ID is required because nesting the input inside the label causes screen
@@ -107,9 +109,8 @@ export const CodeArea: React.FC<CodeAreaProps> = props => {
 					onChange={({target}) => onChangeText(target.value)}
 					placeholder={otherProps.options?.placeholder}
 					style={style}
-				>
-					{otherProps.value}
-				</textarea>
+					value={otherProps.value}
+				/>
 			)}
 		</div>
 	);

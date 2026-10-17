@@ -1,16 +1,17 @@
 import {v4 as uuid} from '@lukeed/uuid';
 import {StoryFormatsState} from '../../../story-formats/story-formats.types';
+import {storageKey} from '../keys';
 
 export function save(state: StoryFormatsState) {
 	// Delete existing formats in local storage, since we aren't bothering to
 	// preserve ids.
 
 	const previouslySerialized =
-		window.localStorage.getItem('twine-storyformats');
+		window.localStorage.getItem(storageKey('storyformats'));
 
 	if (previouslySerialized) {
 		previouslySerialized.split(',').forEach(id => {
-			window.localStorage.removeItem(`twine-storyformats-${id}`);
+			window.localStorage.removeItem(storageKey('storyformats', id));
 		});
 	}
 
@@ -26,7 +27,7 @@ export function save(state: StoryFormatsState) {
 
 		ids.push(id);
 		window.localStorage.setItem(
-			`twine-storyformats-${id}`,
+			storageKey('storyformats', id),
 			JSON.stringify({
 				...format,
 				loadError: undefined,
@@ -37,5 +38,5 @@ export function save(state: StoryFormatsState) {
 		);
 	}
 
-	window.localStorage.setItem('twine-storyformats', ids.join(','));
+	window.localStorage.setItem(storageKey('storyformats'), ids.join(','));
 }

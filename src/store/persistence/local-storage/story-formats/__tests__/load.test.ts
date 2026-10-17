@@ -1,5 +1,6 @@
 import {load} from '../load';
 import {fakeUnloadedStoryFormat} from '../../../../../test-util';
+import {storageKey} from '../../keys';
 
 describe('story formats local storage load', () => {
 	const formatData = [fakeUnloadedStoryFormat(), fakeUnloadedStoryFormat()].map(
@@ -16,13 +17,13 @@ describe('story formats local storage load', () => {
 	afterAll(() => window.localStorage.clear());
 
 	it('restores formats', async () => {
-		window.localStorage.setItem('twine-storyformats', formatIds);
+		window.localStorage.setItem(storageKey('storyformats'), formatIds);
 		window.localStorage.setItem(
-			`twine-storyformats-${formatData[0].id}`,
+			storageKey('storyformats', formatData[0].id),
 			JSON.stringify(formatData[0])
 		);
 		window.localStorage.setItem(
-			`twine-storyformats-${formatData[1].id}`,
+			storageKey('storyformats', formatData[1].id),
 			JSON.stringify(formatData[1])
 		);
 

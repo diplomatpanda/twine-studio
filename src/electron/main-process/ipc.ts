@@ -14,6 +14,14 @@ import {loadPrefs} from './prefs';
 import {openHtmlWithScratchFile} from './scratch-file';
 import {Story} from '../../store/stories/stories.types';
 
+const allowedJsonFilenames = new Set(['prefs.json', 'story-formats.json']);
+
+function validateJsonFilename(filename: unknown): asserts filename is string {
+	if (typeof filename !== 'string' || !allowedJsonFilenames.has(filename)) {
+		throw new Error('Invalid JSON filename.');
+	}
+}
+
 export function initIpc() {
 	// We want to debounce story saves so we aren't constantly writing to disk.
 	// However, we need to have individual debounced functions per story so that
@@ -92,6 +100,7 @@ export function initIpc() {
 
 	ipcMain.on('save-json', async (event, filename: string, data: any) => {
 		try {
+			validateJsonFilename(filename);
 			await saveJsonFile(filename, data);
 		} catch (error) {
 			dialog.showErrorBox(

@@ -58,8 +58,8 @@ export const PassageEditContents: React.FC<
 	}, [error, resetError, storyFormatExtensionsEnabled]);
 
 	const handlePassageTextChange = React.useCallback(
-		(text: string) => {
-			dispatch(updatePassage(story, passage, {text}));
+		(text: string, undoDescription?: string) => {
+			dispatch(updatePassage(story, passage, {text}), undoDescription);
 		},
 		[dispatch, passage, story]
 	);

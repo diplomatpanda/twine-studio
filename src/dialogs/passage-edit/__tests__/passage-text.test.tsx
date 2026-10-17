@@ -268,6 +268,27 @@ describe('<PassageText>', () => {
 		);
 	});
 
+	it('flushes the latest edit once on unmount and cancels the timer', () => {
+		const onChange = jest.fn();
+		const {unmount} = renderComponent({onChange});
+		fireEvent.change(screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'), {target: {value: 'last draft'}});
+		unmount();
+		expect(onChange).toHaveBeenCalledWith('last draft');
+		jest.advanceTimersByTime(1500);
+		expect(onChange).toHaveBeenCalledTimes(1);
+	});
+
+	it('flushes once across browser lifecycle events and unmount', () => {
+		const onChange = jest.fn();
+		const {unmount} = renderComponent({onChange});
+		fireEvent.change(screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'), {target: {value: 'before reload'}});
+		fireEvent(window, new Event('beforeunload'));
+		fireEvent(window, new Event('pagehide'));
+		unmount();
+		jest.advanceTimersByTime(1500);
+		expect(onChange.mock.calls).toEqual([['before reload']]);
+	});
+
 	it("doesn't use CodeMirror in the code area if disabled in preferences", () => {
 		renderComponent({}, {prefs: {useCodeMirror: false}});
 		expect(screen.getByTestId('mock-code-area')!.dataset.useCodeMirror).toBe(
