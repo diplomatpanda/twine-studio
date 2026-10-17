@@ -46,37 +46,45 @@ export const FuzzyFinder: React.FC<FuzzyFinderProps> = props => {
 	);
 	useHotkeys(
 		'return',
-		() => onSelectResult(selectedResult),
+		() => {
+			if (search.length > 0 && results[selectedResult]) {
+				onSelectResult(selectedResult);
+			}
+		},
 		{
 			enableOnTags: ['INPUT'],
 			filter: () => elementIsFocused(inputRef.current)
 		},
-		[onSelectResult, selectedResult]
+		[onSelectResult, selectedResult, results, search]
 	);
 	useHotkeys(
 		'up',
 		() =>
 			setSelectedResult(value =>
-				value === 0 ? results.length - 1 : value - 1
+				results.length === 0 ? 0 : value === 0 ? results.length - 1 : value - 1
 			),
 		{
 			enableOnTags: ['INPUT'],
 			filter: () => elementIsFocused(inputRef.current)
 		},
-		[onSelectResult, selectedResult]
+		[results.length]
 	);
 	useHotkeys(
 		'down',
 		() =>
 			setSelectedResult(value =>
-				value === results.length - 1 ? 0 : value + 1
+				results.length === 0 || value >= results.length - 1 ? 0 : value + 1
 			),
 		{
 			enableOnTags: ['INPUT'],
 			filter: () => elementIsFocused(inputRef.current)
 		},
-		[onSelectResult, selectedResult]
+		[results.length]
 	);
+
+	React.useEffect(() => {
+		setSelectedResult(0);
+	}, [search]);
 
 	React.useEffect(() => {
 		// Automatically focus the search input on mount.

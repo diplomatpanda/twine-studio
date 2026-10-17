@@ -1,9 +1,7 @@
 # Twine Studio UX audit
 
-Date: 2026-10-17. This is a bounded smoke benchmark of the existing web UI at
-`http://127.0.0.1:5173` using Playwright Chromium contexts with a
-`768x1024` viewport. The test deliberately used `127.0.0.1`; `localhost` was
-out of scope because it resolves to another local app in this environment.
+Date: 2026-10-17. This is a bounded smoke benchmark of the development web UI
+using isolated Playwright Chromium contexts with a `768x1024` viewport.
 
 ## Method
 
@@ -57,3 +55,16 @@ grid positions. It did not test Electron, filesystem persistence, import/export
 of real HTML, story-format execution, long passage text, browser variation,
 screen readers, touch input, zoom levels, or repeated-run variance. No app code
 was changed for this audit.
+
+## Subsequent acceptance check
+
+`e2e/studio-large-story.spec.ts` now imports a real HTML fixture containing 240
+passages through the library UI, searches for a passage, renames it, edits it,
+reloads and publishes. Assertions verify all 240 passages survive and an incoming
+link is updated to the new name. This is a functional check, not an updated
+timing benchmark. The earlier measurements predate the storage namespace change.
+
+The check reproduced an exception on Enter with no search results. Keyboard
+selection now ignores an absent result and resets selection when the query
+changes. The regression exercises Enter/ArrowUp on an empty result set and checks
+that no browser error occurs. Complete screen-reader/touch acceptance remains open.

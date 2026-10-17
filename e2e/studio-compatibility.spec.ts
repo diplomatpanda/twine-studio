@@ -1,0 +1,104 @@
+import {test, expect} from '@playwright/test';
+import {readFile} from 'fs/promises';
+import {createServer} from 'http';
+import escape from 'lodash/escape';
+
+// These are preservation fixtures, not claims of full format-language coverage.
+for (const format of [
+	{
+		name: 'Harlowe',
+		version: '3.3.9',
+		text: '(set: $answer to 42)Answer: (print: $answer)'
+	},
+	{
+		name: 'SugarCube',
+		version: '2.37.3',
+		text: '<<set $answer = 42>>Answer: <<= $answer>>'
+	},
+	{
+		name: 'Chapbook',
+		version: '2.3.1',
+		text: 'answer: 42\n--\nAnswer: {answer}'
+	},
+	{name: 'Snowman', version: '2.1.4', text: 'Answer: <%= 6 * 7 %>'}
+]) {
+	test(`preserves ${format.name} source, script and stylesheet through import/edit/export`, async ({
+		page,
+		context
+	}, testInfo) => {
+		const title = `Compatibility ${format.name}`;
+		const script = 'window.fixtureMarker = "original script";';
+		const css = 'body { --fixture-color: #abcdef; }';
+		const fixture = `<tw-storydata name="${title}" startnode="1" creator="Fixture" creator-version="1" ifid="DA39B002-3690-4BCD-9CBE-09F7FDBE1860" format="${format.name}" format-version="${format.version}"><style role="stylesheet" type="text/twine-css">${css}</style><script role="script" type="text/twine-javascript">${script}</script><tw-passagedata pid="1" name="Start" tags="preserved" position="100,100" size="100,100">${escape(format.text)}</tw-passagedata></tw-storydata>`;
+		await page.goto('http://127.0.0.1:5189');
+		await page.getByRole('button', {name: 'Skip', exact: true}).click();
+		await page.getByRole('tab', {name: 'Library', exact: true}).click();
+		await page.getByRole('button', {name: 'Import', exact: true}).click();
+		await page
+			.locator('input[type=file]')
+			.setInputFiles({
+				name: 'fixture.html',
+				mimeType: 'text/html',
+				buffer: Buffer.from(fixture)
+			});
+		await page.getByRole('button', {name: title, exact: true}).dblclick();
+		await page.getByRole('button', {name: 'Start', exact: true}).dblclick();
+		const area = page.getByLabel('Passage Text', {exact: true});
+		await area.press('Control+End');
+		await area.type('\nA new sentence.');
+		await page.getByRole('button', {name: 'Close', exact: true}).click();
+		await page.getByRole('tab', {name: 'Build', exact: true}).click();
+		const downloadPromise = page.waitForEvent('download');
+		await page
+			.getByRole('button', {name: 'Publish to File', exact: true})
+			.click();
+		const download = await downloadPromise;
+		const path = testInfo.outputPath('roundtrip.html');
+		await download.saveAs(path);
+		const html = await readFile(path, 'utf8');
+		const preserved = await page.evaluate(html => {
+			const doc = new DOMParser().parseFromString(html, 'text/html');
+			return {
+				text: doc.querySelector('tw-passagedata')?.textContent,
+				tags: doc.querySelector('tw-passagedata')?.getAttribute('tags'),
+				script: doc.querySelector('script[role=script]')?.textContent,
+				css: doc.querySelector('style[role=stylesheet]')?.textContent
+			};
+		}, html);
+		expect(preserved).toEqual({
+			text: `${format.text}\nA new sentence.`,
+			tags: 'preserved',
+			script,
+			css
+		});
+		const server = createServer((_req, res) => {
+			res.setHeader('Content-Type', 'text/html; charset=utf-8');
+			res.end(html);
+		});
+		await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+		const player = await context.newPage();
+		try {
+			await player.goto(
+				`http://127.0.0.1:${(server.address() as {port: number}).port}`
+			);
+			await expect(player.locator('body')).toContainText('Answer: 42');
+			await expect(player.locator('body')).toContainText('A new sentence.');
+			expect(
+				await player.evaluate(
+					() => (window as unknown as {fixtureMarker: string}).fixtureMarker
+				)
+			).toBe('original script');
+			expect(
+				await player.evaluate(() =>
+					getComputedStyle(document.body)
+						.getPropertyValue('--fixture-color')
+						.trim()
+				)
+			).toBe('#abcdef');
+			await expect(player.locator('tw-error, .error')).toHaveCount(0);
+		} finally {
+			await player.close();
+			await new Promise<void>(resolve => server.close(() => resolve()));
+		}
+	});
+}

@@ -57,6 +57,7 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 	}
 
 	function handleSelectResult(index: number) {
+		if (!matches[index]) return;
 		setCenter(matches[index]);
 		dispatch(selectPassage(story, matches[index], true));
 		setSearch('');

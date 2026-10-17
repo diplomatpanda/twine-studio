@@ -12,6 +12,9 @@ the application; first install test browsers with `npx playwright install chromi
 The passage editor adds a plain-language **Add choice** helper for Harlowe 3 and
 SugarCube 2. Enter the text your reader sees and an existing or new destination.
 The link is appended to your passage; normal source editing remains available.
+**Story logic** adds yes/no facts, numeric values and conditional choices for
+those formats. See the [writing guide](docs/getting-started-studio.md) for setup
+and undo behavior. Other formats retain their source editing workflow.
 
 See [release readiness](docs/release-readiness.md), [product plan](docs/product-plan.md),
 [compatibility](docs/compatibility-matrix.md), and [provenance](docs/fork-provenance.md).

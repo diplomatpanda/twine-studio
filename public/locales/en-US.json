@@ -453,6 +453,27 @@
 		"replaceAllText": "Replace All"
 	},
 	"studio": {
+		"fact": {
+			"add": "Story logic",
+			"help": "Append a fact or conditional choice to this passage. Remembering a value happens every time the reader visits, in source order.",
+			"action": "Action",
+			"remember": "Remember a value",
+			"condition": "Show a choice when",
+			"name": "Fact name",
+			"value": "Value",
+			"yes": "Yes",
+			"no": "No",
+			"number": "Number",
+			"comparison": "Comparison",
+			"eq": "Equals",
+			"gte": "At least",
+			"lte": "At most",
+			"conditionHelp": "Remember this fact's starting value in the first passage before using it in a condition. Use the same name and value type throughout. A new destination will be created if needed.",
+			"nameHelp": "Use a short name such as clue or trust: start with a letter, then use letters, numbers or underscores (up to 40 characters). Numbers may range from -1 billion to 1 billion.",
+			"invalid": "Check the fact name, value and any choice fields. Choice text and destination must use plain text.",
+			"insert": "Insert story logic",
+			"undo": "Add story logic"
+		},
 		"choice": {
 			"add": "Add choice",
 			"help": "Add a choice at the end of this passage. Your reader will see the choice text.",

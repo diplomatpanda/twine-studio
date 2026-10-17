@@ -9,6 +9,7 @@ import {useCodeMirrorPassageHints} from '../../store/use-codemirror-passage-hint
 import {useFormatCodeMirrorMode} from '../../store/use-format-codemirror-mode';
 import {codeMirrorOptionsFromPrefs} from '../../util/codemirror-options';
 import {ChoiceComposer} from '../../components/passage/choice-composer';
+import {FactComposer} from '../../components/passage/fact-composer';
 
 export interface PassageTextProps {
 	disabled?: boolean;
@@ -185,6 +186,23 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 		]
 	);
 
+	function addSource(source: string, undoDescription: string) {
+		const editor = prefs.useCodeMirror ? editorRef.current : undefined;
+		const text = editor ? editor.getValue() : localText;
+		const addition = `${text ? '\n\n' : ''}${source}`;
+		if (editor) {
+			editor.replaceRange(addition, editor.posFromIndex(text.length));
+			editor.focus();
+		} else {
+			// Programmatic textarea updates need a story undo entry.
+			window.clearTimeout(onChangeTimeout.current);
+			onChangeTimeout.current = undefined;
+			setLocalText(text + addition);
+			onChange(text + addition, undoDescription);
+			codeAreaContainerRef.current?.querySelector('textarea')?.focus();
+		}
+	}
+
 	return (
 		<>
 			<ChoiceComposer
@@ -193,24 +211,15 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 				formatVersion={storyFormat.version}
 				id={passage.id}
 				passageNames={story.passages.map(p => p.name)}
-				onAdd={source => {
-					const editor = prefs.useCodeMirror ? editorRef.current : undefined;
-					const text = editor ? editor.getValue() : localText;
-					const addition = `${text ? '\n\n' : ''}${source}`;
-					if (editor) {
-						editor.replaceRange(addition, editor.posFromIndex(text.length));
-						editor.focus();
-					} else {
-						// A controlled textarea does not create a native undo entry for
-						// programmatic value changes. Record this as one story action,
-						// including any newly linked passage, in the main Undo toolbar.
-						window.clearTimeout(onChangeTimeout.current);
-						onChangeTimeout.current = undefined;
-						setLocalText(text + addition);
-						onChange(text + addition, t('studio.choice.undo'));
-						codeAreaContainerRef.current?.querySelector('textarea')?.focus();
-					}
-				}}
+				onAdd={source => addSource(source, t('studio.choice.undo'))}
+			/>
+			<FactComposer
+				disabled={disabled}
+				formatName={storyFormat.name}
+				formatVersion={storyFormat.version}
+				id={passage.id}
+				passageNames={story.passages.map(p => p.name)}
+				onAdd={source => addSource(source, t('studio.fact.undo'))}
 			/>
 			<DialogEditor ref={codeAreaContainerRef}>
 				<CodeArea

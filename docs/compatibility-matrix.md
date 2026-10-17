@@ -5,18 +5,23 @@ Parser acceptance alone is not a runtime compatibility claim.
 
 | Format | Bundled versions | Visual choice generation | Runtime evidence |
 | --- | --- | --- | --- |
-| Harlowe | 1.2.4, 2.1.0, 3.3.9 | Major 3 only | 3.3.9 generated-link export and ending pass in enhanced/basic editors |
-| SugarCube | 1.0.35, 2.37.3 | Major 2 only | 2.37.3 generated-link export and ending pass in enhanced editor |
-| Chapbook | 1.2.3, 2.3.1 | Source editing | Broader runtime/round-trip checks pending |
-| Snowman | 1.5.0, 2.1.4 | Source editing | Broader runtime/round-trip checks pending |
+| Harlowe | 1.2.4, 2.1.0, 3.3.9 | Major 3 only | 3.3.9 links, clue/score conditions and independent endings; native-source/script/CSS round trip |
+| SugarCube | 1.0.35, 2.37.3 | Major 2 only | 2.37.3 links, clue/score conditions and independent endings; native-source/script/CSS round trip |
+| Chapbook | 1.2.3, 2.3.1 | Source editing | 2.3.1 variable interpolation, script/CSS and edit/export round trip |
+| Snowman | 1.5.0, 2.1.4 | Source editing | 2.1.4 template expression, script/CSS and edit/export round trip |
 | Paperthin | 1.0.0 | Proofing only | Historical license notice unresolved |
 | Custom | User-installed | Source editing | No blanket compatibility claim |
 
-The helper emits only plain links and conservatively rejects special syntax in
-labels/destination names. It never converts or parses existing macros. Direct
-source editing preserves advanced names, scripts and format-specific behavior.
-Visual conditions/state operations are not yet implemented.
+The choice helper emits plain links and conservatively rejects special syntax
+in labels/destination names. Story logic adds native yes/no or numeric assignments
+and equality/threshold conditions for Harlowe 3 and SugarCube 2. Neither helper
+converts or parses existing macros. Initialization and consistent fact types are
+explicit author responsibilities. Direct source editing remains available.
 
 Native IDs, IFIDs, tags, positions, sizes, start passage, format/version, scripts,
 styles and existing export formats retain upstream handling. Comprehensive
 advanced-story and cross-format round trips remain release gates.
+
+The current round-trip fixtures are synthetic and intentionally small. They do
+not establish preservation of every custom macro, plugin, external asset or old
+format version. No visual logic support is claimed for Chapbook or Snowman.

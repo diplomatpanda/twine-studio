@@ -24,6 +24,17 @@ Status: active development; not release-ready. Baseline is Twine 2.12.1,
    protects the final second of typing during ordinary browser navigation.
 8. Desktop cleanup tolerates a missing Scratch folder on a fresh installation,
    while still reporting genuine filesystem failures.
+9. Story logic form generates native yes/no or numeric assignments and
+   conditional choices for Harlowe 3/SugarCube 2. It appends source without
+   converting existing macros; authors explicitly initialize facts.
+10. Production offline preview now finds installed formats in the service-worker
+    cache despite JSONP's callback parameter. Offline edit/save/reload/preview/
+    export passed after reproducing the original preview failure.
+11. Native source, script and CSS round-trip fixtures exercise Harlowe, SugarCube,
+    Chapbook and Snowman. Generated clue/relationship paths execute in Harlowe
+    and SugarCube and distinguish hidden from unlocked choices.
+12. A 240-passage HTML import now has search/rename/reference/edit/reload/export
+    coverage. Enter with no Go To results no longer raises an exception.
 
 ## Baseline evidence
 
@@ -50,6 +61,18 @@ counts and limits are in release-readiness.md.
 
 ## Next priorities
 
-Complete current checks and commit verified changes. Then resolve preview
-isolation, abrupt-process/storage-failure recovery, native
-format round trips, and remaining beginner workflow gaps before optional AI.
+Resolve preview isolation and format-extension trust, abrupt-process and storage-
+failure recovery, representative advanced-author projects, and remaining beginner
+workflow gaps before optional AI. This invocation's bounded pass is not product
+completion; use release-readiness.md for the acceptance gaps.
+
+## Invocation ledger
+
+The 15 bounded implementation/review iterations were: baseline and plan; fork
+identity; Windows build/test portability; IPC/dependency hardening; choice form;
+choice undo/native runtime review; licensing and provenance; browser namespace;
+interrupted typing; fresh-profile cleanup; story facts/conditions; native format
+round trips; production offline recovery; large-story navigation; final review,
+verification and documentation. Each was scoped to authoring or release reliability.
+The two verified local commits retain upstream history. No remote fork, push,
+release, deployment or integration into another checkout was performed.

@@ -52,6 +52,10 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: ['locales/**', 'pwa/**', 'story-formats/**'],
 			workbox: {
+				// JSONP adds ?callback=storyFormat to installed format URLs.
+				// The bundled files already call that fixed callback; match their
+				// precache entries so new play/export windows work while offline.
+				ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^callback$/],
 				globPatterns: ['**/*.{js,css,html,svg,woff,woff2}']
 			}
 		})
