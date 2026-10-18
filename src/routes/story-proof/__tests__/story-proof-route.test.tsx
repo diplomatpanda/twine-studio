@@ -1,4 +1,4 @@
-import {render, waitFor} from '@testing-library/react';
+import {render, screen, waitFor} from '@testing-library/react';
 import {createHashHistory} from 'history';
 import * as React from 'react';
 import {HashRouter, Route} from 'react-router-dom';
@@ -23,16 +23,15 @@ describe('<StoryProofRoute>', () => {
 		);
 	}
 
-	it('replaces the DOM with a proofing version of the story in :storyId', async () => {
+	it('opens a proofing version of the story in an isolated player', async () => {
 		const proofStory = jest.fn(
 			jest.fn(() => Promise.resolve('mock-proofed-story'))
 		);
 
 		usePublishingMock.mockReturnValue({proofStory});
 		renderComponent('/stories/123/proof');
-		await waitFor(() =>
-			expect(document.body.textContent).toBe('mock-proofed-story')
-		);
+		expect(await screen.findByTitle('components.storyPlayer.title'))
+			.toHaveAttribute('srcdoc', expect.stringContaining('mock-proofed-story'));
 		expect(proofStory.mock.calls).toEqual([['123']]);
 	});
 

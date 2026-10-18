@@ -61,7 +61,7 @@ counts and limits are in release-readiness.md.
 
 ## Next priorities
 
-Resolve preview isolation and format-extension trust, abrupt-process and full-disk
+Resolve format-extension trust, abrupt-process and full-disk
 recovery, representative advanced-author projects, and remaining beginner
 workflow gaps before optional AI. This invocation's bounded pass is not product
 completion; use release-readiness.md for the acceptance gaps.
@@ -123,3 +123,33 @@ application. An initial rename test selected the passage rename control; inspect
 the exported story metadata identified the harness mistake, which was corrected
 before accepting the result. Installed format metadata preservation is verified;
 this is not a native test of adding a custom format during shutdown.
+
+## Isolated browser preview pass
+
+Browser Play, Test and Proof now render published HTML inside an opaque-origin
+sandbox. Authored scripts cannot read editor DOM/storage, invoke a parent bridge
+or navigate the parent tab. The sandbox also propagates to its popups. Temporary
+local/session storage inside each frame keeps bundled formats working without
+sharing the editor's storage. A visible notice explains that preview saves are
+temporary; published HTML remains unchanged.
+
+The first bare-sandbox experiment broke storage-dependent formats. The temporary
+store fixed those observed failures; all four bundled current format fixtures now
+pass both preview and independent publication checks. The full Chromium suite
+passed 24 journeys, with the isolation journey extended and rerun to cover Test
+and Proof as well. Downloads, sandboxed popups, parent-access denial, navigation
+denial, temporary saves and reset on reload are exercised. Production offline
+Harlowe preview/export passed after rebuilding. The notice/frame was visually
+inspected.
+
+The focused unit checks passed 35 tests across six suites, including route
+publication options, temporary storage, accessibility and Electron URL handling.
+Lint and web/main builds pass. The rebuilt native typing and mutation harnesses
+passed again with the main-frame-only preload bridge. Electron external links
+now accept only HTTP, HTTPS and mailto schemes.
+
+Independent review found no direct parent/editor escape in this preview boundary.
+The editor's story-format loader/extensions still execute in its own context,
+and that trust boundary remains a separate release blocker. Temporary storage
+does not emulate native quotas, storage events, cookies, IndexedDB or every
+custom-format persistence feature. See preview-isolation.md.

@@ -14,14 +14,16 @@ export const app = {
 export class BrowserWindow {
 	static instances: BrowserWindow[] = [];
 
+	public readonly options: any;
 	public readonly webContents: any;
 
 	public readonly on = jest.fn();
 	public readonly once = jest.fn();
 	public readonly setEnabled = jest.fn();
 
-	constructor() {
+	constructor(options: any = {}) {
 		BrowserWindow.instances.push(this);
+		this.options = options;
 		this.webContents = {
 			executeJavaScript: jest.fn().mockResolvedValue(undefined),
 			on: jest.fn(),

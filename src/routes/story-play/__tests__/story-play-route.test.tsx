@@ -1,4 +1,4 @@
-import {render, waitFor} from '@testing-library/react';
+import {render, screen, waitFor} from '@testing-library/react';
 import {createHashHistory} from 'history';
 import * as React from 'react';
 import {HashRouter, Route} from 'react-router-dom';
@@ -23,16 +23,15 @@ describe('<StoryPlayRoute>', () => {
 		);
 	}
 
-	it('replaces the DOM with a playable version of the story in :storyId', async () => {
+	it('opens a playable version of the story in an isolated player', async () => {
 		const publishStory = jest.fn(
 			jest.fn(() => Promise.resolve('mock-published-story'))
 		);
 
 		usePublishingMock.mockReturnValue({publishStory});
 		renderComponent('/stories/123/play');
-		await waitFor(() =>
-			expect(document.body.textContent).toBe('mock-published-story')
-		);
+		expect(await screen.findByTitle('components.storyPlayer.title'))
+			.toHaveAttribute('srcdoc', expect.stringContaining('mock-published-story'));
 		expect(publishStory.mock.calls).toEqual([['123']]);
 	});
 

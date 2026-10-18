@@ -52,6 +52,14 @@ or the basic editor's main **Undo Add story logic** action. The helper does not
 infer or rewrite existing variables or macros. It does not yet offer arithmetic
 changes, a fact registry, or automatic initialization.
 
+## Previewing saved games
+
+In the browser, **Play**, **Test** and **Proof** open an isolated preview.
+Saved-game slots in that preview are temporary and reset when it reloads or closes.
+Use **Publish to File** and open the resulting HTML to test persistent saved games.
+Your authored story remains saved in the editor as usual. Desktop previews still
+open published scratch HTML in your system browser.
+
 ## If saving needs attention
 
 Keep the editor open and choose **Export story backup** in the warning panel.
@@ -77,7 +85,7 @@ not covered by that offline guarantee. Clearing site data removes browser work
 and the offline cache; keep exported backups.
 
 AI proposals and broader workflow modernization are not yet available. The
-inherited app has remaining dependency and preview-trust issues; see
+inherited app has remaining dependency and story-format trust issues; see
 release-readiness.md. Browser Studio uses its own storage namespace and desktop
 Studio uses its own application identity and default story folders. Import
 copies of existing stories explicitly; no automatic migration runs.

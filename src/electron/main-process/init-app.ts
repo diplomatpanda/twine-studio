@@ -13,6 +13,25 @@ import {getUserCss} from './user-css';
 
 let mainWindow: BrowserWindow | null = null;
 
+const externalProtocols = new Set(['http:', 'https:', 'mailto:']);
+
+function parseURL(url: string): URL | undefined {
+	try {
+		return new URL(url);
+	} catch {
+		return undefined;
+	}
+}
+
+function openExternalURL(url: string) {
+	const parsedURL = parseURL(url);
+
+	if (!parsedURL || !externalProtocols.has(parsedURL.protocol)) return false;
+
+	shell.openExternal(url);
+	return true;
+}
+
 async function flushRendererChanges() {
 	if (!mainWindow) return;
 
@@ -38,7 +57,10 @@ async function createWindow(
 		show: false,
 		webPreferences: {
 			preload: path.resolve(__dirname, './preload.js'),
-			sandbox: true
+			sandbox: true,
+			nodeIntegration: false,
+			contextIsolation: true,
+			nodeIntegrationInSubFrames: false
 		}
 	});
 	mainWindow.loadURL(
@@ -68,11 +90,11 @@ async function createWindow(
 	// Load external links in the system browser.
 
 	mainWindow.webContents.on('will-navigate', (event, url) => {
-		shell.openExternal(url);
+		openExternalURL(url);
 		event.preventDefault();
 	});
 	mainWindow.webContents.setWindowOpenHandler(({url}) => {
-		shell.openExternal(url);
+		openExternalURL(url);
 		return {action: 'deny'};
 	});
 }

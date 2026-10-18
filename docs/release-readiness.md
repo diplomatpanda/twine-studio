@@ -9,18 +9,19 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 
 - Full Jest checkpoint: **257 suites passed**, **1,816 tests passed**, 23 skipped
   and 42 TODOs. This includes browser recovery, startup failure, passage lifecycle
-  and desktop publication/close coverage. Final IPC race fixes are checked again
-  with the affected suites; unchanged suites reuse this full-run evidence.
+  and desktop publication/close coverage. Later desktop and preview changes are
+  checked with affected suites; unchanged suites reuse this full-run evidence.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
+- Final preview/Electron boundary checks: **6 suites, 35 tests passed**.
 - ESLint: no errors/warnings. TypeScript web and Electron main builds pass.
 - Production web build and renderer copy both pass; no shell copy error remains.
 - Chromium upstream smoke journeys: **6 passed**.
-- Chromium suite: **22 passed**, covering the sample's two endings, immediate
-  reload, two native fact/condition journeys, four format round trips, the
-  240-passage workflow and recovery. A separate passage-creation/map-drag recovery
-  journey passed on the same browser source, for **23 verified journeys**.
+- Chromium suite: **24 passed**, covering the sample's two endings, immediate
+  reload, native fact/condition journeys, four format round trips and previews,
+  the 240-passage workflow, recovery and preview isolation. The isolation journey
+  was also extended and rerun to exercise Test and Proof.
 - Choice/export journeys: **3 passed** (Harlowe enhanced/basic editors, SugarCube
   enhanced editor). Includes recent typing, explicit insertion, focus return,
   enhanced editor undo/redo, basic editor story undo/redo, reload, HTML publication
@@ -47,6 +48,11 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   format installation during close is not covered by that native harness.
 - New component has a passing automated axe check. This is not a full
   accessibility audit or human usability study.
+- Browser Play/Test/Proof isolate authored HTML in a sandbox with temporary
+  storage. Parent DOM/storage/bridge access and top navigation are denied;
+  popups inherit restrictions, and user-initiated downloads pass. Preview saves
+  reset on reload/close; published HTML retains its original persistence behavior.
+  See preview-isolation.md for boundaries and custom-format limitations.
 - Production offline acceptance passed after an initial online load: cached
   app reload, story creation, edit/save/reload, native Harlowe preview and HTML
   export. Reproduce with `npm run build:web` then `node scripts/verify-offline.cjs`.
@@ -56,7 +62,8 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 
 - Finish the remaining acceptance limits below, especially advanced existing
   projects, AI modification, cross-browser behavior and harder failure modes.
-- Resolve inherited preview-origin/renderer trust boundaries before credentials.
+- Browser authored previews are isolated. Resolve the separate story-format
+  loader/editor-extension trust boundary before adding credentials.
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is

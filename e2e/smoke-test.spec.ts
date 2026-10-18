@@ -125,15 +125,19 @@ test('Creates a simple story and plays it', async ({context, page}) => {
 		page.getByRole('button', {name: 'Play'}).click()
 	]);
 
-	// Trying to be as agnostic as possible about Harlowe's DOM structure. Visible
-	// locators are to distinguish from passage data that's in the DOM but not
-	// visible.
+	// The published story is isolated in the preview iframe. Visible locators
+	// distinguish passage data that's in the DOM but not visible.
+	const publishedFrame = publishedPage.frameLocator(
+		'iframe[title="Story preview"]'
+	);
 
-	await publishedPage.waitForSelector(':visible:text-is("Which way to go?")');
-	await publishedPage.locator(':visible:text-is("Left")').click();
-	await publishedPage.waitForSelector(':visible:text-is("Monsters!")');
+	await publishedFrame
+		.locator(':visible:text-is("Which way to go?")')
+		.waitFor();
+	await publishedFrame.locator(':visible:text-is("Left")').click();
+	await publishedFrame.locator(':visible:text-is("Monsters!")').waitFor();
 	await expect(
-		publishedPage.locator(':visible:text-is("Monsters!")')
+		publishedFrame.locator(':visible:text-is("Monsters!")')
 	).toBeVisible();
 
 	// Need to close the tab to reset play state. Reloading won't work.
@@ -145,8 +149,11 @@ test('Creates a simple story and plays it', async ({context, page}) => {
 		page.getByRole('button', {name: 'Play'}).click()
 	]);
 
-	await republishedPage.locator(':visible:text-is("right")').click();
+	const republishedFrame = republishedPage.frameLocator(
+		'iframe[title="Story preview"]'
+	);
+	await republishedFrame.locator(':visible:text-is("right")').click();
 	await expect(
-		republishedPage.locator(':visible:text-is("Puppies!")')
+		republishedFrame.locator(':visible:text-is("Puppies!")')
 	).toBeVisible();
 });

@@ -89,10 +89,15 @@ async function main() {
 		const previewPromise = page.waitForEvent('popup');
 		await page.getByRole('button', {name: 'Play', exact: true}).click();
 		const preview = await previewPromise;
-		await preview.locator('tw-link').filter({hasText: 'Finish'}).click();
-		await expect(preview.locator('tw-passage')).toContainText(
+		const previewFrame = preview.frameLocator('iframe[title="Story preview"]');
+		await previewFrame
+			.locator('tw-link')
+			.filter({hasText: 'Finish'})
+			.click();
+		await expect(previewFrame.locator('tw-passage')).toContainText(
 			'Saved offline. The End.'
 		);
+		await expect(previewFrame.locator('tw-error, .error')).toHaveCount(0);
 		await preview.close();
 		const downloadPromise = page.waitForEvent('download');
 		await page

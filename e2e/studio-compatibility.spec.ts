@@ -48,6 +48,21 @@ for (const format of [
 		await area.type('\nA new sentence.');
 		await page.getByRole('button', {name: 'Close', exact: true}).click();
 		await page.getByRole('tab', {name: 'Build', exact: true}).click();
+		const previewPromise = page.waitForEvent('popup');
+		await page.getByRole('button', {name: 'Play', exact: true}).click();
+		const preview = await previewPromise;
+		try {
+			const previewFrame = preview.frameLocator(
+				'iframe[title="Story preview"]'
+			);
+			await expect(previewFrame.locator('body')).toContainText('Answer: 42');
+			await expect(previewFrame.locator('body')).toContainText(
+				'A new sentence.'
+			);
+			await expect(previewFrame.locator('tw-error, .error')).toHaveCount(0);
+		} finally {
+			await preview.close();
+		}
 		const downloadPromise = page.waitForEvent('download');
 		await page
 			.getByRole('button', {name: 'Publish to File', exact: true})

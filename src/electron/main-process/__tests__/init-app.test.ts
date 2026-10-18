@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog} from 'electron';
+import {app, BrowserWindow, dialog, shell} from 'electron';
 import {initApp} from '../init-app';
 import {initIpc} from '../ipc';
 import {initLocales} from '../locales';
@@ -29,6 +29,7 @@ describe('initApp', () => {
 	const onMock = app.on as jest.Mock;
 	const quitMock = app.quit as jest.Mock;
 	const showErrorBoxMock = dialog.showErrorBox as jest.Mock;
+	const openExternalMock = shell.openExternal as jest.Mock;
 	const browserWindowMock = BrowserWindow as unknown as {
 		instances: BrowserWindow[];
 	};
@@ -150,6 +151,88 @@ describe('initApp', () => {
 	it('initializes the menu bar', async () => {
 		await initApp();
 		expect(initMenuBarMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('configures the main window with isolated sandboxed web contents', async () => {
+		await initApp();
+
+		const window = browserWindowMock.instances.at(-1)! as unknown as {
+			options: {webPreferences: Record<string, unknown>};
+		};
+		expect(window.options.webPreferences).toMatchObject({
+			sandbox: true,
+			nodeIntegration: false,
+			contextIsolation: true,
+			nodeIntegrationInSubFrames: false
+		});
+	});
+
+	it.each(['http://example.com', 'https://example.com', 'mailto:test@example.com'])(
+		'opens allowed external navigation URL %s',
+		async url => {
+			await initApp();
+
+			const window = browserWindowMock.instances.at(-1)!;
+			const webContents = window.webContents as unknown as {
+				on: jest.Mock;
+			};
+			const navigateHandler = webContents.on.mock.calls.find(
+				([event]) => event === 'will-navigate'
+			)[1];
+			const event = {preventDefault: jest.fn()};
+
+			navigateHandler(event, url);
+
+			expect(openExternalMock).toHaveBeenCalledWith(url);
+			expect(event.preventDefault).toHaveBeenCalledTimes(1);
+		}
+	);
+
+	it.each([
+		'file:///tmp/story.html',
+		'javascript:alert(1)',
+		'custom-protocol://story',
+		'not a URL'
+	])('blocks unsafe or invalid navigation URL %s', async url => {
+		await initApp();
+
+		const window = browserWindowMock.instances.at(-1)!;
+		const webContents = window.webContents as unknown as {
+			on: jest.Mock;
+		};
+		const navigateHandler = webContents.on.mock.calls.find(
+			([event]) => event === 'will-navigate'
+		)[1];
+		const event = {preventDefault: jest.fn()};
+
+		navigateHandler(event, url);
+
+		expect(openExternalMock).not.toHaveBeenCalled();
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+	});
+
+	it('opens allowed window URLs externally and denies the new window', async () => {
+		await initApp();
+
+		const window = browserWindowMock.instances.at(-1)!;
+		const setWindowOpenHandler = window.webContents
+			.setWindowOpenHandler as jest.Mock;
+		const handler = setWindowOpenHandler.mock.calls[0][0];
+
+		expect(handler({url: 'https://example.com'})).toEqual({action: 'deny'});
+		expect(openExternalMock).toHaveBeenCalledWith('https://example.com');
+	});
+
+	it('denies unsafe window URLs without opening them externally', async () => {
+		await initApp();
+
+		const window = browserWindowMock.instances.at(-1)!;
+		const setWindowOpenHandler = window.webContents
+			.setWindowOpenHandler as jest.Mock;
+		const handler = setWindowOpenHandler.mock.calls[0][0];
+
+		expect(handler({url: 'javascript:alert(1)'})).toEqual({action: 'deny'});
+		expect(openExternalMock).not.toHaveBeenCalled();
 	});
 
 	it.todo('creates the main window');

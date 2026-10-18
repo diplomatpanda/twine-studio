@@ -1,0 +1,23 @@
+.story-player {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	background: #fff;
+	color: #222;
+}
+
+.story-player-notice {
+	flex: none;
+	margin: 0;
+	padding: 0.5rem 1rem;
+	font: 0.875rem/1.4 system-ui, sans-serif;
+	border-bottom: 1px solid #ddd;
+}
+
+.story-player iframe {
+	flex: 1;
+	width: 100%;
+	min-height: 0;
+	border: 0;
+}
