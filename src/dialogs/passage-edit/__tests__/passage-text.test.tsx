@@ -63,6 +63,20 @@ describe('<PassageText>', () => {
 		).toHaveValue('mock-text');
 	});
 
+	it('writes pending text synchronously when the page exits', () => {
+		const story = fakeStory();
+		const passage = story.passages[0];
+		renderComponent(undefined, {stories: [story]});
+		fireEvent.change(
+			screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'),
+			{target: {value: 'Final text before page exit'}}
+		);
+		fireEvent(window, new Event('pagehide'));
+		expect(
+			JSON.parse(localStorage.getItem(`twine-studio-passages-${passage.id}`)!).text
+		).toBe('Final text before page exit');
+	});
+
 	it('updates the passage text if it has been changed elsewhere', () => {
 		const onChange = jest.fn();
 		const onEditorChange = jest.fn();

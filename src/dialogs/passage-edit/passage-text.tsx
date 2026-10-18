@@ -11,6 +11,8 @@ import {codeMirrorOptionsFromPrefs} from '../../util/codemirror-options';
 import {ChoiceComposer} from '../../components/passage/choice-composer';
 import {FactComposer} from '../../components/passage/fact-composer';
 import {protectUnsavedChanges} from '../../store/persistence/local-storage/transaction';
+import {doUpdateTransaction, savePassage, saveStory} from '../../store/persistence/local-storage/stories/save';
+import {isElectronRenderer} from '../../util/is-electron';
 
 export interface PassageTextProps {
 	disabled?: boolean;
@@ -67,9 +69,28 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 	// story reducer persists synchronously in the browser, before navigation.
 	const flushPendingRef = React.useRef(flushPendingChange);
 	flushPendingRef.current = flushPendingChange;
+	const persistPendingOnExit = React.useCallback(() => {
+		if (!onChangeTimeout.current || isElectronRenderer()) return;
+		try {
+			// A reducer dispatched during pagehide may not render before Firefox
+			// leaves. Write the latest editor text synchronously as a fallback.
+			doUpdateTransaction(transaction => {
+				saveStory(transaction, story);
+				savePassage(transaction, {...passage, text: onChangeText.current!});
+			});
+		} catch {
+			// The transaction retains a recoverable journal or an in-memory draft.
+			// beforeunload checks that status below when navigation can be stopped.
+		}
+	}, [passage, story]);
+	const persistPendingOnExitRef = React.useRef(persistPendingOnExit);
+	persistPendingOnExitRef.current = persistPendingOnExit;
 
 	React.useEffect(() => {
-		const flush = () => flushPendingRef.current();
+		const flush = () => {
+			persistPendingOnExitRef.current();
+			flushPendingRef.current();
+		};
 		const flushBeforeUnload = (event: BeforeUnloadEvent) => {
 			flush();
 			// The storage guard registered at module load ran before this flush.

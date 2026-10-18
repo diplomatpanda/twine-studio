@@ -74,9 +74,11 @@ the tab before writing. A stale tab stops saving and offers a backup of its
 in-memory work; separate stories can still be edited in two tabs. Page-specific
 recovery journals prevent ordinary tabs from replacing one another's journal,
 and the prior single-key journal remains recoverable. The two-tab journeys pass
-Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven, and a
-Firefox reload inside the editor debounce interval was intermittent in focused
-testing; both remain release blockers.
+Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven.
+The editor now writes pending text directly before page exit; ten consecutive
+Firefox reloads inside the debounce interval passed, as did Chromium and WebKit.
+Firefox's simulated full-storage reload still did not show a beforeunload warning,
+so that failure path remains a release blocker.
 
 ## Next priorities
 

@@ -7,8 +7,9 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The current full Jest run passed **263 suites and 1,925 tests**, with 4 skipped
-  and 41 TODOs.
+- The last full Jest checkpoint passed **263 suites and 1,925 tests**, with 4
+  skipped and 41 TODOs. The subsequent page-exit change passed its 19-test
+  passage-editor suite.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -63,6 +64,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   The latter reproduced silent loss before the post-flush navigation guard.
   The recovery panel was inspected at a desktop viewport. Forced process
   termination, actual full-disk behavior and power failure remain unverified.
+- The editor's synchronous page-exit write retained final typing in ten
+  consecutive Firefox reloads inside the debounce interval; the same journey
+  passed in Chromium and WebKit. A unit test verifies the direct write on
+  `pagehide`. The Firefox simulated full-storage warning still fails.
 - Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery
@@ -104,9 +109,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   full disks, external concurrent file edits and power failure remain unverified.
 - Simultaneous browser writes still lack an atomic cross-tab lock. Duplicated-tab
   journal ownership and repeated reload before recovery commit need validation.
-  Firefox also intermittently lost the final sentence in a reload-before-debounce test (one
-  failure in three focused repeats); Chromium's established recovery suite
-  passes. Resolve this before release.
+  Firefox's normal reload-before-debounce journey now passed ten focused repeats,
+  but the simulated full-storage reload did not fire an observable beforeunload
+  warning. Resolve that failure path before release.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime
