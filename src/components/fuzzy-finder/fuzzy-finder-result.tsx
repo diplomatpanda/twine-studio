@@ -10,17 +10,24 @@ export interface FuzzyFinderResultProps {
 	selected?: boolean;
 }
 
-export const FuzzyFinderResult: React.FC<FuzzyFinderResultProps> = props => {
+export const FuzzyFinderResult = React.forwardRef<
+	HTMLButtonElement,
+	FuzzyFinderResultProps
+>((props, ref) => {
 	const {detail, heading, onClick, selected} = props;
 
 	return (
 		<button
 			className={classNames('fuzzy-finder-result', {selected})}
+			aria-current={selected ? 'true' : undefined}
 			onClick={onClick}
+			ref={ref}
 		>
 			<IconChevronsRight />
 			<span className="heading">{heading}</span>
 			<span className="detail">{detail}</span>
 		</button>
 	);
-};
+});
+
+FuzzyFinderResult.displayName = 'FuzzyFinderResult';

@@ -101,14 +101,21 @@ export function passagesMatchingFuzzySearch(
 	count = 5
 ) {
 	if (search.trim() === '') {
-		return [];
+		return [...passages].sort(
+			(left, right) =>
+				left.name.localeCompare(right.name, undefined, {
+					numeric: true,
+					sensitivity: 'base'
+				}) || left.id.localeCompare(right.id)
+		);
 	}
 
 	const fuse = new Fuse(passages, {
 		ignoreLocation: true,
 		keys: [
 			{name: 'name', weight: 0.6},
-			{name: 'text', weight: 0.4}
+			{name: 'text', weight: 0.25},
+			{name: 'tags', weight: 0.15}
 		]
 	});
 

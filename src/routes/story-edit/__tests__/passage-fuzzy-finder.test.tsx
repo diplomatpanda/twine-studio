@@ -55,6 +55,23 @@ describe('PassageFuzzyFinder', () => {
 			).toBeInTheDocument();
 		});
 
+		it('shows all passages alphabetically before searching', () => {
+			const story = fakeStory(3);
+			story.passages[0].name = 'C passage';
+			story.passages[1].name = 'A passage';
+			story.passages[2].name = 'B passage';
+
+			renderComponent({}, story);
+
+			expect(screen.getAllByRole('button')).toHaveLength(4);
+			expect(
+				screen
+					.getAllByRole('button')
+					.slice(1)
+					.map(button => button.querySelector('.heading')?.textContent)
+			).toEqual(['A passage', 'B passage', 'C passage']);
+		});
+
 		describe('When a result is selected', () => {
 			it('centers the view on a passage and selects it when a result is selected', () => {
 				const setCenter = jest.fn();
@@ -87,8 +104,8 @@ describe('PassageFuzzyFinder', () => {
 	});
 
 	it('is accessible', async () => {
-		const {container} = renderComponent();
+		renderComponent();
 
-		expect(await axe(container)).toHaveNoViolations();
+		expect(await axe(document.querySelector('.fuzzy-finder')!)).toHaveNoViolations();
 	});
 });

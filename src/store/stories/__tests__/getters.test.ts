@@ -211,6 +211,31 @@ describe('passagesMatchingFuzzySearch', () => {
 		]);
 	});
 
+	it('returns every passage alphabetically when the search is empty', () => {
+		const unsorted = [
+			passages[3],
+			fakePassage({name: 'Passage 10'}),
+			fakePassage({name: 'Passage 2'}),
+			passages[0]
+		];
+
+		expect(passagesMatchingFuzzySearch(unsorted, '')).toEqual([
+			passages[0],
+			passages[3],
+			unsorted[2],
+			unsorted[1]
+		]);
+	});
+
+	it('ranks passage names above text and tags', () => {
+		const titleMatch = fakePassage({name: 'needle'});
+		const textMatch = fakePassage({name: 'other', text: 'needle'});
+		const tagMatch = fakePassage({name: 'another', tags: ['needle']});
+
+		expect(passagesMatchingFuzzySearch([textMatch, tagMatch, titleMatch], 'needle'))
+			.toEqual([titleMatch, textMatch, tagMatch]);
+	});
+
 	it('limits search results to the count specified', () => {
 		expect(passagesMatchingFuzzySearch(passages, 'txet', 1)).toEqual([
 			passages[0]

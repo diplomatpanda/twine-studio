@@ -29,9 +29,123 @@ describe('FuzzyFinder', () => {
 		expect(screen.getByRole('textbox')).toHaveValue('test-search');
 	});
 
+	it('selects the first result with Enter when the search is empty', () => {
+		const onSelectResult = jest.fn();
+		renderComponent({search: '', onSelectResult});
+
+		screen.getByRole('textbox').focus();
+		fireEvent.keyDown(screen.getByRole('textbox'), {
+			code: 'Enter',
+			key: 'Enter'
+		});
+
+		expect(onSelectResult).toHaveBeenCalledWith(0);
+	});
+
+	it('moves through empty-search results with the arrow keys', () => {
+		const onSelectResult = jest.fn();
+		renderComponent({
+			onSelectResult,
+			results: [
+				{detail: 'first', heading: 'first'},
+				{detail: 'second', heading: 'second'}
+			],
+			search: ''
+		});
+		const input = screen.getByRole('textbox');
+		input.focus();
+
+		fireEvent.keyDown(input, {code: 'ArrowDown', key: 'ArrowDown'});
+		fireEvent.keyDown(input, {code: 'Enter', key: 'Enter'});
+
+		expect(onSelectResult).toHaveBeenCalledWith(1);
+	});
+
+	it('announces the currently selected result', () => {
+		renderComponent({
+			results: [
+				{detail: 'first', heading: 'first'},
+				{detail: 'second', heading: 'second'}
+			],
+			search: ''
+		});
+		const input = screen.getByRole('textbox');
+		input.focus();
+
+		expect(screen.getByRole('status')).toHaveTextContent('first');
+		fireEvent.keyDown(input, {code: 'ArrowDown', key: 'ArrowDown'});
+		expect(screen.getByRole('status')).toHaveTextContent('second');
+	});
+
+	it('does not select or close while an IME composition is active', () => {
+		const onClose = jest.fn();
+		const onSelectResult = jest.fn();
+		renderComponent({onClose, onSelectResult, search: ''});
+		const input = screen.getByRole('textbox');
+		input.focus();
+
+		fireEvent.keyDown(input, {
+			code: 'Enter',
+			isComposing: true,
+			key: 'Enter'
+		});
+		fireEvent.keyDown(input, {
+			code: 'Escape',
+			isComposing: true,
+			key: 'Escape'
+		});
+
+		expect(onSelectResult).not.toHaveBeenCalled();
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it('closes when Escape is pressed from a result button', () => {
+		const onClose = jest.fn();
+		renderComponent({onClose, search: ''});
+		const result = screen.getByRole('button', {name: /result-2-heading/});
+		result.focus();
+
+		fireEvent.keyDown(result, {code: 'Escape', key: 'Escape'});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('restores focus to the previously focused trigger when closed', () => {
+		const TestFinder: React.FC = () => {
+			const [open, setOpen] = React.useState(false);
+			return (
+				<>
+					<button type="button" onClick={() => setOpen(true)}>Trigger</button>
+					{open && (
+						<FuzzyFinder
+							noResultsText="mock-no-results"
+							onChangeSearch={jest.fn()}
+							onClose={() => setOpen(false)}
+							onSelectResult={jest.fn()}
+							prompt="mock-prompt"
+							results={[
+								{detail: 'result-detail', heading: 'result-heading'}
+							]}
+							search=""
+						/>
+					)}
+				</>
+			);
+		};
+
+		render(<TestFinder />);
+		const trigger = screen.getByRole('button', {name: 'Trigger'});
+		trigger.focus();
+		fireEvent.click(trigger);
+		const input = screen.getByRole('textbox');
+		input.focus();
+		fireEvent.keyDown(input, {key: 'Escape'});
+
+		expect(trigger).toHaveFocus();
+	});
+
 	// jsdom doesn't seem to implement focus in a way that works for these tests.
 	it.todo('focuses the text field when initially mounted');
-	it.todo('provides keyboard shortcuts');
 
 	it('calls the onChangeSearch prop when the text field is changed', () => {
 		const onChangeSearch = jest.fn();

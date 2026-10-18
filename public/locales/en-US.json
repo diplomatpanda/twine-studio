@@ -97,7 +97,7 @@
 		},
 		"passageFuzzyFinder": {
 			"noResults": "No matches.",
-			"prompt": "Search by passage name or text"
+			"prompt": "Search by passage name, text, or tag"
 		},
 		"renamePassageButton": {
 			"emptyName": "Please enter a name.",

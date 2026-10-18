@@ -68,3 +68,25 @@ The check reproduced an exception on Enter with no search results. Keyboard
 selection now ignores an absent result and resets selection when the query
 changes. The regression exercises Enter/ArrowUp on an empty result set and checks
 that no browser error occurs. Complete screen-reader/touch acceptance remains open.
+
+## Passage list acceptance, 2026-10-18
+
+`e2e/studio-navigation.spec.ts` imports 240 short synthetic passages in a regular
+grid. Go To lists every passage when empty and searches names, text and tags.
+The check covers ArrowUp wrapping to the last row, automatic scrolling within
+the result list, Enter selection, clearing stale queries after Escape, a long
+passage title, editing and HTML publication. It passes in Chromium, Firefox and
+WebKit using the pinned Playwright builds. The separate large-story rename,
+reference-update and save/reload journey also passes in Chromium.
+
+Stable screenshots were inspected at 768x1024 and 375x1024. A real click at the
+narrow width exposed toolbar buttons intercepting the search input. Moving the
+finder outside the map's stacking context and stacking the label above the input
+fixed the observed failure. The final test clicks the input without forcing it;
+its keyboard-scroll assertions do not scroll the row on the application's behalf.
+
+This is automated functional evidence, not a human usability or physical touch
+study. The fixture has short text and regular placement; it does not establish
+performance for irregular graphs, long manuscripts or thousands of passages.
+The earlier timing table describes the original implementation and remains a
+historical baseline, not a measurement of the new list.

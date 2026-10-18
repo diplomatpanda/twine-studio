@@ -1,13 +1,16 @@
 @import '../../styles/depth.css';
 @import '../../styles/metrics.css';
+@import '../../styles/accessibility.css';
 
 .fuzzy-finder {
 	box-shadow: var(--shadow-large);
 	left: var(--grid-size);
 	position: fixed;
 	top: calc(2 * var(--control-height) + var(--grid-size)); /* below <top-bar> height */
-	z-index: 10;
-	width: 500px;
+	/* Stay above toolbar actions that wrap at narrow widths. */
+	z-index: 1001;
+	max-width: calc(100vw - 2 * var(--grid-size));
+	width: min(500px, calc(100vw - 2 * var(--grid-size)));
 }
 
 .fuzzy-finder .search {
@@ -18,10 +21,29 @@
 
 .fuzzy-finder .search .text-input {
 	flex-grow: 1;
+	min-width: 0;
 }
 
 .fuzzy-finder .search .text-input label {
 	width: 100%;
+}
+
+.fuzzy-finder .search input {
+	min-width: 0;
+}
+
+@media (max-width: 560px) {
+	.fuzzy-finder .search .text-input label {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.fuzzy-finder .search input {
+		box-sizing: border-box;
+		margin-left: 0;
+		margin-top: calc(var(--grid-size) / 2);
+		width: 100%;
+	}
 }
 
 .fuzzy-finder .results ol {
@@ -29,6 +51,8 @@
 	flex-direction: column;
 	list-style: none;
 	margin: 0;
+	max-height: calc(100vh - 5 * var(--control-height) - 4 * var(--grid-size));
+	overflow-y: auto;
 	padding: 0;
 }
 
@@ -38,7 +62,7 @@
 
 .fuzzy-finder .search + .results.has-results {
 	margin-top: calc(-1 * var(--control-inner-padding));
-} 
+}
 
 
 .fuzzy-finder .no-results {

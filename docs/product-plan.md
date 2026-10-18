@@ -40,3 +40,12 @@ the current passage while preserving pending typing. Supported generated source
 is Harlowe 3 and SugarCube 2 only. Advanced syntax stays editable as source.
 Check native runtime navigation, destination creation, cancel, invalid labels,
 enhanced editor undo, plain textarea updates, persistence and independent export.
+
+## Passage navigation acceptance
+
+User need: find and continue a passage in a crowded story without remembering its
+title or position. Go To now doubles as a flat passage list. Browse all names,
+search names/text/tags, select with keyboard or pointer, and continue through the
+existing Edit action. Keep results usable at tablet widths, clear stale queries
+on reopening, and preserve passage content, selection behavior and export data.
+This does not add a chapter hierarchy or reinterpret format-specific source.

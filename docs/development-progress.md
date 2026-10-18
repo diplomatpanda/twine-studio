@@ -192,3 +192,35 @@ for unit totals and story-format-trust.md for explicit compatibility limits.
 This completes another security prerequisite, not the overall product mission.
 Provider credentials and AI proposal review, story planning, broader workflow
 polish and remaining acceptance evidence still require implementation.
+
+## Passage list and navigation
+
+Go To now opens a name-sorted list of every passage, with tags or a short text
+preview. Searching includes names, text and tags. Clearing the query restores the
+full list; closing and reopening starts fresh. Results update synchronously so
+Enter cannot select a stale debounced query. Selecting a result retains the
+existing map centering, selection and Edit workflow without changing story data.
+
+Arrow keys wrap through results and scroll the selected row into view. Enter
+selects, Escape closes, and focus returns to the opening control unless the
+author has intentionally moved it elsewhere. Composition input is preserved and
+the selected heading is announced through a polite status region. Existing
+translated prompts remain available. Component accessibility checks pass; a
+complete screen-reader study remains outstanding.
+
+A real pointer check at 375 px reproduced toolbar buttons covering the search
+field. Rendering the finder outside the fixed map's stacking context resolved
+that failure; narrow layouts also stack the label above the input. Navigation
+uses the same story context and does not introduce a separate data model.
+
+The affected unit checkpoint passed 57 tests. After the portal and focus-test
+corrections, the two finder suites passed 21 tests and the story route passed
+five; two existing finder TODOs remain. The final production build, renderer
+copy, full source lint and production offline writing/preview/export check pass.
+
+Navigation acceptance passes in Chromium, Firefox and WebKit with 240 imported
+passages, tag/text/name searches, keyboard scrolling, empty-query selection,
+reset, long titles, editing and publication. The existing Chromium large-story
+rename/reference/persistence journey also passes. Stable 768 px and 375 px
+screenshots were inspected; the narrow textbox is clicked without forcing the
+pointer. See ux-audit.md for the fixture and evidence limits.

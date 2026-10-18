@@ -16,6 +16,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
 - Final preview/Electron boundary checks: **6 suites, 35 tests passed**.
+- Subsequent navigation changes: **57 affected tests passed**; final portal/focus
+  checks passed 21 finder tests and five story-route tests. Two existing finder
+  TODOs remain. This is targeted validation after the full unit checkpoint above.
 - ESLint: no errors/warnings. TypeScript web and Electron main builds pass.
 - Production web build and renderer copy both pass; no shell copy error remains.
 - Chromium upstream smoke journeys: **6 passed**.
@@ -26,6 +29,11 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Firefox and WebKit: **18 focused journeys passed** across format round trips,
   preview isolation, custom-format trust and editor toolbars. These use the repository's pinned
   Playwright browser builds; this is not a complete current-browser support audit.
+- Subsequent navigation acceptance passes in Chromium, Firefox and WebKit:
+  240-passage list, automatic keyboard scrolling, name/text/tag search, query
+  reset, long-title selection, editing and publication. Real input clicks at
+  375 px and stable 768 px screenshots pass. The existing Chromium large-story
+  rename/reference/persistence journey also passes on this revision.
 - Native format acceptance passes with an isolated Windows profile: bundled
   Harlowe Styles/Bold insertion, local file-format installation, preview/export,
   exact-source editor approval and revocation retained across restart. Reproduce
@@ -98,7 +106,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
 | C: AI modification | Provider constraints researched | Integration, proposal review and credential isolation unimplemented |
 | D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
-| E: large story | 240-passage HTML import, search, rename, incoming-link update, edit, reload and publish pass | Irregular/long-text projects and repeated performance runs pending |
+| E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; navigation also passes Firefox/WebKit | Irregular/long-text projects and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Production Chromium reload/edit/save/Harlowe preview/export pass | Other formats, cache eviction and cross-browser coverage pending |

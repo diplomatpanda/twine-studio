@@ -34,6 +34,13 @@ Try importing `examples/the-last-signal.html` for a complete small story. Its tw
 routes lead to different endings. The original story text is dedicated to the
 public domain under CC0; Harlowe's runtime retains its own license.
 
+## Finding a passage
+
+Choose **Go To** to browse all passage names in alphabetical order. Type part of
+a name, passage text, or tag to find a match. Use the arrow keys and Enter, or
+click a result, to select that passage and center it on the map. Choose **Edit**
+to continue writing. Escape closes the list; reopening it starts with all passages.
+
 ## Remembering clues and relationships
 
 For Harlowe 3 and SugarCube 2, **Story logic** can remember a yes/no fact or a

@@ -35,10 +35,16 @@
 .fuzzy-finder-result .heading {
 	color: var(--black);
 	flex-shrink: 0;
+	max-width: 48%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .fuzzy-finder-result .detail {
 	color: var(--gray);
+	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	text-align: left;
 	text-overflow: ellipsis;
