@@ -1,10 +1,10 @@
 import * as React from 'react';
 import {useTranslation} from 'react-i18next';
-import {IconArrowFork, IconCheck, IconX} from '@tabler/icons';
+import {IconArrowFork, IconCheck, IconPlus, IconX} from '@tabler/icons';
 import {IconButton} from '../control/icon-button';
 import {TextInput} from '../control/text-input';
 import {
-	choiceSource,
+	choiceSetSource,
 	isPlainChoiceText,
 	supportsChoiceBuilder
 } from '../../util/choice-source';
@@ -19,25 +19,61 @@ export interface ChoiceComposerProps {
 	onAdd: (source: string) => void;
 }
 
+interface ChoiceRow {
+	id: number;
+	label: string;
+	destination: string;
+}
+
 export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 	const [open, setOpen] = React.useState(false);
-	const [label, setLabel] = React.useState('');
-	const [destination, setDestination] = React.useState('');
-	const labelRef = React.useRef<HTMLInputElement>(null);
+	const [rows, setRows] = React.useState<ChoiceRow[]>([
+		{id: 0, label: '', destination: ''}
+	]);
+	const nextRowId = React.useRef(1);
+	const rowInputRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
+	const focusNewRow = React.useRef<number>();
 	const buttonRef = React.useRef<HTMLButtonElement>(null);
+	const addAnotherRef = React.useRef<HTMLButtonElement>(null);
 	const {t} = useTranslation();
 	const supported = supportsChoiceBuilder(
 		props.formatName,
 		props.formatVersion
 	);
-	const valid = isPlainChoiceText(label) && isPlainChoiceText(destination);
-	const existing = props.passageNames.includes(destination.trim());
+	const valid = rows.every(
+		row => isPlainChoiceText(row.label) && isPlainChoiceText(row.destination)
+	);
 
 	React.useEffect(() => {
-		if (open) labelRef.current?.focus();
+		if (open) rowInputRefs.current[rows[0].id]?.focus();
 	}, [open]);
+	React.useEffect(() => {
+		if (focusNewRow.current !== undefined) {
+			rowInputRefs.current[focusNewRow.current]?.focus();
+			focusNewRow.current = undefined;
+		}
+	}, [rows.length]);
+
+	function updateRow(id: number, field: 'label' | 'destination', value: string) {
+		setRows(current => current.map(row =>
+			row.id === id ? {...row, [field]: value} : row
+		));
+	}
+
+	function addRow() {
+		const id = nextRowId.current++;
+		focusNewRow.current = id;
+		setRows(current => [...current, {id, label: '', destination: ''}]);
+	}
+
+	function removeRow(id: number) {
+		addAnotherRef.current?.focus();
+		setRows(current => current.filter(row => row.id !== id));
+		delete rowInputRefs.current[id];
+	}
 
 	function close() {
+		setRows([{id: nextRowId.current++, label: '', destination: ''}]);
 		setOpen(false);
 		buttonRef.current?.focus();
 	}
@@ -50,7 +86,7 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 				disabled={props.disabled}
 				icon={<IconArrowFork />}
 				label={t('studio.choice.add')}
-				onClick={() => setOpen(!open)}
+				onClick={() => open ? close() : setOpen(true)}
 			/>
 			{open && (
 				<form
@@ -59,15 +95,13 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 						event.preventDefault();
 						if (!supported || !valid || props.disabled) return;
 						props.onAdd(
-							choiceSource(
+							choiceSetSource(
 								props.formatName,
 								props.formatVersion,
-								label,
-								destination
+								rows
 							)
 						);
-						setLabel('');
-						setDestination('');
+						setRows([{id: nextRowId.current++, label: '', destination: ''}]);
 						setOpen(false);
 					}}
 					onKeyDown={event => {
@@ -80,37 +114,68 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 					{supported ? (
 						<>
 							<p>{t('studio.choice.help')}</p>
-							<TextInput
-								ref={labelRef}
-								value={label}
-								onChange={event => setLabel(event.target.value)}
-							>
-								{t('studio.choice.label')}
-							</TextInput>
-							<TextInput
-								value={destination}
-								list={`${props.id}-destinations`}
-								onChange={event => setDestination(event.target.value)}
-							>
-								{t('studio.choice.destination')}
-							</TextInput>
+							<div className="choice-composer-rows">
+								{rows.map((row, index) => {
+									const rowValid = isPlainChoiceText(row.label) &&
+										isPlainChoiceText(row.destination);
+									const existing = props.passageNames.includes(row.destination.trim());
+									return (
+										<div
+											aria-label={t('studio.choice.optionNumber', {number: index + 1})}
+											className="choice-composer-row"
+											key={row.id}
+											role="group"
+										>
+											{rows.length > 1 && <strong>{t('studio.choice.optionNumber', {number: index + 1})}</strong>}
+											<div className="choice-composer-fields">
+												<TextInput
+													ref={element => {rowInputRefs.current[row.id] = element;}}
+													value={row.label}
+													onChange={event => updateRow(row.id, 'label', event.target.value)}
+												>
+													{t('studio.choice.label')}
+												</TextInput>
+												<TextInput
+													value={row.destination}
+													list={`${props.id}-destinations`}
+													onChange={event => updateRow(row.id, 'destination', event.target.value)}
+												>
+													{t('studio.choice.destination')}
+												</TextInput>
+											</div>
+											<p role="status">
+												{row.destination && t(existing ? 'studio.choice.existing' : 'studio.choice.new')}
+											</p>
+											{(row.label || row.destination) && !rowValid && (
+												<p>{t('studio.choice.plainText')}</p>
+											)}
+											{rows.length > 1 && <IconButton
+												buttonType="button"
+												icon={<IconX />}
+												label={t('studio.choice.removeOption', {number: index + 1})}
+												onClick={() => removeRow(row.id)}
+											/>}
+										</div>
+									);
+								})}
+							</div>
 							<datalist id={`${props.id}-destinations`}>
 								{props.passageNames.filter(isPlainChoiceText).map(name => (
 									<option key={name} value={name} />
 								))}
 							</datalist>
-							<p role="status">
-								{destination &&
-									t(existing ? 'studio.choice.existing' : 'studio.choice.new')}
-							</p>
-							{(label || destination) && !valid && (
-								<p>{t('studio.choice.plainText')}</p>
-							)}
+							<IconButton
+								buttonType="button"
+								ref={addAnotherRef}
+								icon={<IconPlus />}
+								label={t('studio.choice.addAnother')}
+								onClick={addRow}
+							/>
 							<IconButton
 								buttonType="submit"
 								disabled={!valid || props.disabled}
 								icon={<IconCheck />}
-								label={t('studio.choice.insert')}
+								label={t(rows.length === 1 ? 'studio.choice.insert' : 'studio.choice.insertSet')}
 							/>
 						</>
 					) : (

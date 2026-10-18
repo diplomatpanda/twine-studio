@@ -14,8 +14,9 @@ Status: active development; not release-ready. Baseline is Twine 2.12.1,
    and arbitrary names rejected. Targeted handlebars/shell-quote lock updates
    remove the two critical npm advisories (41 other advisories remain).
 4. Plain-language Add choice form, explicit Harlowe 3/SugarCube 2 link generation,
-   native destination creation, enhanced editor undo. Plain textarea now reflects
-   controlled updates. New UI strings use localization with English fallback.
+   native destination creation, enhanced editor undo. The form now inserts a
+   repeatable choice set as one update and one undo action. Plain textarea
+   reflects controlled updates. New strings use localization with English fallback.
 5. Verified bundled license notices added where authoritative evidence exists.
    Paperthin historical notice and full transitive inventory remain open.
 6. Browser persistence has a separate `twine-studio-*` namespace. Legacy Twine
@@ -58,6 +59,15 @@ Medium/large synthetic story audit completed. Fresh isolated desktop rebuild and
 restart verification passed, with the fork's own Documents folders. Interrupted
 typing passed a browser regression test that failed before the fix. Detailed
 counts and limits are in release-readiness.md.
+
+Choice-set acceptance covers recent typing, two automatically created destinations,
+single-step undo in enhanced/basic editors, reload, HTML publication and both
+playable endings. Harlowe 3 enhanced/basic and SugarCube 2 enhanced passed in
+Chromium; enhanced Harlowe/SugarCube also passed Firefox and WebKit. The old
+single-choice journeys still pass. At 375 px, the form was inspected; an open
+dialog now stays above wrapped toolbar actions, and the top controls scroll
+horizontally with a visible control so Undo remains reachable. Canceling the
+choice form discards every draft row.
 
 ## Next priorities
 

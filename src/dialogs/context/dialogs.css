@@ -7,6 +7,8 @@
 	pointer-events: none;
 	position: fixed;
 	right: var(--grid-size);
+	/* Keep an open editor above toolbar actions that wrap on narrow screens. */
+	z-index: 1001;
 	top: calc(
 		2 * var(--control-height) + var(--grid-size)
 	); /* below <top-bar> height */

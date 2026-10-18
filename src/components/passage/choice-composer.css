@@ -18,3 +18,27 @@
 .choice-composer .text-input {
 	flex: 1 1 12rem;
 }
+
+.choice-composer-rows {
+	display: flex;
+	flex: 1 1 100%;
+	flex-direction: column;
+	gap: 0.5rem;
+	max-height: 45vh;
+	overflow-y: auto;
+}
+
+.choice-composer-row {
+	border: 1px solid var(--light-gray);
+	padding: 0.5rem;
+}
+
+.choice-composer-row .choice-composer-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.choice-composer-row p {
+	margin: 0.25rem 0;
+}

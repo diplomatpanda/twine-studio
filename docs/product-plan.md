@@ -38,6 +38,8 @@ Upstream requires typing syntax; its automatic destination creation already work
 Studio adds a compact form with label and existing/new destination, appending to
 the current passage while preserving pending typing. Supported generated source
 is Harlowe 3 and SugarCube 2 only. Advanced syntax stays editable as source.
+The same form now adds repeatable rows for a whole choice set in one update;
+each destination follows the existing automatic passage-creation behavior.
 Check native runtime navigation, destination creation, cancel, invalid labels,
 enhanced editor undo, plain textarea updates, persistence and independent export.
 

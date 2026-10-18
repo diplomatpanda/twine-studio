@@ -33,3 +33,19 @@ export function choiceSource(
 	const separator = formatName === 'Harlowe' ? '->' : '|';
 	return `[[${label.trim()}${separator}${destination.trim()}]]`;
 }
+
+/** Generate a single passage update for a reviewed set of choices. */
+export function choiceSetSource(
+	formatName: string,
+	formatVersion: string,
+	choices: Array<{label: string; destination: string}>
+): string {
+	if (choices.length === 0) {
+		throw new Error('Add at least one choice.');
+	}
+	return choices
+		.map(({label, destination}) =>
+			choiceSource(formatName, formatVersion, label, destination)
+		)
+		.join('\n');
+}

@@ -50,6 +50,12 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   enhanced editor). Includes recent typing, explicit insertion, focus return,
   enhanced editor undo/redo, basic editor story undo/redo, reload, HTML publication
   and navigation to an ending on a separate origin serving only the export.
+- Choice-set journeys: **3 Chromium and 4 Firefox/WebKit passes**. Each inserts
+  two links and creates both destinations in one action, verifies undo, reload,
+  HTML export and both endings in a standalone player. The original four
+  Chromium single-choice/sample journeys still pass. At 375 px the form and
+  toolbar were inspected and Undo was reached through the visible narrow-screen
+  toolbar control.
 - Medium/large audit: 40- and 240-passage synthetic stories loaded and searched at
   tablet viewport size. See ux-audit.md for single-run measurements and limits.
 - Fresh isolated Windows Electron create/edit/restart smoke passed after rebuild;

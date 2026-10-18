@@ -20,11 +20,17 @@ write and publish without an AI account or a cloud service.
    file independently and test every intended ending. Use Library archive/export
    and the existing source export options for backups.
 
+To make a fork in one step, choose **Add another choice** before inserting. Fill
+each choice text and destination, then choose **Insert choices**. Studio adds all
+links together and creates any new destination passages on the map. Remove a row
+to leave it out. The whole set can be undone as one edit.
+
 In the enhanced editor, use its Undo/Redo controls or normal editing shortcuts
 to reverse a choice insertion. In the basic textarea editor, close the passage
 and use the main **Undo Add choice** / **Redo Add choice** controls; the generated
 destination is included in that operation. Native textarea Ctrl+Z is not the
-undo mechanism for an inserted choice.
+undo mechanism for an inserted choice or choice set.
+On a narrow screen, use **More toolbar controls** to reveal Undo and Redo.
 
 The helper accepts plain words, numbers and common punctuation. It excludes
 special syntax instead of guessing how to escape it. Existing advanced passage

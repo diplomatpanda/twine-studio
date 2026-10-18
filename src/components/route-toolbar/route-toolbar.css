@@ -18,6 +18,33 @@
 	background: linear-gradient(to top, var(--light-gray) 0, var(--light-gray) 1px, transparent 1px);
 	display: flex;
 	height: var(--control-height);
+	/* Pinned actions remain reachable when tabs and controls exceed phone width. */
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.route-toolbar-top-wrap {
+	position: relative;
+}
+
+.route-toolbar-scroll-cue {
+	background: var(--white);
+	box-shadow: -4px 0 8px var(--white);
+	display: none;
+	position: fixed;
+	right: 0;
+	top: 0;
+	z-index: 5;
+}
+
+@media (max-width: 600px) {
+	.route-toolbar .route-toolbar-top {
+		padding-right: var(--control-height);
+	}
+
+	.route-toolbar-scroll-cue {
+		display: block;
+	}
 }
 
 .route-toolbar .route-toolbar-pinned-controls {

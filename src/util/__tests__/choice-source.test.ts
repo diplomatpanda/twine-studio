@@ -1,4 +1,4 @@
-import {choiceSource, supportsChoiceBuilder} from '../choice-source';
+import {choiceSetSource, choiceSource, supportsChoiceBuilder} from '../choice-source';
 import {parseLinks} from '../parse-links';
 
 describe('choiceSource', () => {
@@ -46,5 +46,22 @@ describe('choiceSource', () => {
 		expect(choiceSource('Harlowe', '3.3.9', 'Aller à la forêt', '森')).toBe(
 			'[[Aller à la forêt->森]]'
 		);
+	});
+	it('creates multiple native links as one source update', () => {
+		const choices = [
+			{label: 'Open door', destination: 'Door'},
+			{label: 'Keep walking', destination: 'Road'}
+		];
+		for (const [name, version, separator] of [
+			['Harlowe', '3.3.9', '->'],
+			['SugarCube', '2.37.3', '|']
+		]) {
+			const source = choiceSetSource(name, version, choices);
+			expect(source).toBe(
+				`[[Open door${separator}Door]]\n[[Keep walking${separator}Road]]`
+			);
+			expect(parseLinks(source)).toEqual(['Door', 'Road']);
+		}
+		expect(() => choiceSetSource('Harlowe', '3.3.9', [])).toThrow();
 	});
 });
