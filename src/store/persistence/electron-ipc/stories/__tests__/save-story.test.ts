@@ -12,7 +12,7 @@ import {
 	publishStoryWithFormat
 } from '../../../../../util/publish';
 import * as fetchStoryFormatProperties from '../../../../../util/story-format/fetch-properties';
-import {saveStory} from '../save-story';
+import {saveStory, waitForPendingStorySaves} from '../save-story';
 
 describe('saveStory()', () => {
 	let formatsState: StoryFormatsState;
@@ -81,5 +81,44 @@ describe('saveStory()', () => {
 				})
 			]
 		]);
+	});
+
+	it('waits for async story publication and preserves per-story order', async () => {
+		const properties = fakeStoryFormatProperties();
+		const firstStory = {...story};
+		const secondStory = {...story, name: 'second story'};
+		let resolveFirst!: (value: typeof properties) => void;
+		let resolveSecond!: (value: typeof properties) => void;
+		const fetchProperties = jest
+			.spyOn(fetchStoryFormatProperties, 'fetchStoryFormatProperties')
+			.mockImplementationOnce(
+				() => new Promise(resolve => (resolveFirst = resolve))
+			)
+			.mockImplementationOnce(
+				() => new Promise(resolve => (resolveSecond = resolve))
+			);
+		const unloadedFormats = [
+			{...formatsState[0], loadState: 'unloaded', properties: undefined} as any
+		];
+
+		const firstSave = saveStory(firstStory, unloadedFormats);
+		const secondSave = saveStory(secondStory, unloadedFormats);
+		const pendingPublication = waitForPendingStorySaves();
+
+		await Promise.resolve();
+		expect(fetchProperties).toHaveBeenCalledTimes(1);
+		expect(saveStoryHtml).not.toHaveBeenCalled();
+
+		resolveFirst(properties);
+		await firstSave;
+		await Promise.resolve();
+		expect(fetchProperties).toHaveBeenCalledTimes(2);
+		expect(saveStoryHtml).toHaveBeenCalledTimes(1);
+
+		resolveSecond(properties);
+		await Promise.all([secondSave, pendingPublication]);
+		expect(saveStoryHtml).toHaveBeenCalledTimes(2);
+		expect(saveStoryHtml.mock.calls[0][0]).toBe(firstStory);
+		expect(saveStoryHtml.mock.calls[1][0]).toBe(secondStory);
 	});
 });

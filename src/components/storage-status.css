@@ -1,0 +1,21 @@
+.storage-status {
+	position: fixed;
+	bottom: 1rem;
+	left: 1rem;
+	right: 1rem;
+	z-index: 10000;
+	padding: 1rem;
+	border: 2px solid var(--dark-gray);
+	border-radius: 0.5rem;
+	background: var(--white);
+	color: var(--dark-gray);
+	max-height: 40vh;
+	overflow: auto;
+}
+.storage-status p {
+	margin: 0.5rem 0;
+}
+.storage-status button {
+	margin-right: 1rem;
+	padding: 0.5rem;
+}

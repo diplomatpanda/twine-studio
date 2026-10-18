@@ -7,20 +7,20 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- Full Jest run: **252 suites passed**, **1,744 tests passed**, 23 skipped and 42
-  TODOs. After the final basic-editor undo fix, all six affected suites passed
-  again (64 tests, 3 TODOs); unchanged suites reuse the full-run evidence.
-- After storage isolation, lifecycle saving and fresh-profile cleanup changes,
-  all 13 affected suites passed (112 tests, 4 TODOs).
+- Full Jest checkpoint: **256 suites passed**, **1,803 tests passed**, 23 skipped
+  and 42 TODOs. This includes browser recovery, startup failure, passage lifecycle
+  and desktop publication/close coverage. Final IPC race fixes are checked again
+  with the affected suites; unchanged suites reuse this full-run evidence.
+- Final desktop queue checks: **3 suites, 50 tests passed**, including obsolete
+  failed-save retry, a third flush after retry, deletion/retry exclusion and
+  restoration while deletion is still in progress.
 - ESLint: no errors/warnings. TypeScript web and Electron main builds pass.
 - Production web build and renderer copy both pass; no shell copy error remains.
 - Chromium upstream smoke journeys: **6 passed**.
-- Current complete Chromium suite: **18 passed**, including the original
-  sample's two endings, immediate-reload regression, two native fact/condition
-  journeys, four format round trips and the 240-passage import/rename/export.
-- Final affected unit checks: **6 suites, 73 tests passed**, 6 TODOs (fact/source,
-  passage/choice and navigation groups). These supplement the earlier full run
-  and persistence checks; they are not a new full-suite total.
+- Chromium suite: **22 passed**, covering the sample's two endings, immediate
+  reload, two native fact/condition journeys, four format round trips, the
+  240-passage workflow and recovery. A separate passage-creation/map-drag recovery
+  journey passed on the same browser source, for **23 verified journeys**.
 - Choice/export journeys: **3 passed** (Harlowe enhanced/basic editors, SugarCube
   enhanced editor). Includes recent typing, explicit insertion, focus return,
   enhanced editor undo/redo, basic editor story undo/redo, reload, HTML publication
@@ -29,9 +29,16 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   tablet viewport size. See ux-audit.md for single-run measurements and limits.
 - Fresh isolated Windows Electron create/edit/restart smoke passed after rebuild;
   branding and fork-specific Documents paths were verified.
-- Immediate browser reload preserves a pending passage edit. Lifecycle flushes
-  and namespace isolation have targeted unit coverage. Abrupt process termination
-  and disk/quota failure recovery are not established by this evidence.
+- Browser recovery now covers simulated quota failure before journaling,
+  backup export and import into a clean profile, partial-write journal recovery,
+  unreadable-journal raw export, and failure during the final reload flush.
+  The latter reproduced silent loss before the post-flush navigation guard.
+  The recovery panel was inspected at a desktop viewport. Forced process
+  termination, actual full-disk behavior and power failure remain unverified.
+- Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
+  and active per-story disk writes. Three consecutive native-window close and
+  restart runs retained final typing after resolving a reproduced asynchronous
+  publication race. Shutdown failures leave the window open for retry.
 - New component has a passing automated axe check. This is not a full
   accessibility audit or human usability study.
 - Production offline acceptance passed after an initial online load: cached
@@ -41,9 +48,13 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 
 ## Release blockers and required follow-up
 
-- Finish acceptance journeys A–J, including conditional mystery/relationships,
-  advanced-format preservation, real offline operation and failure recovery.
+- Finish the remaining acceptance limits below, especially advanced existing
+  projects, AI modification, cross-browser behavior and harder failure modes.
 - Resolve inherited preview-origin/renderer trust boundaries before credentials.
+- Desktop shutdown waits for story HTML saves, but concurrent rename, deletion
+  and preference/format JSON operations are not yet part of that barrier. Their
+  immediate-close behavior remains a release blocker; do not infer it from the
+  verified typing/close journey.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime
@@ -70,7 +81,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
 | G: formats | Bundled current Harlowe, SugarCube, Chapbook and Snowman fixtures execute after round trip | Older/custom formats and full language coverage pending |
 | H: offline | Production Chromium reload/edit/save/Harlowe preview/export pass | Other formats, cache eviction and cross-browser coverage pending |
-| I: recovery | Immediate browser reload and isolated desktop restart pass | Abrupt kills, quota/disk failure, graph interruption and restoration pending |
+| I: recovery | Browser journal failure, partial writes, backup restoration, corrupt-journal export, guarded reload, passage creation/map drag recovery and native immediate close pass | Abrupt kills, real full disks and cross-browser behavior pending |
 | J: publication | Original complete three-passage story plays both endings independently | No public release performed |
 
 Independent review found no source-injection path in the bounded helper inputs.

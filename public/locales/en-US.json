@@ -427,7 +427,7 @@
 			"cantPersistStories": "Something went wrong while saving your stories ({{error}}).",
 			"cantPersistStoryFormats": "Something went wrong while saving your story formats ({{error}}).",
 			"electronRemediation": "Restarting this application may help.",
-			"webRemediation": "Reloading this page may help."
+			"webRemediation": "Keep this window open and export a backup before reloading. Free browser storage and retry saving."
 		},
 		"passageDefaults": {
 			"name": "Untitled Passage"
@@ -453,6 +453,17 @@
 		"replaceAllText": "Replace All"
 	},
 	"studio": {
+		"storage": {
+			"unsaved": "Saving needs attention",
+			"keepOpen": "Your latest changes are still in this window. Keep it open, export a backup, then free browser storage and retry. Reloading may lose unsaved changes.",
+			"recovered": "Recovered changes are loaded from a saved journal. Retry saving to finish recovery, or export a backup first.",
+			"retry": "Retry saving",
+			"export": "Export story backup",
+			"loadFailed": "Your saved work could not be opened",
+			"preserve": "Keep your saved data. Export recovery data before clearing storage or reinstalling.",
+			"exportRaw": "Export recovery data",
+			"retryOpening": "Retry opening"
+		},
 		"fact": {
 			"add": "Story logic",
 			"help": "Append a fact or conditional choice to this passage. Remembering a value happens every time the reader visits, in source order.",

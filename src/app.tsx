@@ -9,6 +9,7 @@ import {StoryFormatsContextProvider} from './store/story-formats';
 import {StateLoader} from './store/state-loader';
 import {ThemeSetter} from './store/theme-setter';
 import './styles/typography.css';
+import {StorageStatus} from './components/storage-status';
 
 export const App: React.FC = () => (
 	<GlobalErrorBoundary>
@@ -20,6 +21,7 @@ export const App: React.FC = () => (
 					<StateLoader>
 						<React.Suspense fallback={<LoadingCurtain />}>
 							<Routes />
+							<StorageStatus />
 						</React.Suspense>
 					</StateLoader>
 				</StoriesContextProvider>

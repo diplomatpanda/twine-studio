@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('twineElectron', {
 	loadStoryFormats() {
 		return ipcRenderer.invoke('load-story-formats');
 	},
+	flushStorySaves() {
+		return ipcRenderer.invoke('flush-story-saves');
+	},
+	restoreStory(story: Story) {
+		ipcRenderer.send('restore-story', story);
+	},
 	onceStoryRenamed(callback: () => void): void {
 		ipcRenderer.once('story-renamed', callback);
 	},

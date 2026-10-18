@@ -43,13 +43,16 @@ export function saveMiddleware(
 			// their change and the repair then.
 			break;
 
-		case 'createStory':
+		case 'createStory': {
 			if (!action.props.name) {
 				throw new Error('Passage was created but with no name specified');
 			}
 
-			saveStory(storyWithName(state, action.props.name), formats);
+			const createdStory = storyWithName(state, action.props.name);
+			twineElectron.restoreStory?.(createdStory);
+			saveStory(createdStory, formats);
 			break;
+		}
 
 		case 'deleteStory': {
 			// We have to look up the story in our saved last state to know what file

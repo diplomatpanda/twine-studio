@@ -1,5 +1,6 @@
 import {useTranslation} from 'react-i18next';
 import {isElectronRenderer} from '../util/is-electron';
+import {getStorageStatus} from './persistence/local-storage/transaction';
 
 export function useStoreErrorReporter() {
 	// We can't use suspense here because we're too high in the component tree--we
@@ -11,6 +12,9 @@ export function useStoreErrorReporter() {
 	return {
 		reportError(error: Error, messageKey: string) {
 			console.error('Twine store error', error);
+			// The persistent browser recovery panel provides retry/export actions.
+			// Repeated modal alerts would interrupt every subsequent edit.
+			if (!isElectronRenderer() && getStorageStatus().dirty) return;
 
 			if (ready) {
 				window.alert(
@@ -24,7 +28,7 @@ export function useStoreErrorReporter() {
 				);
 			} else {
 				window.alert(
-					`An error occurred while saving (${error.message}). Reloading or restarting the application may help.`
+					`An error occurred while saving (${error.message}). Keep this window open and export a backup before restarting.`
 				);
 			}
 		}

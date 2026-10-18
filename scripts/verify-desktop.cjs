@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {_electron: electron} = require('playwright');
 const verbose = process.env.VERIFY_DESKTOP_VERBOSE === '1';
+const nativeWindowClose = process.argv.includes('--native-window-close');
 
 const repoRoot = path.resolve(__dirname, '..');
 const defaultIsolationRoot = path.join(
@@ -184,7 +185,20 @@ async function editPassage(window, text) {
 	await window.getByLabel('Passage Text').fill(text);
 	console.log('edit passage: waiting for text');
 	await window.getByText(text).waitFor();
-	await new Promise(resolve => setTimeout(resolve, 1500));
+}
+
+async function closeElectronApp(electronApp) {
+	if (!nativeWindowClose) {
+		await electronApp.close();
+		return;
+	}
+
+	console.log('closing through BrowserWindow.close()');
+	const appClosed = electronApp.waitForEvent('close');
+	await electronApp.evaluate(({BrowserWindow}) => {
+		BrowserWindow.getAllWindows()[0]?.close();
+	});
+	await appClosed;
 }
 
 async function main() {
@@ -228,18 +242,23 @@ async function main() {
 			'Stories',
 			`${storyName}.html`
 		);
-		await waitForFileToContain(storyFile, passageText);
 		const legacyTwineDirectory = path.join(runDirectory, 'documents', 'Twine');
 		if (appName !== 'Twine' && fs.existsSync(legacyTwineDirectory)) {
 			throw new Error(
 				`Unexpected legacy Twine directory created at ${legacyTwineDirectory}`
 			);
 		}
-		await window.screenshot({
-			path: path.join(runDirectory, 'before-restart.png')
-		});
+		if (
+			fs.existsSync(storyFile) &&
+			fs.readFileSync(storyFile, 'utf8').includes(passageText)
+		) {
+			throw new Error(
+				'Latest passage text was already written before the immediate-close check'
+			);
+		}
 
-		await electronApp.close();
+		console.log('closing immediately after editor change');
+		await closeElectronApp(electronApp);
 		electronApp = undefined;
 
 		electronApp = await electron.launch({
@@ -261,6 +280,7 @@ async function main() {
 		}
 		window = await firstWindow(electronApp);
 		console.log('restart: opening saved story');
+		await waitForFileToContain(storyFile, passageText);
 		await doubleClickCanvasControl(window, storyName);
 		await clickCanvasControl(window, 'Untitled Passage');
 		await clickCanvasControl(window, 'Edit');

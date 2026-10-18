@@ -1,9 +1,10 @@
 import {StoryFormatsState} from '../../../story-formats/story-formats.types';
 import {storageKey} from '../keys';
+import {readStorageItem} from '../transaction';
 
 export async function load(): Promise<StoryFormatsState> {
 	const result: StoryFormatsState = [];
-	const serialized = window.localStorage.getItem(storageKey('storyformats'));
+	const serialized = readStorageItem(storageKey('storyformats'));
 
 	if (!serialized) {
 		return [];
@@ -11,9 +12,7 @@ export async function load(): Promise<StoryFormatsState> {
 
 	serialized.split(',').forEach(id => {
 		try {
-			const serializedFormat = window.localStorage.getItem(
-				storageKey('storyformats', id)
-			);
+			const serializedFormat = readStorageItem(storageKey('storyformats', id));
 
 			if (!serializedFormat) {
 				console.warn(
@@ -26,7 +25,7 @@ export async function load(): Promise<StoryFormatsState> {
 		} catch (e) {
 			console.warn(
 				`Story format ${id} had corrupt serialized value, skipping`,
-				window.localStorage.getItem(storageKey('storyformats', id))
+				readStorageItem(storageKey('storyformats', id))
 			);
 		}
 	});

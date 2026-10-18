@@ -1,8 +1,9 @@
 import {PrefsState} from '../../../prefs';
 import {storageKey} from '../keys';
+import {readStorageItem} from '../transaction';
 
 export async function load(): Promise<Partial<PrefsState>> {
-	const serialized = window.localStorage.getItem(storageKey('prefs'));
+	const serialized = readStorageItem(storageKey('prefs'));
 	const result: Partial<PrefsState> = {};
 
 	if (!serialized) {
@@ -11,7 +12,7 @@ export async function load(): Promise<Partial<PrefsState>> {
 
 	serialized.split(',').forEach(id => {
 		try {
-			const serializedPref = window.localStorage.getItem(storageKey('prefs', id));
+			const serializedPref = readStorageItem(storageKey('prefs', id));
 
 			if (!serializedPref) {
 				console.warn(`No preference stored at ${storageKey('prefs', id)}`);
@@ -24,7 +25,7 @@ export async function load(): Promise<Partial<PrefsState>> {
 		} catch (e) {
 			console.warn(
 				`Preference ${id} had corrupt serialized value, skipping`,
-				window.localStorage.getItem(storageKey('prefs', id)),
+				readStorageItem(storageKey('prefs', id)),
 				e
 			);
 		}

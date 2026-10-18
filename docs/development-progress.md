@@ -3,7 +3,7 @@
 Status: active development; not release-ready. Baseline is Twine 2.12.1,
 `4ebcce6a69c62b1c4b51bb76f2b7ac51dd84d9d2`, upstream development branch `develop`.
 
-## Implemented in this invocation
+## Initial implementation
 
 1. Distinct Twine Studio branding, Electron app identity/default folders, removal
    of upstream application update prompts. Upstream Git history and GPL retained.
@@ -61,8 +61,8 @@ counts and limits are in release-readiness.md.
 
 ## Next priorities
 
-Resolve preview isolation and format-extension trust, abrupt-process and storage-
-failure recovery, representative advanced-author projects, and remaining beginner
+Resolve preview isolation and format-extension trust, abrupt-process and full-disk
+recovery, representative advanced-author projects, and remaining beginner
 workflow gaps before optional AI. This invocation's bounded pass is not product
 completion; use release-readiness.md for the acceptance gaps.
 
@@ -76,3 +76,28 @@ round trips; production offline recovery; large-story navigation; final review,
 verification and documentation. Each was scoped to authoring or release reliability.
 The two verified local commits retain upstream history. No remote fork, push,
 release, deployment or integration into another checkout was performed.
+
+## Continued reliability pass
+
+The next bounded pass added a browser write-ahead journal, persistent retry and
+story-backup actions, and a non-destructive startup error screen with raw rescue
+export. Native shutdown now coordinates renderer publication and main-process
+saves. Tests cover rejected journal writes, partial record writes, continued
+edits, invalid journals, failed-save retry and immediate close.
+
+Two real edge cases were reproduced and fixed: browser navigation initially
+checked unsaved state before flushing final typing, and desktop shutdown could
+finish while an unloaded format was still preparing the story HTML. The browser
+now checks after flushing; desktop waits for publication and an IPC barrier.
+
+Current browser acceptance is 22 passing journeys plus a passage-creation/map-drag
+recovery check. A run during active source
+edits was invalidated by Vite hot reload; the stable-source rerun passed. Three
+consecutive native close/restart checks passed after fixing the publication race.
+The full unit checkpoint passed 256 suites and 1,803 tests. Final desktop queue
+race fixes receive affected-suite checks after that checkpoint.
+Those checks passed 50 tests across three suites. Main-process rename, deletion
+and settings JSON operations still need coordinated shutdown coverage; current
+native close evidence applies to story writing.
+The broader Twine Studio goal remains incomplete; see release-readiness.md for
+the current scope and remaining acceptance work.

@@ -1,4 +1,4 @@
-import {app, ipcMain} from 'electron';
+import {ipcMain} from 'electron';
 import {initIpc} from '../ipc';
 import {loadPrefs} from '../prefs';
 import {saveJsonFile} from '../json-file';
@@ -26,15 +26,15 @@ describe('initIpc()', () => {
 	const loadStoriesMock = loadStories as jest.Mock;
 	const loadStoryFormatsMock = loadStoryFormats as jest.Mock;
 	const onMock = ipcMain.on as jest.Mock;
-	const appOnMock = app.on as jest.Mock;
 	const openWithScratchFileMock = openHtmlWithScratchFile as jest.Mock;
 	const renameStoryMock = renameStory as jest.Mock;
 	const saveJsonFileMock = saveJsonFile as jest.Mock;
 	const saveStoryHtmlMock = saveStoryHtml as jest.Mock;
+	let flushStorySaves: (() => Promise<void>) | undefined;
 
 	beforeEach(() => {
 		saveStoryHtmlMock.mockResolvedValue(undefined);
-		initIpc();
+		flushStorySaves = initIpc();
 	});
 
 	describe('the listener it adds for delete-story events', () => {
@@ -48,7 +48,7 @@ describe('initIpc()', () => {
 
 		it('calls deleteStory()', async () => {
 			expect(listener).not.toBeUndefined();
-			listener[1]({sender: {send: jest.fn()}}, story);
+			await listener[1]({sender: {send: jest.fn()}}, story);
 			expect(deleteStoryMock).toHaveBeenCalledWith(story);
 		});
 
@@ -58,6 +58,94 @@ describe('initIpc()', () => {
 			expect(listener).not.toBeUndefined();
 			await listener[1]({sender: {send}}, story, 'test-story-html');
 			expect(send.mock.calls).toEqual([['story-deleted', story]]);
+		});
+
+		it('cancels a trailing save before deleting the story', async () => {
+			jest.useFakeTimers();
+			const saveListener = onMock.mock.calls.find(
+				call => call[0] === 'save-story-html'
+			);
+			try {
+				saveListener![1]({sender: {send: jest.fn()}}, story, 'first');
+				saveListener![1]({sender: {send: jest.fn()}}, story, 'latest');
+				saveStoryHtmlMock.mockClear();
+
+				await listener[1]({sender: {send: jest.fn()}}, story);
+				jest.advanceTimersByTime(1000);
+
+				expect(deleteStoryMock).toHaveBeenCalledWith(story);
+				expect(saveStoryHtmlMock).not.toHaveBeenCalled();
+			} finally {
+				jest.useRealTimers();
+			}
+		});
+
+		it('keeps late saves blocked until the story is explicitly restored', async () => {
+			const saveListener = onMock.mock.calls.find(
+				call => call[0] === 'save-story-html'
+			);
+			const restoreListener = onMock.mock.calls.find(
+				call => call[0] === 'restore-story'
+			);
+			await listener[1]({sender: {send: jest.fn()}}, story);
+
+			saveStoryHtmlMock.mockClear();
+			saveListener![1]({sender: {send: jest.fn()}}, story, 'late-save');
+			await flushStorySaves!();
+			expect(saveStoryHtmlMock).not.toHaveBeenCalled();
+
+			restoreListener![1]({sender: {send: jest.fn()}}, story);
+			saveListener![1]({sender: {send: jest.fn()}}, story, 'restored');
+			await flushStorySaves!();
+			expect(saveStoryHtmlMock).toHaveBeenLastCalledWith(story, 'restored');
+		});
+
+		it('defers an immediate undo save until deletion completes', async () => {
+			let resolveDelete!: () => void;
+			deleteStoryMock.mockImplementationOnce(
+				() => new Promise<void>(resolve => (resolveDelete = resolve))
+			);
+			const saveListener = onMock.mock.calls.find(
+				call => call[0] === 'save-story-html'
+			);
+			const restoreListener = onMock.mock.calls.find(
+				call => call[0] === 'restore-story'
+			);
+			saveStoryHtmlMock.mockClear();
+
+			const deletion = listener[1]({sender: {send: jest.fn()}}, story);
+			await Promise.resolve();
+			restoreListener![1]({sender: {send: jest.fn()}}, story);
+			saveListener![1]({sender: {send: jest.fn()}}, story, 'restored');
+			expect(saveStoryHtmlMock).not.toHaveBeenCalled();
+
+			resolveDelete();
+			await deletion;
+			await flushStorySaves!();
+			expect(saveStoryHtmlMock).toHaveBeenCalledWith(story, 'restored');
+		});
+
+		it('does not retry a failed save while deletion is in progress', async () => {
+			saveStoryHtmlMock.mockRejectedValueOnce(new Error('save failed'));
+			const saveListener = onMock.mock.calls.find(
+				call => call[0] === 'save-story-html'
+			);
+			saveListener![1]({sender: {send: jest.fn()}}, story, 'failed');
+			await expect(flushStorySaves!()).rejects.toThrow('save failed');
+			saveStoryHtmlMock.mockClear();
+
+			let resolveDelete!: () => void;
+			deleteStoryMock.mockImplementationOnce(
+				() => new Promise<void>(resolve => (resolveDelete = resolve))
+			);
+			const deletion = listener[1]({sender: {send: jest.fn()}}, story);
+			await Promise.resolve();
+			await Promise.resolve();
+			const flushDuringDelete = flushStorySaves!();
+			resolveDelete();
+			await deletion;
+			await flushDuringDelete;
+			expect(saveStoryHtmlMock).not.toHaveBeenCalled();
 		});
 	});
 
@@ -223,11 +311,15 @@ describe('initIpc()', () => {
 		});
 
 		it('debounces calls to saveStoryHtml() for the same story ID with both leading and trailing calls', async () => {
-			saveStoryHtmlMock.mockImplementation(() => new Promise(() => {}));
 			listener[1]({sender: {send: jest.fn()}}, story, 'test-story-html-1');
 			listener[1]({sender: {send: jest.fn()}}, story, 'test-story-html-2');
 			listener[1]({sender: {send: jest.fn()}}, story, 'test-story-html-3');
 			jest.advanceTimersByTime(1000);
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
 			expect(saveStoryHtmlMock.mock.calls).toEqual([
 				[story, 'test-story-html-1'],
 				[story, 'test-story-html-3']
@@ -241,7 +333,6 @@ describe('initIpc()', () => {
 			story1.id = 'mock-id-1';
 			story2.id = 'mock-id-2';
 
-			saveStoryHtmlMock.mockImplementation(() => new Promise(() => {}));
 			listener[1]({sender: {send: jest.fn()}}, story1, 'test-story-html-1');
 			listener[1]({sender: {send: jest.fn()}}, story2, 'test-story-html-2');
 			jest.advanceTimersByTime(1000);
@@ -258,13 +349,17 @@ describe('initIpc()', () => {
 			story1.id = 'mock-id-1';
 			story2.id = 'mock-id-2';
 
-			saveStoryHtmlMock.mockImplementation(() => new Promise(() => {}));
 			listener[1]({sender: {send: jest.fn()}}, story1, 'test-story-html-1');
 			listener[1]({sender: {send: jest.fn()}}, story1, 'test-story-html-2');
 			listener[1]({sender: {send: jest.fn()}}, story2, 'test-story-html-3');
 			listener[1]({sender: {send: jest.fn()}}, story1, 'test-story-html-4');
 			listener[1]({sender: {send: jest.fn()}}, story2, 'test-story-html-5');
 			jest.advanceTimersByTime(1000);
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
 			expect(saveStoryHtmlMock.mock.calls).toEqual([
 				[story1, 'test-story-html-1'],
 				[story2, 'test-story-html-3'],
@@ -317,18 +412,14 @@ describe('initIpc()', () => {
 		});
 	});
 
-	describe('the handler it adds to the app will-quit event', () => {
+	describe('the flush function it returns for app shutdown', () => {
 		let saveListeners: any[];
-		let quitListeners: any[];
 		let story: Story;
 		let story2: Story;
 
 		beforeEach(() => {
 			jest.useFakeTimers();
 			jest.spyOn(console, 'log').mockReturnValue();
-			quitListeners = appOnMock.mock.calls.find(
-				call => call[0] === 'will-quit'
-			);
 			saveListeners = onMock.mock.calls.find(
 				call => call[0] === 'save-story-html'
 			);
@@ -357,7 +448,7 @@ describe('initIpc()', () => {
 				[story2, 'test-story-html-3']
 			]);
 			saveStoryHtmlMock.mockClear();
-			await quitListeners[1]();
+			await flushStorySaves!();
 
 			// Trailing calls.
 
@@ -375,14 +466,104 @@ describe('initIpc()', () => {
 				'test-story-html-3'
 			);
 			jest.advanceTimersByTime(1000);
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
 			expect(saveStoryHtmlMock.mock.calls).toEqual([
 				[story, 'test-story-html-1'],
 				[story2, 'test-story-html-3'],
 				[story, 'test-story-html-2']
 			]);
 			saveStoryHtmlMock.mockClear();
-			await quitListeners[1]();
+			await flushStorySaves!();
 			expect(saveStoryHtmlMock).not.toHaveBeenCalled();
+		});
+
+		it('waits for an active leading save before resolving', async () => {
+			let resolveSave!: () => void;
+			saveStoryHtmlMock.mockImplementation(
+				() => new Promise<void>(resolve => (resolveSave = resolve))
+			);
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'test-story-html');
+
+			let flushed = false;
+			const flush = flushStorySaves!().then(() => {
+				flushed = true;
+			});
+			await Promise.resolve();
+			expect(flushed).toBe(false);
+			resolveSave();
+			await flush;
+			expect(flushed).toBe(true);
+		});
+
+		it('serializes leading and trailing saves for one story', async () => {
+			const resolves: Array<() => void> = [];
+			saveStoryHtmlMock.mockImplementation(
+				() => new Promise<void>(resolve => resolves.push(resolve))
+			);
+
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'first');
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'latest');
+			jest.advanceTimersByTime(1000);
+
+			expect(saveStoryHtmlMock.mock.calls).toEqual([[story, 'first']]);
+			const flush = flushStorySaves!();
+			resolves[0]();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(saveStoryHtmlMock.mock.calls).toEqual([
+				[story, 'first'],
+				[story, 'latest']
+			]);
+			resolves[1]();
+			await flush;
+		});
+
+		it('rejects the shutdown flush when a disk save fails', async () => {
+			saveStoryHtmlMock.mockRejectedValueOnce(new Error('save failed'));
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'latest');
+
+			await expect(flushStorySaves!()).rejects.toThrow('save failed');
+		});
+
+		it('retries the failed latest save on a later shutdown flush', async () => {
+			saveStoryHtmlMock
+				.mockRejectedValueOnce(new Error('temporary save failure'))
+				.mockResolvedValueOnce(undefined);
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'latest');
+
+			await expect(flushStorySaves!()).rejects.toThrow(
+				'temporary save failure'
+			);
+			expect(saveStoryHtmlMock).toHaveBeenCalledTimes(1);
+
+			await expect(flushStorySaves!()).resolves.toBeUndefined();
+			expect(saveStoryHtmlMock).toHaveBeenCalledTimes(2);
+			expect(saveStoryHtmlMock).toHaveBeenLastCalledWith(story, 'latest');
+
+			await expect(flushStorySaves!()).resolves.toBeUndefined();
+			expect(saveStoryHtmlMock).toHaveBeenCalledTimes(2);
+		});
+
+		it('does not retry an older failure after a newer save succeeds', async () => {
+			saveStoryHtmlMock
+				.mockRejectedValueOnce(new Error('old save failed'))
+				.mockResolvedValue(undefined);
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'old');
+			saveListeners[1]({sender: {send: jest.fn()}}, story, 'newer');
+
+			await expect(flushStorySaves!()).resolves.toBeUndefined();
+			expect(saveStoryHtmlMock.mock.calls).toEqual([
+				[story, 'old'],
+				[story, 'newer']
+			]);
+
+			await expect(flushStorySaves!()).resolves.toBeUndefined();
+			expect(saveStoryHtmlMock).toHaveBeenCalledTimes(2);
 		});
 	});
 });

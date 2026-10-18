@@ -11,9 +11,25 @@ import {
 } from './story-directory';
 import {getUserCss} from './user-css';
 
-let mainWindow: BrowserWindow | null;
+let mainWindow: BrowserWindow | null = null;
 
-async function createWindow() {
+async function flushRendererChanges() {
+	if (!mainWindow) return;
+
+	// The renderer batches passage edits for one second. Electron invokes
+	// before-quit before it starts unloading renderer windows, so trigger the
+	// existing renderer flush hook while the window is still alive. Then wait
+	// for renderer publication promises and for the renderer to ask the main
+	// process to flush, which acknowledges that all save IPC messages emitted by
+	// the hook have reached ipcMain.
+	await mainWindow.webContents.executeJavaScript(
+		"(async () => { window.dispatchEvent(new Event('beforeunload')); if (window.__twineWaitForPendingStorySaves) await window.__twineWaitForPendingStorySaves(); await window.twineElectron.flushStorySaves(); })();"
+	);
+}
+
+async function createWindow(
+	onClose: (event: {preventDefault(): void}) => void
+) {
 	const screenSize = screen.getPrimaryDisplay().workAreaSize;
 
 	mainWindow = new BrowserWindow({
@@ -47,6 +63,7 @@ async function createWindow() {
 		}
 	});
 	mainWindow.on('closed', () => (mainWindow = null));
+	mainWindow.on('close', onClose);
 
 	// Load external links in the system browser.
 
@@ -67,12 +84,50 @@ export async function initApp() {
 		await createStoryDirectory();
 		await backupStoryDirectory();
 		setInterval(backupStoryDirectory, 1000 * 60 * 20);
-		initIpc();
+		const flushStorySaves = initIpc() ?? (async () => {});
 		initMenuBar();
-		app.on('will-quit', async () => {
-			await cleanScratchDirectory();
-		});
-		createWindow();
+
+		// Electron does not await async event listeners. Prevent the first close or
+		// quit event, finish all renderer and disk work, then start one controlled
+		// quit. A failed flush clears the guard and leaves the window open so the
+		// user can retry without losing the latest edit.
+		let quitStarted = false;
+		let quitFinished = false;
+		const requestQuit = (event?: {preventDefault(): void}) => {
+			if (quitFinished) return;
+
+			event?.preventDefault();
+			if (quitStarted) return;
+			quitStarted = true;
+
+			void (async () => {
+				try {
+					await flushRendererChanges();
+					await flushStorySaves();
+				} catch (error) {
+					console.error(
+						'Error while flushing renderer or story saves:',
+						error
+					);
+					quitStarted = false;
+					return;
+				}
+
+				try {
+					await cleanScratchDirectory();
+				} catch (error) {
+					console.error('Error while cleaning scratch files:', error);
+				}
+
+				quitFinished = true;
+				app.quit();
+			})();
+		};
+
+		app.on('before-quit', requestQuit);
+		// window-all-closed calls app.quit(), but the window close event itself
+		// happens first. Prevent it so the renderer is still available to flush.
+		createWindow(requestQuit);
 	} catch (error) {
 		// Not localized because that may be the cause of the error.
 

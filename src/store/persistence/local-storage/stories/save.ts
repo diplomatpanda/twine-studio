@@ -6,6 +6,11 @@
 import {Passage, Story} from '../../../stories/stories.types';
 import {addUnique, remove} from '../comma-list';
 import {storageKey} from '../keys';
+import {
+	readStorageItem,
+	writeStorageItem,
+	withStorageTransaction
+} from '../transaction';
 
 export interface StorageTransaction {
 	passageIds: string;
@@ -21,15 +26,17 @@ export type StorageUpdater = (transaction: StorageTransaction) => void;
  * provided transaction object as their first argument.
  */
 export function doUpdateTransaction(updater: StorageUpdater) {
-	const transaction = {
-		passageIds: window.localStorage.getItem(storageKey('passages')) ?? '',
-		storyIds: window.localStorage.getItem(storageKey('stories')) ?? ''
-	};
+	withStorageTransaction(() => {
+		const transaction = {
+			passageIds: readStorageItem(storageKey('passages')) ?? '',
+			storyIds: readStorageItem(storageKey('stories')) ?? ''
+		};
 
-	updater(transaction);
+		updater(transaction);
 
-	window.localStorage.setItem(storageKey('stories'), transaction.storyIds);
-	window.localStorage.setItem(storageKey('passages'), transaction.passageIds);
+		writeStorageItem(storageKey('stories'), transaction.storyIds);
+		writeStorageItem(storageKey('passages'), transaction.passageIds);
+	});
 }
 
 /**
@@ -45,7 +52,7 @@ export function saveStory(transaction: StorageTransaction, story: Story) {
 	// We have to remove the passages property before serializing the story,
 	// as those are serialized under separate keys.
 
-	window.localStorage.setItem(
+	writeStorageItem(
 		storageKey('stories', story.id),
 		JSON.stringify({...story, passages: undefined})
 	);
@@ -61,7 +68,7 @@ export function deleteStory(transaction: StorageTransaction, story: Story) {
 	}
 
 	transaction.storyIds = remove(transaction.storyIds, story.id);
-	window.localStorage.removeItem(storageKey('stories', story.id));
+	writeStorageItem(storageKey('stories', story.id), null);
 }
 
 /**
@@ -73,10 +80,7 @@ export function savePassage(transaction: StorageTransaction, passage: Passage) {
 	}
 
 	transaction.passageIds = addUnique(transaction.passageIds, passage.id);
-	window.localStorage.setItem(
-		storageKey('passages', passage.id),
-		JSON.stringify(passage)
-	);
+	writeStorageItem(storageKey('passages', passage.id), JSON.stringify(passage));
 }
 
 /**
@@ -101,5 +105,5 @@ export function deletePassageById(
 	passageId: string
 ) {
 	transaction.passageIds = remove(transaction.passageIds, passageId);
-	window.localStorage.removeItem(storageKey('passages', passageId));
+	writeStorageItem(storageKey('passages', passageId), null);
 }

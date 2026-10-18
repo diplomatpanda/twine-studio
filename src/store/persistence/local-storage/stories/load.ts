@@ -1,13 +1,14 @@
 import {passageDefaults, storyDefaults} from '../../../stories/defaults';
 import {Passage, Story} from '../../../stories/stories.types';
 import {storageKey} from '../keys';
+import {readStorageItem} from '../transaction';
 
 /**
  * Parses initial state from local storage.
  */
 export async function load(): Promise<Story[]> {
 	const stories: Record<string, Story> = {};
-	const serializedStories = window.localStorage.getItem(storageKey('stories'));
+	const serializedStories = readStorageItem(storageKey('stories'));
 
 	if (!serializedStories) {
 		return [];
@@ -17,7 +18,7 @@ export async function load(): Promise<Story[]> {
 	// passages to them as they are deserialized.
 
 	serializedStories.split(',').forEach(id => {
-		const serializedStory = window.localStorage.getItem(storageKey('stories', id));
+		const serializedStory = readStorageItem(storageKey('stories', id));
 
 		if (!serializedStory) {
 			console.warn(
@@ -56,13 +57,11 @@ export async function load(): Promise<Story[]> {
 
 	// Then create passages, adding them to their parent story.
 
-	const serializedPassages = window.localStorage.getItem(storageKey('passages'));
+	const serializedPassages = readStorageItem(storageKey('passages'));
 
 	if (serializedPassages) {
 		serializedPassages.split(',').forEach(id => {
-			const serializedPassage = window.localStorage.getItem(
-				storageKey('passages', id)
-			);
+			const serializedPassage = readStorageItem(storageKey('passages', id));
 
 			if (!serializedPassage) {
 				console.warn(

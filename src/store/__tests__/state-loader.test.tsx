@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {render, screen, waitFor} from '@testing-library/react';
+import {render, screen, waitFor, fireEvent} from '@testing-library/react';
 import {fakeUnloadedStoryFormat} from '../../test-util';
 import {usePersistence} from '../persistence/use-persistence';
 import {usePrefsContext} from '../prefs';
@@ -149,7 +149,7 @@ describe('<StateLoader>', () => {
 							name: defaultFormat.name,
 							version: defaultFormat.version
 						}
-				  }
+					}
 		}));
 		(useStoryFormatsContext as jest.Mock).mockImplementation(() => ({
 			dispatch(action: StoryFormatsAction) {
@@ -178,5 +178,32 @@ describe('<StateLoader>', () => {
 		);
 		expect(screen.queryByTestId('children')).not.toBeInTheDocument();
 		expect(await screen.findByTestId('children')).toBeInTheDocument();
+	});
+
+	it('shows a failed load without repairing data and retries on request', async () => {
+		const load = jest
+			.fn()
+			.mockRejectedValueOnce(new Error('Interrupted storage'))
+			.mockResolvedValue({});
+		(usePersistence as jest.Mock).mockReturnValue({
+			prefs: {load: async () => ({})},
+			stories: {load: async () => []},
+			storyFormats: {load}
+		});
+		render(
+			<StateLoader>
+				<div data-testid="children" />
+			</StateLoader>
+		);
+		expect(await screen.findByRole('alert')).toHaveTextContent(
+			'Interrupted storage'
+		);
+		expect(formatsDispatchMock).not.toHaveBeenCalled();
+		expect(storiesDispatchMock).not.toHaveBeenCalled();
+		fireEvent.click(
+			screen.getByRole('button', {name: 'studio.storage.retryOpening'})
+		);
+		expect(await screen.findByTestId('children')).toBeInTheDocument();
+		expect(load).toHaveBeenCalledTimes(2);
 	});
 });

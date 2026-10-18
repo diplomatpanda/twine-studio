@@ -5,10 +5,16 @@ import {usePrefsContext} from './prefs';
 import {useStoriesContext} from './stories';
 import {useStoryFormatsContext} from './story-formats';
 import {useStoriesRepair} from './use-stories-repair';
+import {saveAs} from 'file-saver';
+import {exportStorageRecovery} from './persistence/local-storage/transaction';
+import {isElectronRenderer} from '../util/is-electron';
+import {useTranslation} from 'react-i18next';
 
 export const StateLoader: React.FC = ({children}) => {
+	const {t} = useTranslation(undefined, {useSuspense: false});
 	const [initing, setIniting] = React.useState(false);
 	const [inited, setInited] = React.useState(false);
+	const [loadError, setLoadError] = React.useState<Error>();
 	const [prefsRepaired, setPrefsRepaired] = React.useState(false);
 	const [formatsRepaired, setFormatsRepaired] = React.useState(false);
 	const [storiesRepaired, setStoriesRepaired] = React.useState(false);
@@ -39,7 +45,7 @@ export const StateLoader: React.FC = ({children}) => {
 			}
 		}
 
-		run();
+		run().catch(error => setLoadError(error as Error));
 		setIniting(true);
 	}, [
 		formatsDispatch,
@@ -86,6 +92,44 @@ export const StateLoader: React.FC = ({children}) => {
 		storiesRepaired
 	]);
 
+	if (loadError)
+		return (
+			<main role="alert" style={{padding: '2rem'}}>
+				<h1>
+					{t(
+						'studio.storage.loadFailed',
+						'Your saved work could not be opened'
+					)}
+				</h1>
+				<p>{loadError.message}</p>
+				<p>
+					{t(
+						'studio.storage.preserve',
+						'Keep your saved data. Export recovery data before clearing storage or reinstalling.'
+					)}
+				</p>
+				{!isElectronRenderer() && (
+					<button
+						onClick={() =>
+							saveAs(
+								new Blob([exportStorageRecovery()], {type: 'application/json'}),
+								'Twine Studio recovery.json'
+							)
+						}
+					>
+						{t('studio.storage.exportRaw', 'Export recovery data')}
+					</button>
+				)}
+				<button
+					onClick={() => {
+						setLoadError(undefined);
+						setIniting(false);
+					}}
+				>
+					{t('studio.storage.retryOpening', 'Retry opening')}
+				</button>
+			</main>
+		);
 	return inited && formatsRepaired && prefsRepaired && storiesRepaired ? (
 		<>{children}</>
 	) : (

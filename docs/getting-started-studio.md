@@ -52,6 +52,22 @@ or the basic editor's main **Undo Add story logic** action. The helper does not
 infer or rewrite existing variables or macros. It does not yet offer arithmetic
 changes, a fact registry, or automatic initialization.
 
+## If saving needs attention
+
+Keep the editor open and choose **Export story backup** in the warning panel.
+This downloads your current writing even when browser storage is full. After
+making space, choose **Retry saving**. To restore the backup in a clean browser
+profile, choose **Library → Import** and select the downloaded HTML file.
+The story backup preserves story source and metadata; it does not include editor
+preferences or custom story-format installations.
+
+If a save was interrupted after its recovery copy reached storage, Studio loads
+those recovered changes on reopening. If the recovery data itself is unreadable,
+use **Export recovery data** before clearing anything. That JSON file preserves
+raw data for investigation; it is not a playable story or a normal import file.
+
+Do not clear Studio's site data to make space before exporting your work.
+
 ## Offline use and current limitations
 
 The production browser app caches bundled resources after an online first load.

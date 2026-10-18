@@ -12,16 +12,23 @@ export const app = {
 };
 
 export class BrowserWindow {
+	static instances: BrowserWindow[] = [];
+
+	public readonly webContents: any;
+
+	public readonly on = jest.fn();
+	public readonly once = jest.fn();
+
 	constructor() {
-		(this as any).webContents = {
+		BrowserWindow.instances.push(this);
+		this.webContents = {
+			executeJavaScript: jest.fn().mockResolvedValue(undefined),
 			on: jest.fn(),
 			setWindowOpenHandler: jest.fn()
 		};
 	}
 
 	loadURL() {}
-	on() {}
-	once() {}
 
 	static getFocusedWindow = jest.fn();
 }

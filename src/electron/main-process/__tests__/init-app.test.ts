@@ -1,4 +1,4 @@
-import {app, dialog} from 'electron';
+import {app, BrowserWindow, dialog} from 'electron';
 import {initApp} from '../init-app';
 import {initIpc} from '../ipc';
 import {initLocales} from '../locales';
@@ -29,8 +29,14 @@ describe('initApp', () => {
 	const onMock = app.on as jest.Mock;
 	const quitMock = app.quit as jest.Mock;
 	const showErrorBoxMock = dialog.showErrorBox as jest.Mock;
+	const browserWindowMock = BrowserWindow as unknown as {
+		instances: BrowserWindow[];
+	};
 
-	beforeEach(() => jest.spyOn(global, 'setInterval'));
+	beforeEach(() => {
+		browserWindowMock.instances.length = 0;
+		jest.spyOn(global, 'setInterval');
+	});
 
 	it('initializes locales', async () => {
 		await initApp();
@@ -59,15 +65,53 @@ describe('initApp', () => {
 		]);
 	});
 
-	it('sets an event listener to clean the scratch directory when quitting', async () => {
+	it('flushes saves and cleans the scratch directory before quitting', async () => {
 		await initApp();
 
-		const onQuit = onMock.mock.calls.find(([event]) => event === 'will-quit');
+		const onQuit = onMock.mock.calls.find(([event]) => event === 'before-quit');
 
 		expect(onQuit).not.toBeUndefined();
 		expect(cleanScratchDirectoryMock).not.toHaveBeenCalled();
-		onQuit[1]();
+		const event = {preventDefault: jest.fn()};
+		onQuit[1](event);
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+		await new Promise(resolve => setTimeout(resolve, 0));
 		expect(cleanScratchDirectoryMock).toHaveBeenCalledTimes(1);
+		expect(quitMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('guards the native window close until saves finish', async () => {
+		await initApp();
+
+		const window = browserWindowMock.instances.at(-1)!;
+		const windowMock = window as unknown as {on: jest.Mock};
+		const onClose = windowMock.on.mock.calls.find(
+			(call: unknown[]) => call[0] === 'close'
+		);
+		expect(onClose).not.toBeUndefined();
+		const event = {preventDefault: jest.fn()};
+		onClose[1](event);
+
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(quitMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps the window open when story saves fail during shutdown', async () => {
+		const saveError = new Error('save failed');
+		initIpcMock.mockReturnValue(async () => {
+			throw saveError;
+		});
+		await initApp();
+
+		const onQuit = onMock.mock.calls.find(([event]) => event === 'before-quit');
+		const event = {preventDefault: jest.fn()};
+		onQuit[1](event);
+		await new Promise(resolve => setTimeout(resolve, 0));
+
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+		expect(cleanScratchDirectoryMock).not.toHaveBeenCalled();
+		expect(quitMock).not.toHaveBeenCalled();
 	});
 
 	it('initializes IPC', async () => {

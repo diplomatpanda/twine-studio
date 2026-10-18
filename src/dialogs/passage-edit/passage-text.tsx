@@ -10,6 +10,7 @@ import {useFormatCodeMirrorMode} from '../../store/use-format-codemirror-mode';
 import {codeMirrorOptionsFromPrefs} from '../../util/codemirror-options';
 import {ChoiceComposer} from '../../components/passage/choice-composer';
 import {FactComposer} from '../../components/passage/fact-composer';
+import {protectUnsavedChanges} from '../../store/persistence/local-storage/transaction';
 
 export interface PassageTextProps {
 	disabled?: boolean;
@@ -69,14 +70,20 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 
 	React.useEffect(() => {
 		const flush = () => flushPendingRef.current();
+		const flushBeforeUnload = (event: BeforeUnloadEvent) => {
+			flush();
+			// The storage guard registered at module load ran before this flush.
+			// Check again in case this final edit is the first write to fail.
+			protectUnsavedChanges(event);
+		};
 		const flushWhenHidden = () => {
 			if (document.visibilityState === 'hidden') flush();
 		};
-		window.addEventListener('beforeunload', flush);
+		window.addEventListener('beforeunload', flushBeforeUnload);
 		window.addEventListener('pagehide', flush);
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
-			window.removeEventListener('beforeunload', flush);
+			window.removeEventListener('beforeunload', flushBeforeUnload);
 			window.removeEventListener('pagehide', flush);
 			document.removeEventListener('visibilitychange', flushWhenHidden);
 			flush();
