@@ -6,7 +6,7 @@ import {useStoriesContext} from './stories';
 import {useStoryFormatsContext} from './story-formats';
 import {useStoriesRepair} from './use-stories-repair';
 import {saveAs} from 'file-saver';
-import {exportStorageRecovery} from './persistence/local-storage/transaction';
+import {exportStorageRecovery, startStoryStorageGuard} from './persistence/local-storage/transaction';
 import {isElectronRenderer} from '../util/is-electron';
 import {useTranslation} from 'react-i18next';
 
@@ -24,6 +24,9 @@ export const StateLoader: React.FC = ({children}) => {
 		useStoryFormatsContext();
 	const repairStories = useStoriesRepair();
 	const {prefs, stories, storyFormats} = usePersistence();
+	React.useEffect(() => {
+		if (!isElectronRenderer()) return startStoryStorageGuard();
+	}, []);
 
 	// Done in steps so that the repair action can see the inited state, and then
 	// each repair action can see the results of the preceding ones.

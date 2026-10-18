@@ -70,6 +70,18 @@ describe('recoverable local storage transactions', () => {
 		expect(window.localStorage.getItem(tx.journalKey)).toBeNull();
 	});
 
+	it('replays and clears a journal from the previous single-key format', () => {
+		const oldJournal = 'twine-studio-pending-transaction';
+		window.localStorage.setItem(oldJournal, JSON.stringify({
+			version: 1,
+			changes: [[newKey, 'legacy recovered draft']]
+		}));
+		expect(tx.readStorageItem(newKey)).toBe('legacy recovered draft');
+		tx.retryStorageChanges();
+		expect(window.localStorage.getItem(newKey)).toBe('legacy recovered draft');
+		expect(window.localStorage.getItem(oldJournal)).toBeNull();
+	});
+
 	it('merges continued edits after failure, including deletion and index changes', () => {
 		const original = Storage.prototype.setItem;
 		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (

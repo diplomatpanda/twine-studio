@@ -92,7 +92,7 @@ async function failWrites(page: Page, boundary: 'journal' | 'passage') {
 		};
 		Storage.prototype.setItem = function (key, value) {
 			if (
-				(key === 'twine-studio-pending-transaction' &&
+				(key.startsWith('twine-studio-pending-transaction') &&
 					boundary === 'journal') ||
 				(key.startsWith('twine-studio-passages-') && boundary === 'passage')
 			) {
@@ -196,9 +196,9 @@ test('reload recovers a durable journal after a partial record write', async ({
 	await page.getByRole('button', {name: 'Add choice', exact: true}).click();
 	await expect(page.getByRole('alert')).toContainText('Recovered changes');
 	expect(
-		await page.evaluate(() =>
-			localStorage.getItem('twine-studio-pending-transaction')
-		)
+		await page.evaluate(() => Object.keys(localStorage)
+			.filter(key => key.startsWith('twine-studio-pending-transaction'))
+			.map(key => localStorage.getItem(key)).join('\n'))
 	).toContain('Recover the interrupted save.');
 	await page.reload();
 	await expect(
@@ -207,11 +207,10 @@ test('reload recovers a durable journal after a partial record write', async ({
 	// Startup preference repair can finish recovery automatically.
 	await expect
 		.poll(() =>
-			page.evaluate(() =>
-				localStorage.getItem('twine-studio-pending-transaction')
-			)
+			page.evaluate(() => Object.keys(localStorage)
+				.filter(key => key.startsWith('twine-studio-pending-transaction')).length)
 		)
-		.toBeNull();
+		.toBe(0);
 });
 
 test('unreadable recovery journal offers raw export without deleting saved bytes', async ({

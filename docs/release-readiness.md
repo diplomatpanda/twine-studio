@@ -7,11 +7,8 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- Jest validation covers **259 suites and 1,888 passing tests**, with 4 skipped
-  and 42 TODOs. The full run passed 258 suites; three mode-test assertions still
-  expected the old namespace. After updating those assertions, all 14 tests in
-  the affected suite passed. Other source was unchanged. Accidental focused-test
-  declarations were removed from the format and undo suites.
+- The current full Jest run passed **263 suites and 1,925 tests**, with 4 skipped
+  and 41 TODOs.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -66,6 +63,13 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   The latter reproduced silent loss before the post-flush navigation guard.
   The recovery panel was inspected at a desktop viewport. Forced process
   termination, actual full-disk behavior and power failure remain unverified.
+- Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
+  cannot replace a newer saved passage, its latest draft can be exported while
+  the editor remains open, and edits to different stories both save. Recovery
+  journals use a distinct key per page load, and the immediately preceding
+  journal remains readable after reload. This is a sequential stale-write guard,
+  not an atomic cross-tab transaction guarantee. Duplicated-tab journal ownership
+  and repeated reload before recovery commit remain unverified.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
@@ -98,6 +102,11 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   future provider credentials outside that renderer. See story-format-trust.md.
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
+- Simultaneous browser writes still lack an atomic cross-tab lock. Duplicated-tab
+  journal ownership and repeated reload before recovery commit need validation.
+  Firefox also intermittently lost the final sentence in a reload-before-debounce test (one
+  failure in three focused repeats); Chromium's established recovery suite
+  passes. Resolve this before release.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime

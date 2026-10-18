@@ -32,6 +32,10 @@ destination is included in that operation. Native textarea Ctrl+Z is not the
 undo mechanism for an inserted choice or choice set.
 On a narrow screen, use **More toolbar controls** to reveal Undo and Redo.
 
+If another tab changes saved story data before this tab saves, Studio pauses
+the stale tab's saves. Use **Export story backup** in the warning, then reload
+to see the saved version. Import the backup if you need text from the stale tab.
+
 The helper accepts plain words, numbers and common punctuation. It excludes
 special syntax instead of guessing how to escape it. Existing advanced passage
 names and source are preserved; edit such links directly in the text.

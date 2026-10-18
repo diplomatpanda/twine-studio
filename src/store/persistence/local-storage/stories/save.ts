@@ -34,8 +34,10 @@ export function doUpdateTransaction(updater: StorageUpdater) {
 
 		updater(transaction);
 
-		writeStorageItem(storageKey('stories'), transaction.storyIds);
-		writeStorageItem(storageKey('passages'), transaction.passageIds);
+		if (readStorageItem(storageKey('stories')) !== transaction.storyIds)
+			writeStorageItem(storageKey('stories'), transaction.storyIds);
+		if (readStorageItem(storageKey('passages')) !== transaction.passageIds)
+			writeStorageItem(storageKey('passages'), transaction.passageIds);
 	});
 }
 

@@ -22,16 +22,16 @@ export const StorageStatus: React.FC = () => {
 	if (!status.dirty) return null;
 	return (
 		<aside className="storage-status" role="alert">
-			<strong>{t('studio.storage.unsaved')}</strong>
+			<strong>{t(status.conflict ? 'studio.storage.conflictTitle' : 'studio.storage.unsaved')}</strong>
 			<p>
-				{t(
-					status.durable
+				{t(status.conflict
+					? 'studio.storage.conflictHelp'
+					: status.durable
 						? 'studio.storage.recovered'
-						: 'studio.storage.keepOpen'
-				)}
+						: 'studio.storage.keepOpen')}
 			</p>
-			<p>{status.error}</p>
-			<button
+			{!status.conflict && <p>{status.error}</p>}
+			{!status.conflict && <button
 				onClick={() => {
 					try {
 						retryStorageChanges();
@@ -41,7 +41,7 @@ export const StorageStatus: React.FC = () => {
 				}}
 			>
 				{t('studio.storage.retry')}
-			</button>
+			</button>}
 			<button
 				onClick={() =>
 					saveAs(

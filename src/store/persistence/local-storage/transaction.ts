@@ -2,7 +2,15 @@
  * Once the journal write succeeds, reads use its intended values even if a
  * later record write fails. No old records are touched before that boundary.
  */
-export const journalKey = 'twine-studio-pending-transaction';
+import {v4 as uuid} from '@lukeed/uuid';
+
+const legacyJournalKey = 'twine-studio-pending-transaction';
+const journalSessionKey = 'twine-studio-journal-owner';
+const previousOwner = window.sessionStorage.getItem(journalSessionKey);
+const previousJournalKey = previousOwner ? `${legacyJournalKey}-${previousOwner}` : null;
+const journalOwner = uuid();
+window.sessionStorage.setItem(journalSessionKey, journalOwner);
+export const journalKey = `${legacyJournalKey}-${journalOwner}`;
 const eventName = 'twine-studio-storage-status';
 type Changes = Map<string, string | null>;
 let pending: Changes = new Map();
@@ -10,13 +18,62 @@ let staging: Changes | undefined;
 let error = '';
 let durable = false;
 let notificationPending = false;
+let storyGuardActive = false;
+let storyConflict = false;
+let observedJournal: string | null = null;
+const observedStories = new Map<string, string | null>();
+const conflictMessage =
+	'Another tab changed saved stories. This tab cannot safely save over that version.';
+
+function isStoryKey(key: string) {
+	return /^twine-studio-(stories|passages)(-|$)/.test(key);
+}
+
+function markStoryConflict() {
+	storyConflict = true;
+	durable = false;
+	error = conflictMessage;
+	notify();
+}
+
+/** Track the version loaded by this editor, without treating its own writes as external. */
+export function startStoryStorageGuard() {
+	storyGuardActive = true;
+	observedStories.clear();
+	for (let i = 0; i < window.localStorage.length; i++) {
+		const key = window.localStorage.key(i)!;
+		if (isStoryKey(key))
+			observedStories.set(key, window.localStorage.getItem(key));
+	}
+	observedJournal = window.localStorage.getItem(journalKey);
+	return () => {
+		storyGuardActive = false;
+	};
+}
+
+function checkStoryStorageGuard(changes: Changes) {
+	if (!storyGuardActive) return;
+	const currentJournal = window.localStorage.getItem(journalKey);
+	if (currentJournal !== observedJournal)
+		markStoryConflict();
+	for (const key of changes.keys()) {
+		if (
+			isStoryKey(key) &&
+			window.localStorage.getItem(key) !== (observedStories.get(key) ?? null)
+		) markStoryConflict();
+	}
+	if (storyConflict) {
+		pending = new Map([...pending, ...changes]);
+		throw new Error(conflictMessage);
+	}
+}
 
 function validKey(key: string) {
 	return /^twine-studio-(prefs|stories|passages|storyformats)(-|$)/.test(key);
 }
 
-function savedJournal(): Changes {
-	const raw = window.localStorage.getItem(journalKey);
+function readJournal(key: string): Changes {
+	const raw = window.localStorage.getItem(key);
 	if (!raw) return new Map();
 	let parsed;
 	try {
@@ -46,6 +103,14 @@ function savedJournal(): Changes {
 	return new Map(parsed.changes);
 }
 
+function savedJournal(): Changes {
+	return new Map([
+		...readJournal(legacyJournalKey),
+		...(previousJournalKey ? readJournal(previousJournalKey) : new Map()),
+		...readJournal(journalKey)
+	]);
+}
+
 function notify() {
 	// Persistence middleware runs during reducer evaluation. Defer subscribers
 	// until that render completes, coalescing changes from the same operation.
@@ -58,7 +123,7 @@ function notify() {
 }
 
 export function getStorageStatus() {
-	return {dirty: pending.size > 0 || Boolean(error), error, durable};
+	return {dirty: storyConflict || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict};
 }
 
 export function subscribeStorageStatus(listener: () => void) {
@@ -89,24 +154,36 @@ export function commitStorageChanges(changes: Changes) {
 	// Reject programmer errors before adding them to the recoverable queue.
 	for (const key of changes.keys())
 		if (!validKey(key)) throw new Error('Invalid storage transaction key.');
+	checkStoryStorageGuard(new Map([...pending, ...changes]));
 	pending = new Map([...outstanding(), ...changes]);
 	if (!pending.size) return;
 	durable = false;
 	try {
 		// setItem is atomic: quota failure here leaves every existing record intact.
-		window.localStorage.setItem(
-			journalKey,
-			JSON.stringify({version: 1, changes: [...pending]})
-		);
+		const serializedJournal = JSON.stringify({version: 1, changes: [...pending]});
+		window.localStorage.setItem(journalKey, serializedJournal);
+		if (storyGuardActive) observedJournal = serializedJournal;
 		durable = true;
 		// Free obsolete records before new writes, retaining the journal throughout.
 		for (const [key, value] of pending)
-			if (value === null) window.localStorage.removeItem(key);
+			if (value === null) {
+				window.localStorage.removeItem(key);
+				if (storyGuardActive && isStoryKey(key)) observedStories.set(key, null);
+			}
 		for (const [key, value] of pending)
-			if (value !== null) window.localStorage.setItem(key, value);
+			if (value !== null) {
+				window.localStorage.setItem(key, value);
+				if (storyGuardActive && isStoryKey(key)) observedStories.set(key, value);
+			}
 		window.localStorage.removeItem(journalKey);
+		if (storyGuardActive) observedJournal = null;
+		// Complete a journal left by the pre-isolation version of the app.
+		if (window.localStorage.getItem(legacyJournalKey))
+			window.localStorage.removeItem(legacyJournalKey);
+		if (previousJournalKey && window.localStorage.getItem(previousJournalKey))
+			window.localStorage.removeItem(previousJournalKey);
 		pending.clear();
-		error = '';
+		if (!storyConflict) error = '';
 		durable = false;
 		notify();
 	} catch (cause) {
