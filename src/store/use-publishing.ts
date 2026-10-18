@@ -9,10 +9,30 @@ import {usePrefsContext} from './prefs';
 import {
 	formatWithNameAndVersion,
 	loadFormatProperties,
-	useStoryFormatsContext
+	useStoryFormatsContext,
+	StoryFormat,
+	StoryFormatProperties,
+	StoryFormatsDispatch
 } from './story-formats';
 import {storyWithId, useStoriesContext} from './stories';
 import {getAppInfo} from '../util/app-info';
+
+type FormatLoadThunk = ReturnType<typeof loadFormatProperties>;
+
+/**
+ * The thunk reducer returns a thunk's value at runtime, although its React
+ * Dispatch type is necessarily void-returning. Keep publishing on that
+ * runtime path so format loads receive the live state getter and cannot run
+ * after the format has been deleted or revoked.
+ */
+function loadPropertiesForPublishing(
+	format: StoryFormat,
+	dispatch: StoryFormatsDispatch
+): Promise<StoryFormatProperties | undefined> {
+	return (dispatch as unknown as (
+		action: FormatLoadThunk
+	) => Promise<StoryFormatProperties | undefined>)(loadFormatProperties(format));
+}
 
 export interface UsePublishingProps {
 	proofStory: (storyId: string) => Promise<string>;
@@ -50,7 +70,8 @@ export function usePublishing(): UsePublishingProps {
 					prefs.proofingFormat.name,
 					prefs.proofingFormat.version
 				);
-				const formatProperties = await loadFormatProperties(format)(
+				const formatProperties = await loadPropertiesForPublishing(
+					format,
 					storyFormatsDispatch
 				);
 
@@ -80,7 +101,8 @@ export function usePublishing(): UsePublishingProps {
 					story.storyFormat,
 					story.storyFormatVersion
 				);
-				const formatProperties = await loadFormatProperties(format)(
+				const formatProperties = await loadPropertiesForPublishing(
+					format,
 					storyFormatsDispatch
 				);
 

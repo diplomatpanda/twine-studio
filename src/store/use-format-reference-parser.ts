@@ -6,7 +6,6 @@ import {
 	useStoryFormatsContext
 } from './story-formats';
 import {formatEditorExtensionsDisabled, usePrefsContext} from './prefs';
-import {getAppInfo} from '../util/app-info';
 
 const emptyFunc = () => [];
 
@@ -17,8 +16,8 @@ export function useFormatReferenceParser(
 	const {prefs} = usePrefsContext();
 	const {dispatch, formats} = useStoryFormatsContext();
 	const format = formatWithNameAndVersion(formats, formatName, formatVersion);
-	const [editorExtensions, setEditorExtensions] =
-		React.useState<ReturnType<typeof formatEditorExtensions>>();
+	const loadedProperties =
+		format.loadState === 'loaded' ? format.properties : undefined;
 	const extensionsDisabled = formatEditorExtensionsDisabled(
 		prefs,
 		formatName,
@@ -32,10 +31,30 @@ export function useFormatReferenceParser(
 
 		if (format.loadState === 'unloaded') {
 			dispatch(loadFormatProperties(format));
-		} else if (format.loadState === 'loaded') {
-			setEditorExtensions(formatEditorExtensions(format, getAppInfo().version));
 		}
-	}, [dispatch, extensionsDisabled, format]);
+	}, [
+		dispatch,
+		extensionsDisabled,
+		format.id,
+		format.name,
+		format.version,
+		format.loadState
+	]);
+
+	const editorExtensions = React.useMemo(() => {
+		if (extensionsDisabled || format.loadState !== 'loaded') {
+			return undefined;
+		}
+
+		return formatEditorExtensions(format);
+	}, [
+		extensionsDisabled,
+		format.id,
+		format.name,
+		format.version,
+		format.loadState,
+		loadedProperties
+	]);
 
 	if (extensionsDisabled) {
 		return emptyFunc;

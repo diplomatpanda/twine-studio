@@ -3,7 +3,8 @@ import {useTranslation} from 'react-i18next';
 import {IconPlus} from '@tabler/icons';
 import {
 	createFromProperties,
-	useStoryFormatsContext
+	useStoryFormatsContext,
+	StoryFormatProperties
 } from '../../store/story-formats';
 import {
 	PromptButton,
@@ -26,23 +27,26 @@ function isValidUrl(value: string) {
 export const AddStoryFormatButton: React.FC = () => {
 	const {dispatch, formats} = useStoryFormatsContext();
 	const [newFormatUrl, setNewFormatUrl] = React.useState('');
+	const validatedProperties = React.useRef<
+		{url: string; properties: StoryFormatProperties} | undefined
+	>();
+	const latestUrl = React.useRef('');
 	const {t} = useTranslation();
 
-	async function handleSubmit() {
-		dispatch(
-			createFromProperties(
-				newFormatUrl,
-				await fetchStoryFormatProperties(newFormatUrl)
-			)
-		);
+	function handleSubmit(url: string) {
+		const snapshot = validatedProperties.current;
+
+		if (!snapshot || snapshot.url !== url) return;
+
+		dispatch(createFromProperties(url, snapshot.properties));
 	}
 
-	const validate: PromptButtonValidator = async () => {
-		if (newFormatUrl.trim() === '') {
+	const validate: PromptButtonValidator = async value => {
+		if (value.trim() === '') {
 			return {valid: false};
 		}
 
-		if (!isValidUrl(newFormatUrl)) {
+		if (!isValidUrl(value)) {
 			return {
 				message: t('dialogs.storyFormats.addStoryFormatButton.invalidUrl'),
 				valid: false
@@ -50,7 +54,14 @@ export const AddStoryFormatButton: React.FC = () => {
 		}
 
 		try {
-			const properties = await fetchStoryFormatProperties(newFormatUrl);
+			const requestedUrl = value;
+			const properties = await fetchStoryFormatProperties(requestedUrl);
+
+			// A response for an earlier URL must never be used after the user edits
+			// the field while the request is in flight.
+			if (latestUrl.current !== requestedUrl) {
+				return {valid: false};
+			}
 
 			if (
 				formats.some(
@@ -68,6 +79,7 @@ export const AddStoryFormatButton: React.FC = () => {
 				};
 			}
 
+			validatedProperties.current = {url: requestedUrl, properties};
 			return {
 				message: t('dialogs.storyFormats.addStoryFormatButton.addPreview', {
 					storyFormatName: properties.name,
@@ -90,7 +102,12 @@ export const AddStoryFormatButton: React.FC = () => {
 			<PromptButton
 				icon={<IconPlus />}
 				label={t('common.add')}
-				onChange={event => setNewFormatUrl(event.target.value)}
+				onChange={event => {
+					const value = event.target.value;
+					latestUrl.current = value;
+					validatedProperties.current = undefined;
+					setNewFormatUrl(value);
+				}}
 				onSubmit={handleSubmit}
 				prompt={t('dialogs.storyFormats.addStoryFormatButton.prompt')}
 				submitIcon={<IconPlus />}

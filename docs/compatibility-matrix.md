@@ -10,7 +10,7 @@ Parser acceptance alone is not a runtime compatibility claim.
 | Chapbook | 1.2.3, 2.3.1 | Source editing | 2.3.1 variable interpolation, script/CSS and edit/export round trip |
 | Snowman | 1.5.0, 2.1.4 | Source editing | 2.1.4 template expression, script/CSS and edit/export round trip |
 | Paperthin | 1.0.0 | Proofing only | Historical license notice unresolved |
-| Custom | User-installed | Source editing | No blanket compatibility claim |
+| Custom | User-installed | Source editing | Isolated metadata and untrusted publication; approved direct and hydrated editor extensions in bounded fixtures |
 
 The choice helper emits plain links and conservatively rejects special syntax
 in labels/destination names. Story logic adds native yes/no or numeric assignments
@@ -25,3 +25,9 @@ advanced-story and cross-format round trips remain release gates.
 The current round-trip fixtures are synthetic and intentionally small. They do
 not establish preservation of every custom macro, plugin, external asset or old
 format version. No visual logic support is claimed for Chapbook or Snowman.
+
+Editor extensions target the inherited Twine 2.12.1 API independently of Studio's
+product version. Bundled Harlowe formatting and explicit custom-code approval
+have browser regression coverage. Custom editor-code approval requires a readable
+source snapshot and SHA-256; publishing can use isolated legacy JSONP hosts.
+See story-format-trust.md for custom wrapper and revocation limits.

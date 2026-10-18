@@ -53,6 +53,27 @@ describe('story formats Electron IPC save middleware', () => {
 		]);
 	});
 
+	it('persists editor code trust metadata', () => {
+		const editorCodeTrust = {
+			url: 'https://example.com/custom-format.js',
+			sha256: 'abc123'
+		};
+		state[0] = {...state[0], editorCodeTrust};
+
+		saveMiddleware(state, {
+			type: 'update',
+			id: state[0].id,
+			props: {editorCodeTrust}
+		});
+
+		expect(saveJsonMock).toHaveBeenCalledWith(
+		'story-formats.json',
+			expect.arrayContaining([
+				expect.objectContaining({editorCodeTrust})
+			])
+		);
+	});
+
 	it('takes no action if a non-significant update action is received', () => {
 		saveMiddleware(state, {
 			type: 'update',

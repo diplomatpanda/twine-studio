@@ -1,13 +1,17 @@
 import {StoryFormat} from '../../store/story-formats';
 import {satisfies} from 'semver';
 
+// Extension API compatibility follows our upstream baseline, independently of
+// Twine Studio's product version. Update only after checking the API contract.
+export const TWINE_EDITOR_API_VERSION = '2.12.1';
+
 /**
  * Returns editor extensions in a format that fit the Twine version specified.
  * If none are available, then this returns undefined.
  */
 export function formatEditorExtensions(
 	format: StoryFormat,
-	twineVersion: string
+	twineVersion = TWINE_EDITOR_API_VERSION
 ) {
 	if (format.loadState !== 'loaded') {
 		return;

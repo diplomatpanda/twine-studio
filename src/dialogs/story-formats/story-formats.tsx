@@ -14,7 +14,8 @@ import {
 	filteredFormats,
 	sortFormats,
 	StoryFormat,
-	useStoryFormatsContext
+	useStoryFormatsContext,
+	setFormatEditorCodeTrust
 } from '../../store/story-formats';
 import {AddStoryFormatButton} from './add-story-format-button';
 import {StoryFormatsFilterButton} from './story-formats-filter-button';
@@ -102,6 +103,9 @@ export const StoryFormatsDialog: React.FC<StoryFormatsDialogProps> = props => {
 							)}
 							onChangeEditorExtensionsDisabled={value =>
 								handleChangeEditorExtensionsDisabled(format, value)
+							}
+							onChangeEditorCodeTrust={trusted =>
+								formatsDispatch(setFormatEditorCodeTrust(format, trusted))
 							}
 							onDelete={() => handleDelete(format)}
 							onUseAsDefault={() => handleUseAsDefault(format)}

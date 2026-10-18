@@ -149,7 +149,46 @@ passed again with the main-frame-only preload bridge. Electron external links
 now accept only HTTP, HTTPS and mailto schemes.
 
 Independent review found no direct parent/editor escape in this preview boundary.
-The editor's story-format loader/extensions still execute in its own context,
-and that trust boundary remains a separate release blocker. Temporary storage
+The separate format-loader boundary is addressed by the trust pass below.
+Temporary storage
 does not emulate native quotas, storage events, cookies, IndexedDB or every
 custom-format persistence feature. See preview-isolation.md.
+
+## Story-format trust pass
+
+Format installation and loading now evaluate the JSONP wrapper in a script-only
+opaque sandbox and copy typed publishing metadata. DOMPurify removes unsafe author
+and description markup. CORS-readable format files retain an exact source snapshot;
+legacy JSONP hosts can still supply publishing templates without editor authority.
+The unused parent-context JSONP dependency was removed.
+
+Custom editor code requires explicit confirmation bound to its canonical URL and
+SHA-256. That exact snapshot supplies direct function extensions and hydration.
+Changed files require renewed approval; the UI explains disabled/unverifiable
+extensions and permits revocation, including after approved code fails to load.
+Bundled application assets remain trusted by exact URL, name and version.
+
+The Add dialog no longer downloads again on submission. Independent review checked
+the source/nonce boundary, metadata handling and trust persistence. A suspected
+silent-revocation failure was ruled out after reviewing the existing recovery and
+close guards; targeted journal-write/record-write failures now verify revocation
+survives retry. Forced termination after a reported disk failure remains a limit.
+
+Editor extensions now negotiate against the inherited Twine 2.12.1 API instead
+of Studio's product version, restoring Harlowe's formatting tools. Mounted editors
+refresh toolbar, mode and reference functions when trust or preferences change.
+Commands remain installed while another editor uses them, and distinct format
+identities prevent custom-name collisions. Pending loads check current approval
+and existence before executing code or restoring controls after revoke/delete.
+
+Three accidental focused-test declarations were removed. All 28 Chromium journeys
+passed. Four-format preservation/publication, preview isolation, custom consent
+and live toolbar changes passed 18 additional Firefox/WebKit journeys using the
+pinned Playwright browsers. Production offline Harlowe preview/export and builds
+pass. Native desktop checks cover actual Harlowe Bold insertion, local file-format
+loading, preview/export and trust/revocation across restart. See release-readiness.md
+for unit totals and story-format-trust.md for explicit compatibility limits.
+
+This completes another security prerequisite, not the overall product mission.
+Provider credentials and AI proposal review, story planning, broader workflow
+polish and remaining acceptance evidence still require implementation.

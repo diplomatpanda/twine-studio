@@ -27,6 +27,21 @@ describe('story formats Electron IPC load', () => {
 		]);
 	});
 
+	it('preserves editor code trust metadata from the Electron bridge', async () => {
+		const storyFormat = {
+			...fakeUnloadedStoryFormat(),
+			editorCodeTrust: {
+				url: 'https://example.com/custom-format.js',
+				sha256: 'abc123'
+			}
+		};
+
+		mockLoadStoryFormats([storyFormat]);
+		expect(await load()).toEqual([
+			{...storyFormat, id: expect.any(String)}
+		]);
+	});
+
 	it("resolves to an empty array if loadStoryFormats doesn't return an array", async () => {
 		mockLoadStoryFormats('bad');
 		expect(await load()).toEqual([]);

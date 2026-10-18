@@ -21,6 +21,9 @@ export async function load(): Promise<StoryFormatsState> {
 		name: data.name,
 		version: data.version,
 		url: data.url,
-		userAdded: data.userAdded
+		userAdded: data.userAdded,
+		...(data.editorCodeTrust
+			? {editorCodeTrust: data.editorCodeTrust}
+			: {})
 	}));
 }

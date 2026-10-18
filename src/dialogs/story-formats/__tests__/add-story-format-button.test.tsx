@@ -73,6 +73,7 @@ describe('<AddStoryFormatButton>', () => {
 
 		expect(formatInspector.dataset.name).toBe(format.name);
 		expect(formatInspector.dataset.version).toBe(format.version);
+		expect(fetchStoryFormatPropertiesMock).toHaveBeenCalledTimes(1);
 	});
 
 	it('shows an error on submit if an invalid URL is entered', async () => {

@@ -7,6 +7,15 @@ import {
 } from '../../../test-util';
 
 describe('formatEditorExtensions()', () => {
+	it('uses the inherited Twine API version independently of the Studio release version', () => {
+		const format = fakeLoadedStoryFormat();
+		const extensions = {references: {parsePassageText: () => ['Next']}};
+		if (format.loadState !== 'loaded') {
+			throw new Error('Expected a loaded fixture');
+		}
+		format.properties.editorExtensions = {twine: {'^2.12.0': extensions}};
+		expect(formatEditorExtensions(format)).toBe(extensions);
+	});
 	it('returns undefined if the format is not loaded', () => {
 		expect(
 			formatEditorExtensions(fakeFailedStoryFormat(), '2.4.0')

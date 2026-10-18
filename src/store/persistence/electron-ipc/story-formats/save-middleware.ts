@@ -25,7 +25,10 @@ export function saveMiddleware(
 				selected: undefined,
 				version: format.version,
 				url: format.url,
-				userAdded: format.userAdded
+				userAdded: format.userAdded,
+				...(format.editorCodeTrust
+					? {editorCodeTrust: format.editorCodeTrust}
+					: {})
 			}))
 		);
 	}

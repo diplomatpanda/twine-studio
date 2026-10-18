@@ -1,6 +1,43 @@
+import DOMPurify from 'dompurify';
 import * as React from 'react';
 import {useTranslation} from 'react-i18next';
 import {StoryFormat} from '../../../store/story-formats';
+
+const safeMetadataConfig = {
+	ALLOWED_TAGS: [
+		'a',
+		'b',
+		'blockquote',
+		'br',
+		'code',
+		'del',
+		'em',
+		'i',
+		'kbd',
+		'li',
+		'mark',
+		'ol',
+		'p',
+		'pre',
+		's',
+		'small',
+		'strong',
+		'sub',
+		'sup',
+		'u',
+		'ul'
+	],
+	ALLOWED_ATTR: ['href', 'title'],
+	ALLOW_DATA_ATTR: false,
+	ALLOW_ARIA_ATTR: false,
+	FORBID_TAGS: ['embed', 'form', 'iframe', 'math', 'object', 'script', 'style', 'svg'],
+	FORBID_ATTR: ['style'],
+	ALLOWED_URI_REGEXP: /^(?:https?:|mailto:)/i
+};
+
+export function sanitizeStoryFormatMetadata(value: string) {
+	return DOMPurify.sanitize(value, safeMetadataConfig);
+}
 
 export interface StoryFormatItemDetailsProps {
 	format: StoryFormat;
@@ -37,9 +74,11 @@ export const StoryFormatItemDetails: React.FC<StoryFormatItemDetailsProps> = ({
 				<p
 					className="story-format-author"
 					dangerouslySetInnerHTML={{
-						__html: t('components.storyFormatItem.author', {
-							author: format.properties.author
-						})
+						__html: sanitizeStoryFormatMetadata(
+							t('components.storyFormatItem.author', {
+								author: format.properties.author
+							})
+						)
 					}}
 				/>
 			)}
@@ -47,7 +86,9 @@ export const StoryFormatItemDetails: React.FC<StoryFormatItemDetailsProps> = ({
 				<div
 					className="story-format-description"
 					dangerouslySetInnerHTML={{
-						__html: format.properties.description
+						__html: sanitizeStoryFormatMetadata(
+							format.properties.description
+						)
 					}}
 				/>
 			)}

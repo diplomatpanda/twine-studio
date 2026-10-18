@@ -36,12 +36,16 @@ complete legal review of dependency trees or embedded assets.
   `react-scrollbar-size`, `react-tabs`, `scroll`, `segseg`, `ua-parser-js`,
   `use-error-boundary`.
 - Apache-2.0: `fuse.js`.
+- MPL-2.0 OR Apache-2.0: `dompurify` 3.4.17, added to sanitize story-format
+  descriptions. Its package includes `LICENSE` and distribution header notices;
+  preserve those when assembling the release notices bundle.
 - BSD-3-Clause: `react-transition-group`.
 - ISC: `semver`.
 - W3C: `focus-visible` (review its notice text when assembling a distributable
   notices bundle).
-- Unknown package metadata: `jsonp`; inspect its repository/package contents
-  before release.
+
+The former `jsonp` dependency was removed when format loading moved to an
+isolated frame.
 
 No production dependency reported GPL, AGPL, or another obviously reciprocal
 license in its installed top-level package metadata. Transitive packages,

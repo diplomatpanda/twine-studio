@@ -2,6 +2,7 @@ import {ModeFactory} from 'codemirror';
 import {Thunk} from 'react-hook-thunk-reducer';
 
 interface BaseStoryFormat {
+	editorCodeTrust?: {url: string; sha256: string};
 	id: string;
 	loadState: 'unloaded' | 'loading' | 'loaded' | 'error';
 	name: string;
@@ -32,8 +33,7 @@ export type StoryFormatToolbarButton = {
 };
 
 export type StoryFormatToolbarMenuItem =
-	| Omit<StoryFormatToolbarButton, 'icon'>
-	| {type: 'separator'};
+	Omit<StoryFormatToolbarButton, 'icon'> | {type: 'separator'};
 
 export type StoryFormatToolbarItem =
 	| StoryFormatToolbarButton
@@ -65,6 +65,8 @@ export type StoryFormatToolbarFactory = (
  * https://github.com/iftechfoundation/twine-specs/blob/master/twine-2-storyformats-spec.md
  */
 export interface StoryFormatProperties {
+	/** Transport-owned source snapshot, never accepted from the format callback. */
+	editorCode?: {url: string; source: string; sha256?: string};
 	author?: string;
 	description?: string;
 	editorExtensions?: {

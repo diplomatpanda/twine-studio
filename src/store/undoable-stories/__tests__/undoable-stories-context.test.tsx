@@ -114,7 +114,7 @@ describe('<UndoableStoriesContextProvider>', () => {
 		it.todo("doesn't exist if there isn't a change later than the current one");
 	});
 
-	fdescribe('its undo function', () => {
+	describe('its undo function', () => {
 		const dispatch = jest.fn();
 		const stories = [fakeStory()];
 		const redo = {type: 'init', state: {}};

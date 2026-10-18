@@ -17,7 +17,6 @@ import {usePrefsContext} from '../prefs';
 jest.mock('../prefs/prefs-context');
 jest.mock('../story-formats/story-formats-context');
 jest.mock('../story-formats/action-creators');
-jest.mock('../../util/app-info');
 
 describe('useFormatReferenceParser()', () => {
 	const loadFormatPropertiesMock = loadFormatProperties as jest.Mock;
@@ -77,7 +76,7 @@ describe('useFormatReferenceParser()', () => {
 				format.version = '1.2.3';
 				(format as any).properties.editorExtensions = {
 					twine: {
-						'2.0.0': {
+						'^2.0.0': {
 							references: {parsePassageText}
 						}
 					}
@@ -98,6 +97,50 @@ describe('useFormatReferenceParser()', () => {
 				);
 
 				expect(result.current('')).toEqual([]);
+			});
+
+			it('recomputes the parser when approved properties or preferences change', () => {
+				format.name = 'Predictable Name';
+				format.version = '1.2.3';
+				const context = {dispatch: dispatchMock, formats: [format]};
+				const prefs = fakePrefs();
+				(useStoryFormatsContext as jest.Mock).mockReturnValue(context);
+				(usePrefsContext as jest.Mock).mockReturnValue({
+					dispatch: jest.fn(),
+					prefs
+				});
+
+				const {result, rerender} = renderHook(() =>
+					useFormatReferenceParser(format.name, format.version)
+				);
+				expect(result.current('')).toEqual([]);
+
+				const parsePassageText = jest.fn();
+				const loadedFormat = format as Extract<StoryFormat, {loadState: 'loaded'}>;
+				format = {
+					...loadedFormat,
+					properties: {
+						...loadedFormat.properties,
+						editorExtensions: {
+							twine: {
+								'^2.0.0': {references: {parsePassageText}}
+							}
+						}
+					}
+				};
+				context.formats = [format];
+				rerender();
+				expect(result.current).toBe(parsePassageText);
+
+				prefs.disabledStoryFormatEditorExtensions = [
+					{name: format.name, version: format.version}
+				];
+				rerender();
+				expect(result.current('')).toEqual([]);
+
+				prefs.disabledStoryFormatEditorExtensions = [];
+				rerender();
+				expect(result.current).toBe(parsePassageText);
 			});
 		});
 

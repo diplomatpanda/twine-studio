@@ -17,6 +17,7 @@ describe('<StoryFormatItem>', () => {
 				defaultFormat={false}
 				editorExtensionsDisabled={false}
 				format={fakeLoadedStoryFormat()}
+				onChangeEditorCodeTrust={jest.fn()}
 				onChangeEditorExtensionsDisabled={jest.fn()}
 				onDelete={jest.fn()}
 				onUseAsDefault={jest.fn()}
@@ -27,9 +28,41 @@ describe('<StoryFormatItem>', () => {
 		);
 	}
 
+	function fakePackagedStoryFormat() {
+		return fakeLoadedStoryFormat({
+			name: 'Harlowe',
+			url: 'story-formats/harlowe-3.3.9/format.js',
+			version: '3.3.9'
+		});
+	}
+
 	it('shows a loading icon if the format is loading', () => {
 		renderComponent({format: fakePendingStoryFormat()});
 		expect(document.querySelector('.icon-loading')).toBeInTheDocument();
+	});
+
+	it('allows revoking approval even after approved code fails to load', () => {
+		const onChangeEditorCodeTrust = jest.fn();
+		renderComponent({
+			onChangeEditorCodeTrust,
+			format: fakeFailedStoryFormat({
+				editorCodeTrust: {
+					url: 'https://example.com/format.js',
+					sha256: 'approved-source'
+				}
+			})
+		});
+		fireEvent.click(
+			screen.getByRole('button', {
+				name: 'components.storyFormatItem.revokeEditorCodeTrust'
+			})
+		);
+		fireEvent.click(
+			screen.getAllByRole('button', {
+				name: 'components.storyFormatItem.revokeEditorCodeTrust'
+			})[1]
+		);
+		expect(onChangeEditorCodeTrust).toHaveBeenCalledWith(false);
 	});
 
 	it('shows an error icon if the format failed to load', () => {
@@ -174,11 +207,159 @@ describe('<StoryFormatItem>', () => {
 			).not.toBeInTheDocument();
 		});
 
+		it('shows a trust control for custom editor code with a source hash', () => {
+			const format = fakeLoadedStoryFormat(
+				{url: 'https://example.com/custom-format.js', userAdded: true},
+				{
+					editorCode: {
+						url: 'https://example.com/custom-format.js',
+						source: 'window.storyFormat({});',
+						sha256: 'abc123'
+					}
+				}
+			);
+			const onChangeEditorCodeTrust = jest.fn();
+			renderComponent({format, onChangeEditorCodeTrust});
+
+			const label = 'components.storyFormatItem.trustEditorCode';
+			fireEvent.click(screen.getByRole('button', {name: label}));
+			fireEvent.click(screen.getAllByRole('button', {name: label}).at(-1)!);
+
+			expect(onChangeEditorCodeTrust).toHaveBeenCalledWith(true);
+		});
+
+		it('shows the revoke warning for trusted custom editor code', () => {
+			const url = 'https://example.com/custom-format.js';
+			const format = fakeLoadedStoryFormat(
+				{url, userAdded: true, editorCodeTrust: {url, sha256: 'abc123'}},
+				{
+					editorCode: {url, source: 'window.storyFormat({});', sha256: 'abc123'}
+				}
+			);
+			const onChangeEditorCodeTrust = jest.fn();
+			renderComponent({format, onChangeEditorCodeTrust});
+
+			const label = 'components.storyFormatItem.revokeEditorCodeTrust';
+			fireEvent.click(screen.getByRole('button', {name: label}));
+			expect(
+				screen.getByText(
+					'components.storyFormatItem.revokeEditorCodeTrustWarning'
+				)
+			).toBeInTheDocument();
+			fireEvent.click(screen.getAllByRole('button', {name: label}).at(-1)!);
+
+			expect(onChangeEditorCodeTrust).toHaveBeenCalledWith(false);
+			expect(
+				screen.getByRole('checkbox', {
+					name: 'components.storyFormatItem.useEditorExtensions'
+				})
+			).toBeInTheDocument();
+		});
+
+		it('shows an approval status and no extensions checkbox for untrusted code', () => {
+			const format = fakeLoadedStoryFormat(
+				{url: 'https://example.com/custom-format.js', userAdded: true},
+				{
+					editorCode: {
+						url: 'https://example.com/custom-format.js',
+						source: 'window.storyFormat({});',
+						sha256: 'abc123'
+					}
+				}
+			);
+			renderComponent({format});
+
+			expect(
+				screen.getByText('components.storyFormatItem.editorCodeUntrusted')
+			).toBeInTheDocument();
+			expect(
+				screen.queryByRole('checkbox', {
+					name: 'components.storyFormatItem.useEditorExtensions'
+				})
+			).not.toBeInTheDocument();
+		});
+
+		it('allows revoking approval when the source hash changes', () => {
+			const url = 'https://example.com/custom-format.js';
+			const format = fakeLoadedStoryFormat(
+				{url, userAdded: true, editorCodeTrust: {url, sha256: 'old-hash'}},
+				{
+					editorCode: {
+						url,
+						source: 'window.storyFormat({});',
+						sha256: 'new-hash'
+					}
+				}
+			);
+			const onChangeEditorCodeTrust = jest.fn();
+			renderComponent({format, onChangeEditorCodeTrust});
+
+			expect(
+				screen.getByText('components.storyFormatItem.editorCodeChanged')
+			).toBeInTheDocument();
+			const trustLabel = 'components.storyFormatItem.trustEditorCode';
+			fireEvent.click(screen.getByRole('button', {name: trustLabel}));
+			fireEvent.click(
+				screen.getAllByRole('button', {name: trustLabel}).at(-1)!
+			);
+			expect(onChangeEditorCodeTrust).toHaveBeenCalledWith(true);
+			expect(
+				screen.getByRole('button', {
+					name: 'components.storyFormatItem.revokeEditorCodeTrust'
+				})
+			).toBeInTheDocument();
+		});
+
+		it('allows revoking approval when the source cannot be hashed', () => {
+			const url = 'https://example.com/custom-format.js';
+			const format = fakeLoadedStoryFormat(
+				{url, userAdded: true, editorCodeTrust: {url, sha256: 'old-hash'}},
+				{editorCode: {url, source: 'window.storyFormat({});'}}
+			);
+			const onChangeEditorCodeTrust = jest.fn();
+			renderComponent({format, onChangeEditorCodeTrust});
+
+			expect(
+				screen.getByText('components.storyFormatItem.editorCodeUnverifiable')
+			).toBeInTheDocument();
+			const label = 'components.storyFormatItem.revokeEditorCodeTrust';
+			fireEvent.click(screen.getByRole('button', {name: label}));
+			fireEvent.click(screen.getAllByRole('button', {name: label}).at(-1)!);
+			expect(onChangeEditorCodeTrust).toHaveBeenCalledWith(false);
+		});
+
+		it('does not show a trust control without a source hash', () => {
+			const format = fakeLoadedStoryFormat(
+				{url: 'https://example.com/custom-format.js', userAdded: true},
+				{
+					editorCode: {
+						url: 'https://example.com/custom-format.js',
+						source: 'window.storyFormat({});'
+					}
+				}
+			);
+			renderComponent({format});
+
+			expect(
+				screen.queryByRole('button', {
+					name: 'components.storyFormatItem.trustEditorCode'
+				})
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByText('components.storyFormatItem.editorCodeUnverifiable')
+			).toBeInTheDocument();
+			expect(
+				screen.queryByRole('checkbox', {
+					name: 'components.storyFormatItem.useEditorExtensions'
+				})
+			).not.toBeInTheDocument();
+		});
+
 		describe('When editor extensions for the format are enabled', () => {
 			it('shows a checked checkbox', () => {
 				renderComponent({
 					editorExtensionsDisabled: false,
-					format: fakeLoadedStoryFormat()
+					format: fakePackagedStoryFormat()
 				});
 				expect(
 					screen.getByRole('checkbox', {
@@ -193,7 +374,7 @@ describe('<StoryFormatItem>', () => {
 				renderComponent({
 					onChangeEditorExtensionsDisabled,
 					editorExtensionsDisabled: false,
-					format: fakeLoadedStoryFormat()
+					format: fakePackagedStoryFormat()
 				});
 				expect(onChangeEditorExtensionsDisabled).not.toHaveBeenCalled();
 				fireEvent.click(
@@ -209,7 +390,7 @@ describe('<StoryFormatItem>', () => {
 			it('shows an unchecked checkbox', () => {
 				renderComponent({
 					editorExtensionsDisabled: true,
-					format: fakeLoadedStoryFormat()
+					format: fakePackagedStoryFormat()
 				});
 				expect(
 					screen.getByRole('checkbox', {
@@ -224,7 +405,7 @@ describe('<StoryFormatItem>', () => {
 				renderComponent({
 					onChangeEditorExtensionsDisabled,
 					editorExtensionsDisabled: true,
-					format: fakeLoadedStoryFormat()
+					format: fakePackagedStoryFormat()
 				});
 				expect(onChangeEditorExtensionsDisabled).not.toHaveBeenCalled();
 				fireEvent.click(

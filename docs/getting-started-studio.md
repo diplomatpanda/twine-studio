@@ -76,6 +76,16 @@ raw data for investigation; it is not a playable story or a normal import file.
 
 Do not clear Studio's site data to make space before exporting your work.
 
+## Custom format editor extensions
+
+Custom formats can play and publish stories without access to the editor.
+If you want a format's editing tools, open **Twine Studio → Story Formats → Trust
+editor code**, then read the confirmation. Approved code can read/change your
+stories and use desktop operations, so approve only a source you trust. A changed
+format file needs approval again. Revoking approval requires a successful save
+and restart to remove code already running. See [story-format-trust.md](story-format-trust.md)
+for formats whose source cannot be verified and other compatibility limits.
+
 ## Offline use and current limitations
 
 The production browser app caches bundled resources after an online first load.
@@ -85,7 +95,7 @@ not covered by that offline guarantee. Clearing site data removes browser work
 and the offline cache; keep exported backups.
 
 AI proposals and broader workflow modernization are not yet available. The
-inherited app has remaining dependency and story-format trust issues; see
+inherited app has remaining dependency and release-readiness work; see
 release-readiness.md. Browser Studio uses its own storage namespace and desktop
 Studio uses its own application identity and default story folders. Import
 copies of existing stories explicitly; no automatic migration runs.

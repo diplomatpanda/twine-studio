@@ -7,7 +7,6 @@ import {
 } from './story-formats';
 import {formatEditorExtensions, namespaceForFormat} from '../util/story-format';
 import {formatEditorExtensionsDisabled, usePrefsContext} from './prefs';
-import {getAppInfo} from '../util/app-info';
 
 /**
  * Sets up a CodeMirror mode for a format, if the format has defined one via
@@ -21,6 +20,8 @@ export function useFormatCodeMirrorMode(
 ) {
 	const {dispatch, formats} = useStoryFormatsContext();
 	const format = formatWithNameAndVersion(formats, formatName, formatVersion);
+	const loadedProperties =
+		format.loadState === 'loaded' ? format.properties : undefined;
 	const {prefs} = usePrefsContext();
 	const [modeName, setModeName] = React.useState<string>();
 	const extensionsDisabled = formatEditorExtensionsDisabled(
@@ -30,27 +31,34 @@ export function useFormatCodeMirrorMode(
 	);
 
 	React.useEffect(() => {
-		if (extensionsDisabled) {
+		if (extensionsDisabled || format.loadState !== 'loaded') {
+			setModeName(undefined);
+			if (format.loadState === 'unloaded' && !extensionsDisabled) {
+				dispatch(loadFormatProperties(format));
+			}
 			return;
 		}
 
-		if (format.loadState === 'unloaded') {
-			dispatch(loadFormatProperties(format));
-		} else if (format.loadState === 'loaded') {
-			const editorExtensions = formatEditorExtensions(
-				format,
-				getAppInfo().version
-			);
+		const editorExtensions = formatEditorExtensions(format);
 
-			if (editorExtensions?.codeMirror?.mode) {
-				CodeMirror.defineMode(
-					namespaceForFormat(format),
-					editorExtensions.codeMirror.mode
-				);
-				setModeName(namespaceForFormat(format));
-			}
+		if (editorExtensions?.codeMirror?.mode) {
+			CodeMirror.defineMode(
+				namespaceForFormat(format),
+				editorExtensions.codeMirror.mode
+			);
+			setModeName(namespaceForFormat(format));
+		} else {
+			setModeName(undefined);
 		}
-	}, [dispatch, extensionsDisabled, format]);
+	}, [
+		dispatch,
+		extensionsDisabled,
+		format.id,
+		format.name,
+		format.version,
+		format.loadState,
+		loadedProperties
+	]);
 
 	return modeName;
 }

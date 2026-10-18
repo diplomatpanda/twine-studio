@@ -7,10 +7,11 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- Full Jest checkpoint: **257 suites passed**, **1,816 tests passed**, 23 skipped
-  and 42 TODOs. This includes browser recovery, startup failure, passage lifecycle
-  and desktop publication/close coverage. Later desktop and preview changes are
-  checked with affected suites; unchanged suites reuse this full-run evidence.
+- Jest validation covers **259 suites and 1,888 passing tests**, with 4 skipped
+  and 42 TODOs. The full run passed 258 suites; three mode-test assertions still
+  expected the old namespace. After updating those assertions, all 14 tests in
+  the affected suite passed. Other source was unchanged. Accidental focused-test
+  declarations were removed from the format and undo suites.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -18,10 +19,17 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - ESLint: no errors/warnings. TypeScript web and Electron main builds pass.
 - Production web build and renderer copy both pass; no shell copy error remains.
 - Chromium upstream smoke journeys: **6 passed**.
-- Chromium suite: **24 passed**, covering the sample's two endings, immediate
+- Chromium suite: **28 passed**, covering the sample's two endings, immediate
   reload, native fact/condition journeys, four format round trips and previews,
-  the 240-passage workflow, recovery and preview isolation. The isolation journey
-  was also extended and rerun to exercise Test and Proof.
+  the 240-passage workflow, recovery, preview isolation, custom-format trust and
+  mounted editor extension activation/revocation.
+- Firefox and WebKit: **18 focused journeys passed** across format round trips,
+  preview isolation, custom-format trust and editor toolbars. These use the repository's pinned
+  Playwright browser builds; this is not a complete current-browser support audit.
+- Native format acceptance passes with an isolated Windows profile: bundled
+  Harlowe Styles/Bold insertion, local file-format installation, preview/export,
+  exact-source editor approval and revocation retained across restart. Reproduce
+  after building with `node scripts/verify-desktop-formats.cjs`.
 - Choice/export journeys: **3 passed** (Harlowe enhanced/basic editors, SugarCube
   enhanced editor). Includes recent typing, explicit insertion, focus return,
   enhanced editor undo/redo, basic editor story undo/redo, reload, HTML publication
@@ -62,8 +70,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 
 - Finish the remaining acceptance limits below, especially advanced existing
   projects, AI modification, cross-browser behavior and harder failure modes.
-- Browser authored previews are isolated. Resolve the separate story-format
-  loader/editor-extension trust boundary before adding credentials.
+- Browser authored previews and format metadata are isolated. Custom editor
+  extensions require approval tied to URL and source hash; bundled application
+  assets are trusted. Approved extensions still have renderer authority. Keep
+  future provider credentials outside that renderer. See story-format-trust.md.
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
@@ -90,7 +100,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
 | E: large story | 240-passage HTML import, search, rename, incoming-link update, edit, reload and publish pass | Irregular/long-text projects and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
-| G: formats | Bundled current Harlowe, SugarCube, Chapbook and Snowman fixtures execute after round trip | Older/custom formats and full language coverage pending |
+| G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Production Chromium reload/edit/save/Harlowe preview/export pass | Other formats, cache eviction and cross-browser coverage pending |
 | I: recovery | Browser journal failure, partial writes, backup restoration, corrupt-journal export, guarded reload, passage creation/map drag recovery and native immediate close pass | Abrupt kills, real full disks and cross-browser behavior pending |
 | J: publication | Original complete three-passage story plays both endings independently | No public release performed |

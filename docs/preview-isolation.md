@@ -27,9 +27,10 @@ HTML in the system browser, using that browser's normal file-origin behavior.
 
 ## Separate trust boundaries
 
-Story-format loading and editor extensions still execute in the editor context.
-This change confines authored preview HTML; it does not make untrusted installed
-format code safe or establish credential isolation. Those remain release work.
+Story-format metadata now loads in a separate opaque sandbox. Custom editor code
+requires explicit approval bound to its URL and source hash; approved extensions
+still execute in the editor context. See [story-format-trust.md](story-format-trust.md).
+Neither boundary establishes provider credential isolation.
 The sandbox also permits network requests from stories; it is not an offline or
 network-access policy.
 

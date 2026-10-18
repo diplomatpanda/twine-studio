@@ -14,12 +14,12 @@ import {
 	useStoryFormatsContext
 } from '../story-formats';
 import {useFormatCodeMirrorMode} from '../use-format-codemirror-mode';
+import {namespaceForFormat} from '../../util/story-format/namespace';
 
 jest.mock('codemirror');
 jest.mock('../prefs/prefs-context');
 jest.mock('../story-formats/story-formats-context');
 jest.mock('../story-formats/action-creators');
-jest.mock('../../util/app-info');
 
 describe('useFormatCodeMirrorMode()', () => {
 	const codeMirrorDefineModeMock = CodeMirror.defineMode as jest.Mock;
@@ -79,7 +79,7 @@ describe('useFormatCodeMirrorMode()', () => {
 					format.version = '1.2.3';
 					(format as any).properties.editorExtensions = {
 						twine: {
-							'2.0.0': {
+							'^2.0.0': {
 								codeMirror: {
 									mode: mockMode
 								}
@@ -93,7 +93,7 @@ describe('useFormatCodeMirrorMode()', () => {
 						useFormatCodeMirrorMode(format.name, format.version)
 					);
 					expect(codeMirrorDefineModeMock.mock.calls).toEqual([
-						['predictable-name-1.2.3', mockMode]
+						[namespaceForFormat(format), mockMode]
 					]);
 				});
 
@@ -102,7 +102,7 @@ describe('useFormatCodeMirrorMode()', () => {
 						renderHook(() =>
 							useFormatCodeMirrorMode(format.name, format.version)
 						).result.current
-					).toBe('predictable-name-1.2.3'));
+					).toBe(namespaceForFormat(format)));
 			});
 
 			describe("when the format doesn't have a CodeMirror mode", () => {
@@ -115,6 +115,54 @@ describe('useFormatCodeMirrorMode()', () => {
 					).toBeUndefined();
 				});
 			});
+
+		it('clears disabled modes and activates a newly loaded properties snapshot', () => {
+			format = fakeLoadedStoryFormat();
+			format.name = 'Predictable Name';
+			format.version = '1.2.3';
+			const loadedFormat = format as Extract<StoryFormat, {loadState: 'loaded'}>;
+			const firstMode = {firstMode: true} as any;
+			loadedFormat.properties.editorExtensions = {
+				twine: {'^2.0.0': {codeMirror: {mode: firstMode}}}
+			};
+			const context = {dispatch: dispatchMock, formats: [format]};
+			const prefs = fakePrefs();
+			(useStoryFormatsContext as jest.Mock).mockReturnValue(context);
+			(usePrefsContext as jest.Mock).mockReturnValue({
+				dispatch: jest.fn(),
+				prefs
+			});
+
+			const {result, rerender} = renderHook(() =>
+				useFormatCodeMirrorMode(format.name, format.version)
+			);
+			expect(result.current).toBe(namespaceForFormat(format));
+
+			prefs.disabledStoryFormatEditorExtensions = [
+				{name: format.name, version: format.version}
+			];
+			rerender();
+			expect(result.current).toBeUndefined();
+
+			const secondMode = {secondMode: true} as any;
+			format = {
+				...loadedFormat,
+				properties: {
+					...loadedFormat.properties,
+					editorExtensions: {
+						twine: {'^2.0.0': {codeMirror: {mode: secondMode}}}
+					}
+				}
+			};
+			context.formats = [format];
+			prefs.disabledStoryFormatEditorExtensions = [];
+			rerender();
+			expect(result.current).toBe(namespaceForFormat(format));
+			expect(codeMirrorDefineModeMock).toHaveBeenLastCalledWith(
+				namespaceForFormat(format),
+				secondMode
+			);
+		});
 		});
 
 		it('returns undefined if the format is loading', () => {

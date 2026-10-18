@@ -10,7 +10,13 @@ import {
 	StoryFormatToolbarItem,
 	useStoryFormatsContext
 } from './story-formats';
-import {getAppInfo} from '../util/app-info';
+
+interface CommandRegistryEntry {
+	command: unknown;
+	owners: Set<object>;
+}
+
+const commandRegistry = new Map<string, CommandRegistryEntry>();
 
 /**
  * Manages working with a CodeMirror toolbar for a story format, which consists
@@ -29,10 +35,13 @@ export function useFormatCodeMirrorToolbar(
 	formatVersion: string
 ) {
 	const {dispatch, formats} = useStoryFormatsContext();
-	const [loaded, setLoaded] = React.useState<Record<string, boolean>>({});
 	const [toolbarFunc, setToolbarFunc] =
 		React.useState<StoryFormatToolbarFactory>();
+	const commandOwner = React.useRef<object>({}).current;
+	const installedCommands = React.useRef<Set<string>>(new Set()).current;
 	const format = formatWithNameAndVersion(formats, formatName, formatVersion);
+	const loadedProperties =
+		format.loadState === 'loaded' ? format.properties : undefined;
 	const {prefs} = usePrefsContext();
 	const extensionsDisabled = formatEditorExtensionsDisabled(
 		prefs,
@@ -40,28 +49,52 @@ export function useFormatCodeMirrorToolbar(
 		formatVersion
 	);
 
+	function removeOwnedCommands() {
+		for (const commandName of installedCommands) {
+			const entry = commandRegistry.get(commandName);
+			if (!entry) {
+				continue;
+			}
+
+			entry.owners.delete(commandOwner);
+			if (entry.owners.size === 0) {
+				if ((CodeMirror.commands as any)[commandName] === entry.command) {
+					delete (CodeMirror.commands as any)[commandName];
+				}
+				commandRegistry.delete(commandName);
+			}
+		}
+		installedCommands.clear();
+	}
+
 	React.useEffect(() => {
+		removeOwnedCommands();
+		setToolbarFunc(undefined);
+
 		if (extensionsDisabled) {
 			return;
-		}
-
-		if (format.loadState === 'unloaded') {
+		} else if (format.loadState === 'unloaded') {
 			dispatch(loadFormatProperties(format));
-		} else if (
-			format.loadState === 'loaded' &&
-			!loaded[namespaceForFormat(format)]
-		) {
+		} else if (format.loadState === 'loaded') {
 			const namespace = namespaceForFormat(format);
-			const editorExtensions = formatEditorExtensions(
-				format,
-				getAppInfo().version
-			);
+			const editorExtensions = formatEditorExtensions(format);
 
 			if (editorExtensions?.codeMirror?.commands) {
 				for (const commandName in editorExtensions.codeMirror.commands) {
 					const namespacedCommand = namespace + commandName;
+					const command =
+						editorExtensions.codeMirror.commands[commandName];
+					const entry = commandRegistry.get(namespacedCommand);
+					const existingCommand = (CodeMirror.commands as any)[namespacedCommand];
 
-					if (namespacedCommand in CodeMirror.commands) {
+					if (entry) {
+						if (existingCommand === entry.command) {
+							entry.command = command;
+							(CodeMirror.commands as any)[namespacedCommand] = command;
+						}
+						entry.owners.add(commandOwner);
+						installedCommands.add(namespacedCommand);
+					} else if (namespacedCommand in CodeMirror.commands) {
 						console.warn(
 							`CodeMirror already has a "${namespacedCommand}" command defined, skipping`
 						);
@@ -69,9 +102,12 @@ export function useFormatCodeMirrorToolbar(
 						// Using any here because the type is defined with factory
 						// commands only.
 
-						(CodeMirror.commands as any)[namespacedCommand] =
-							// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-							editorExtensions.codeMirror!.commands![commandName];
+						(CodeMirror.commands as any)[namespacedCommand] = command;
+						commandRegistry.set(namespacedCommand, {
+							command,
+							owners: new Set([commandOwner])
+						});
+						installedCommands.add(namespacedCommand);
 					}
 				}
 			}
@@ -140,10 +176,18 @@ export function useFormatCodeMirrorToolbar(
 						}
 				);
 			}
-
-			setLoaded(loaded => ({...loaded, [namespaceForFormat(format)]: true}));
 		}
-	}, [dispatch, extensionsDisabled, format, loaded]);
+
+		return removeOwnedCommands;
+	}, [
+		dispatch,
+		extensionsDisabled,
+		format.id,
+		format.name,
+		format.version,
+		format.loadState,
+		loadedProperties
+	]);
 
 	return toolbarFunc;
 }

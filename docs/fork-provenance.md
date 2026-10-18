@@ -5,6 +5,10 @@ commit `4ebcce6a69c62b1c4b51bb76f2b7ac51dd84d9d2` (tag `2.12.1`). The upstream
 project and author attribution remain recorded in `package.json` and the
 repository history.
 
+Story-format editor extensions negotiate against the inherited Twine 2.12.1 API
+contract, independently of Studio's product version. This does not change the
+fork's displayed identity or the creator/version metadata in published stories.
+
 ## License inventory
 
 The application source is identified as GPL-3.0 by `package.json` and the root
@@ -37,4 +41,6 @@ Browser persistence uses distinct `twine-studio-*` keys. Legacy `twine-*` keys
 are left untouched; no automatic migration runs. To bring an existing story
 across, publish/archive it from Twine and import that HTML in Twine Studio.
 This namespace is a data ownership boundary, not a security boundary against
-scripts executing on the same origin. Preview isolation remains open.
+scripts executing on the same origin. Authored browser previews and format
+metadata now use isolated frames; approved format extensions still have renderer
+authority. See preview-isolation.md and story-format-trust.md.
