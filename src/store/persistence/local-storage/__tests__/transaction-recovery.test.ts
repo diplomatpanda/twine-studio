@@ -7,6 +7,7 @@ describe('recoverable local storage transactions', () => {
 	beforeEach(() => {
 		jest.resetModules();
 		window.localStorage.clear();
+		window.sessionStorage.clear();
 		tx = require('../transaction');
 		window.localStorage.setItem(oldKey, 'old source');
 	});
@@ -68,6 +69,69 @@ describe('recoverable local storage transactions', () => {
 		tx.retryStorageChanges();
 		expect(window.localStorage.getItem(newKey)).toBe('latest draft');
 		expect(window.localStorage.getItem(tx.journalKey)).toBeNull();
+	});
+
+	it('retains a durable journal across repeated reloads before retry', () => {
+		const firstJournal = tx.journalKey;
+		window.localStorage.setItem(firstJournal, JSON.stringify({
+			version: 1,
+			changes: [[newKey, 'draft across reloads']]
+		}));
+		jest.resetModules();
+		tx = require('../transaction');
+		expect(tx.readStorageItem(newKey)).toBe('draft across reloads');
+		jest.resetModules();
+		tx = require('../transaction');
+		expect(tx.readStorageItem(newKey)).toBe('draft across reloads');
+		tx.retryStorageChanges();
+		expect(window.localStorage.getItem(newKey)).toBe('draft across reloads');
+		expect(window.localStorage.getItem(firstJournal)).toBeNull();
+	});
+
+	it('keeps an inherited journal if its owner writes a newer version during commit', () => {
+		const inheritedJournal = tx.journalKey;
+		window.localStorage.setItem(inheritedJournal, JSON.stringify({
+			version: 1,
+			changes: [[newKey, 'first draft']]
+		}));
+		jest.resetModules();
+		tx = require('../transaction');
+		const newer = JSON.stringify({
+			version: 1,
+			changes: [[newKey, 'newer draft']]
+		});
+		const original = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+			this: Storage, key, value
+		) {
+			if (this === window.localStorage && key === tx.journalKey)
+				original.call(this, inheritedJournal, newer);
+			original.call(this, key, value);
+		});
+		tx.writeStorageItem('twine-studio-prefs-theme', 'dark');
+		expect(window.localStorage.getItem(inheritedJournal)).toBe(newer);
+		expect(tx.readStorageItem(newKey)).toBe('newer draft');
+	});
+
+	it('initializes when session storage is blocked', () => {
+		const originalGet = Storage.prototype.getItem;
+		const originalSet = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
+			this: Storage, key
+		) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			return originalGet.call(this, key);
+		});
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+			this: Storage, key, value
+		) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			originalSet.call(this, key, value);
+		});
+		jest.resetModules();
+		tx = require('../transaction');
+		tx.writeStorageItem(newKey, 'still saved');
+		expect(window.localStorage.getItem(newKey)).toBe('still saved');
 	});
 
 	it('replays and clears a journal from the previous single-key format', () => {

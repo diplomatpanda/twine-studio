@@ -72,9 +72,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery
   journals use a distinct key per page load, and the immediately preceding
-  journal remains readable after reload. This is a sequential stale-write guard,
-  not an atomic cross-tab transaction guarantee. Duplicated-tab journal ownership
-  and repeated reload before recovery commit remain unverified.
+  journal remains readable after reload. Unit tests also verify recovery across
+  two reloads before retry and preserve a duplicated tab's inherited journal if
+  its owner writes a newer version during another tab's commit. This is a
+  sequential stale-write guard, not an atomic cross-tab transaction guarantee.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
@@ -108,7 +109,8 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
 - Simultaneous browser writes still lack an atomic cross-tab lock. Duplicated-tab
-  journal ownership and repeated reload before recovery commit need validation.
+  journal cleanup is version-checked, but full concurrent editing and journal
+  handoff still need stronger validation.
   Firefox's normal reload-before-debounce journey now passed ten focused repeats,
   but the simulated full-storage reload did not fire an observable beforeunload
   warning. Resolve that failure path before release.

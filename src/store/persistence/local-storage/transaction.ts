@@ -6,10 +6,29 @@ import {v4 as uuid} from '@lukeed/uuid';
 
 const legacyJournalKey = 'twine-studio-pending-transaction';
 const journalSessionKey = 'twine-studio-journal-owner';
-const previousOwner = window.sessionStorage.getItem(journalSessionKey);
-const previousJournalKey = previousOwner ? `${legacyJournalKey}-${previousOwner}` : null;
+const journalHistorySessionKey = 'twine-studio-journal-history';
 const journalOwner = uuid();
-window.sessionStorage.setItem(journalSessionKey, journalOwner);
+let previousOwners: string[] = [];
+try {
+	const saved = window.sessionStorage.getItem(journalHistorySessionKey);
+	const history = saved ? JSON.parse(saved) : [];
+	const prior = window.sessionStorage.getItem(journalSessionKey);
+	previousOwners = [...new Set([
+		...(Array.isArray(history) ? history : []),
+		prior
+	].filter((owner): owner is string =>
+		typeof owner === 'string' && /^[a-zA-Z0-9-]{1,64}$/.test(owner)
+	))];
+} catch {
+	// Local storage remains usable in profiles that block session storage.
+}
+try {
+	window.sessionStorage.setItem(journalSessionKey, journalOwner);
+	window.sessionStorage.setItem(journalHistorySessionKey, JSON.stringify(previousOwners));
+} catch {
+	// Saving still works; recovery after reload needs session storage access.
+}
+const previousJournalKeys = previousOwners.map(owner => `${legacyJournalKey}-${owner}`);
 export const journalKey = `${legacyJournalKey}-${journalOwner}`;
 const eventName = 'twine-studio-storage-status';
 type Changes = Map<string, string | null>;
@@ -72,8 +91,9 @@ function validKey(key: string) {
 	return /^twine-studio-(prefs|stories|passages|storyformats)(-|$)/.test(key);
 }
 
-function readJournal(key: string): Changes {
+function readJournal(key: string, snapshots?: Map<string, string | null>): Changes {
 	const raw = window.localStorage.getItem(key);
+	snapshots?.set(key, raw);
 	if (!raw) return new Map();
 	let parsed;
 	try {
@@ -103,11 +123,11 @@ function readJournal(key: string): Changes {
 	return new Map(parsed.changes);
 }
 
-function savedJournal(): Changes {
+function savedJournal(snapshots?: Map<string, string | null>): Changes {
 	return new Map([
-		...readJournal(legacyJournalKey),
-		...(previousJournalKey ? readJournal(previousJournalKey) : new Map()),
-		...readJournal(journalKey)
+		...readJournal(legacyJournalKey, snapshots),
+		...previousJournalKeys.flatMap(key => [...readJournal(key, snapshots)]),
+		...readJournal(journalKey, snapshots)
 	]);
 }
 
@@ -131,8 +151,8 @@ export function subscribeStorageStatus(listener: () => void) {
 	return () => window.removeEventListener(eventName, listener);
 }
 
-function outstanding(): Changes {
-	return new Map([...savedJournal(), ...pending]);
+function outstanding(snapshots?: Map<string, string | null>): Changes {
+	return new Map([...savedJournal(snapshots), ...pending]);
 }
 
 export function readStorageItem(key: string): string | null {
@@ -155,7 +175,8 @@ export function commitStorageChanges(changes: Changes) {
 	for (const key of changes.keys())
 		if (!validKey(key)) throw new Error('Invalid storage transaction key.');
 	checkStoryStorageGuard(new Map([...pending, ...changes]));
-	pending = new Map([...outstanding(), ...changes]);
+	const recoveredJournals = new Map<string, string | null>();
+	pending = new Map([...outstanding(recoveredJournals), ...changes]);
 	if (!pending.size) return;
 	durable = false;
 	try {
@@ -177,11 +198,23 @@ export function commitStorageChanges(changes: Changes) {
 			}
 		window.localStorage.removeItem(journalKey);
 		if (storyGuardActive) observedJournal = null;
-		// Complete a journal left by the pre-isolation version of the app.
-		if (window.localStorage.getItem(legacyJournalKey))
-			window.localStorage.removeItem(legacyJournalKey);
-		if (previousJournalKey && window.localStorage.getItem(previousJournalKey))
-			window.localStorage.removeItem(previousJournalKey);
+		// A duplicated tab may still own an inherited key. Clear only the exact
+		// journal version included in this commit, never a newer write to that key.
+		for (const key of [legacyJournalKey, ...previousJournalKeys]) {
+			const recovered = recoveredJournals.get(key);
+			if (recovered && window.localStorage.getItem(key) === recovered)
+				window.localStorage.removeItem(key);
+		}
+		try {
+			window.sessionStorage.setItem(
+				journalHistorySessionKey,
+				JSON.stringify(previousOwners.filter((_, i) =>
+					window.localStorage.getItem(previousJournalKeys[i]) !== null
+				))
+			);
+		} catch {
+			// The committed records do not depend on session storage cleanup.
+		}
 		pending.clear();
 		if (!storyConflict) error = '';
 		durable = false;
