@@ -30,7 +30,10 @@ Status: active development; not release-ready. Baseline is Twine 2.12.1,
    converting existing macros; authors explicitly initialize facts.
 10. Production offline preview now finds installed formats in the service-worker
     cache despite JSONP's callback parameter. Offline edit/save/reload/preview/
-    export passed after reproducing the original preview failure.
+    export passed after reproducing the original preview failure. The same
+    production Harlowe journey now passes in Chromium, Firefox and WebKit. Small
+    executable offline fixtures for SugarCube, Chapbook and Snowman also pass
+    preview and export across those engines.
 11. Native source, script and CSS round-trip fixtures exercise Harlowe, SugarCube,
     Chapbook and Snowman. Generated clue/relationship paths execute in Harlowe
     and SugarCube and distinguish hidden from unlocked choices.

@@ -99,10 +99,16 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   popups inherit restrictions, and user-initiated downloads pass. Preview saves
   reset on reload/close; published HTML retains its original persistence behavior.
   See preview-isolation.md for boundaries and custom-format limitations.
-- Production offline acceptance passed after an initial online load: cached
-  app reload, story creation, edit/save/reload, native Harlowe preview and HTML
-  export. Reproduce with `npm run build:web` then `node scripts/verify-offline.cjs`.
-  This does not cover arbitrary remote formats or recovery after cache eviction.
+- Production offline acceptance passed in Chromium, Firefox and WebKit after an
+  initial online load: cached app reload, story creation, edit/save/reload,
+  native preview and HTML export for Harlowe, SugarCube, Chapbook and Snowman.
+  Harlowe also exercises a linked ending; the other formats execute a small
+  variable-expression fixture. Reproduce with `npm run build:web` then
+  `node scripts/verify-offline.cjs <browser> <format>`. The verifier
+  stops its server for Firefox and WebKit because Playwright's offline switch
+  rejects their top-level reload before the service worker responds. This does
+  not cover arbitrary remote formats, cache eviction, or a browser's own
+  offline-mode UI.
 
 ## Release blockers and required follow-up
 
@@ -148,7 +154,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
-| H: offline | Production Chromium reload/edit/save/Harlowe preview/export pass | Other formats, cache eviction and cross-browser coverage pending |
+| H: offline | Four bundled formats reload/edit/save/preview/export in Chromium, Firefox and WebKit; Harlowe linked ending passes | Remote formats, cache eviction and native offline-mode UI pending |
 | I: recovery | Browser journal failure, partial writes, backup restoration, corrupt-journal export, guarded reload, passage creation/map drag recovery and native immediate close pass | Abrupt kills, real full disks and cross-browser behavior pending |
 | J: publication | Original complete three-passage story plays both endings independently | No public release performed |
 

@@ -111,10 +111,11 @@ for formats whose source cannot be verified and other compatibility limits.
 ## Offline use and current limitations
 
 The production browser app caches bundled resources after an online first load.
-An automated Chromium check verifies offline reload, writing, saving, Harlowe
-preview and HTML export. Development-server and user-added remote formats are
-not covered by that offline guarantee. Clearing site data removes browser work
-and the offline cache; keep exported backups.
+Automated Chromium, Firefox and WebKit checks verify offline reload, writing,
+saving, preview and HTML export for the four bundled formats. Development-server
+and user-added remote formats are not covered by that offline guarantee.
+Clearing site data removes browser work and the offline cache; keep exported
+backups.
 
 An optional desktop-only AI action can propose code repair for a selected
 Harlowe or SugarCube passage; it requires your own OpenCode Go key, explicit
