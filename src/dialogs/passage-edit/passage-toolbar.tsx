@@ -1,10 +1,11 @@
-import {IconResize} from '@tabler/icons';
+import {IconCode, IconResize} from '@tabler/icons';
 import {Editor} from 'codemirror';
 import * as React from 'react';
 import {useTranslation} from 'react-i18next';
 import {UndoRedoButtons} from '../../components/codemirror';
 import {ButtonBar} from '../../components/container/button-bar';
 import {MenuButton} from '../../components/control/menu-button';
+import {IconButton} from '../../components/control/icon-button';
 import {RenamePassageButton} from '../../components/passage/rename-passage-button';
 import {TestPassageButton} from '../../routes/story-edit/toolbar/passage/test-passage-button';
 import {
@@ -26,10 +27,11 @@ export interface PassageToolbarProps {
 	passage: Passage;
 	story: Story;
 	useCodeMirror: boolean;
+	onAiReview?: () => void;
 }
 
 export const PassageToolbar: React.FC<PassageToolbarProps> = props => {
-	const {disabled, editor, passage, story, useCodeMirror} = props;
+	const {disabled, editor, onAiReview, passage, story, useCodeMirror} = props;
 	const {dispatch} = useUndoableStoriesContext();
 	const {t} = useTranslation();
 	const passageTags = storyPassageTags(story);
@@ -61,6 +63,15 @@ export const PassageToolbar: React.FC<PassageToolbarProps> = props => {
 
 	return (
 		<ButtonBar>
+			{onAiReview && (
+				<IconButton
+					buttonType="button"
+					disabled={disabled}
+					icon={<IconCode />}
+					label={t('studio.ai.title')}
+					onClick={onAiReview}
+				/>
+			)}
 			{useCodeMirror && (
 				<UndoRedoButtons
 					disabled={disabled}

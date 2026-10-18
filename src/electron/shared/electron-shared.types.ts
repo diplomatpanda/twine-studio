@@ -1,7 +1,26 @@
 import {Story} from '../../store/stories/stories.types';
 
+export interface AiPassageEditPayload {
+	sessionId: string;
+	storyFormat: string;
+	storyFormatVersion: string;
+	passageId: string;
+	passageName: string;
+	passageText: string;
+	instruction: 'repair-format-syntax';
+}
+
+export interface AiAvailability {
+	configured: boolean;
+	model?: string;
+	reason?: string;
+}
+
 export interface TwineElectronWindow extends Window {
 	twineElectron?: {
+		aiAvailability(): Promise<AiAvailability>;
+		requestAiPassageEdit(payload: AiPassageEditPayload): Promise<string>;
+		cancelAiPassageEdit(sessionId: string): void;
 		deleteStory(story: Story): Promise<void>;
 		loadPrefs(): Promise<any>;
 		loadStories(): Promise<any>;

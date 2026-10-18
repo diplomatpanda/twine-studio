@@ -16,6 +16,14 @@ The link is appended to your passage; normal source editing remains available.
 those formats. See the [writing guide](docs/getting-started-studio.md) for setup
 and undo behavior. Other formats retain their source editing workflow.
 
+The desktop passage editor also offers an optional **Repair passage code with AI**
+action for Harlowe and SugarCube code. To enable it, set
+`TWINE_STUDIO_OPENCODE_GO_KEY` in the desktop process environment before launch
+using your own OpenCode Go key. The browser app does not send AI requests. Every
+desktop request needs native confirmation, and accepting a reviewed proposal is
+an undoable edit. See the [AI boundary and limits](docs/ai-evaluation.md) before
+sending story source.
+
 See [release readiness](docs/release-readiness.md), [product plan](docs/product-plan.md),
 [compatibility](docs/compatibility-matrix.md), and [provenance](docs/fork-provenance.md).
 The original example [The Last Signal](examples/the-last-signal.html) is a playable

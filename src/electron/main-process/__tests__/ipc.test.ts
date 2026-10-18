@@ -1,4 +1,4 @@
-import {ipcMain} from 'electron';
+import {dialog, ipcMain} from 'electron';
 import {initIpc} from '../ipc';
 import {loadPrefs} from '../prefs';
 import {saveJsonFile} from '../json-file';
@@ -13,6 +13,7 @@ import {
 import {Story} from '../../../store/stories';
 import {fakePendingStoryFormat, fakePrefs, fakeStory} from '../../../test-util';
 import {loadStoryFormats} from '../story-formats';
+import {requestAiPassageEdit} from '../opencode-go';
 
 jest.mock('../json-file');
 jest.mock('../app-prefs');
@@ -20,6 +21,7 @@ jest.mock('../prefs');
 jest.mock('../scratch-file');
 jest.mock('../story-file');
 jest.mock('../story-formats');
+jest.mock('../opencode-go');
 
 describe('initIpc()', () => {
 	const deleteStoryMock = deleteStory as jest.Mock;
@@ -37,6 +39,28 @@ describe('initIpc()', () => {
 	beforeEach(() => {
 		saveStoryHtmlMock.mockResolvedValue(undefined);
 		flushStorySaves = initIpc();
+	});
+
+	it('requires a default-cancel native confirmation before AI inference', async () => {
+		const request = {
+			storyFormat: 'SugarCube',
+			storyFormatVersion: '2.36.1',
+			passageName: 'Start',
+			passageText: '<<if $map>>Yes<</if>>'
+		};
+		(requestAiPassageEdit as jest.Mock).mockImplementation(
+			async (_payload, approve) => approve(request)
+		);
+		const handler = handleMock.mock.calls.find(
+			call => call[0] === 'request-ai-passage-edit'
+		)![1];
+		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 0});
+		expect(await handler({}, request)).toBe(false);
+		expect(dialog.showMessageBox).toHaveBeenCalledWith(
+			expect.objectContaining({defaultId: 0, cancelId: 0})
+		);
+		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 1});
+		expect(await handler({}, request)).toBe(true);
 	});
 
 	it('waits for main-only preference writes before shutdown', async () => {

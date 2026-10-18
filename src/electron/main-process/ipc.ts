@@ -15,6 +15,11 @@ import {loadPrefs} from './prefs';
 import {openHtmlWithScratchFile} from './scratch-file';
 import {Story} from '../../store/stories/stories.types';
 import {PersistenceQueue} from '../../util/persistence-queue';
+import {
+	aiAvailability,
+	cancelAiPassageEdit,
+	requestAiPassageEdit
+} from './opencode-go';
 
 const allowedJsonFilenames = new Set(['prefs.json', 'story-formats.json']);
 
@@ -25,6 +30,26 @@ function validateJsonFilename(filename: unknown): asserts filename is string {
 }
 
 export function initIpc() {
+	ipcMain.handle('ai-availability', aiAvailability);
+	ipcMain.handle('request-ai-passage-edit', (_event, payload) =>
+		requestAiPassageEdit(payload, async request => {
+			const {response} = await dialog.showMessageBox({
+				type: 'question',
+				title: 'Send passage code to OpenCode Go?',
+				message: 'Send the selected passage for AI code repair?',
+				detail: `This sends the selected passage source (${request.passageText.length} characters), its name and ID, and story format to OpenCode Go using your key. A proposed edit will still require your approval in Twine Studio.`,
+				buttons: ['Cancel', 'Send passage'],
+				defaultId: 0,
+				cancelId: 0,
+				noLink: true
+			});
+			return response === 1;
+		})
+	);
+	ipcMain.on('cancel-ai-passage-edit', (_event, sessionId) =>
+		cancelAiPassageEdit(sessionId)
+	);
+
 	// We want to debounce story saves so we aren't constantly writing to disk.
 	// However, we need to have individual debounced functions per story so that
 	// saves on multiple stories in one interval aren't lost. So we maintain a set

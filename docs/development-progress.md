@@ -190,8 +190,8 @@ loading, preview/export and trust/revocation across restart. See release-readine
 for unit totals and story-format-trust.md for explicit compatibility limits.
 
 This completes another security prerequisite, not the overall product mission.
-Provider credentials and AI proposal review, story planning, broader workflow
-polish and remaining acceptance evidence still require implementation.
+Broader AI story modification, credential-management UI, story planning,
+workflow polish and remaining acceptance evidence still require implementation.
 
 ## Passage list and navigation
 
@@ -224,3 +224,18 @@ reset, long titles, editing and publication. The existing Chromium large-story
 rename/reference/persistence journey also passes. Stable 768 px and 375 px
 screenshots were inspected; the narrow textbox is clicked without forcing the
 pointer. See ux-audit.md for the fixture and evidence limits.
+
+## Optional desktop AI code repair
+
+The first OpenCode Go action is restricted to a selected Harlowe or SugarCube
+passage containing code. The Electron main process holds the user-provided key,
+discovers the model without sending it, and requires a default-cancel native
+confirmation for each paid request. The renderer receives only the proposed
+edit. Exact-source and link checks prevent stale or expanded edits; accepting
+the full before/after review dispatches one undoable passage update.
+
+Mocked main/IPC checks pass 48 tests, proposal and panel checks pass seven,
+and a Chromium browser journey confirms that opening the desktop-only panel
+does not disturb recently typed passage text through reload. Builds and lint
+pass. A real paid request, native end-to-end accept/undo, and broader author
+experience remain unverified. See ai-evaluation.md and release-readiness.md.

@@ -34,6 +34,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   reset, long-title selection, editing and publication. Real input clicks at
   375 px and stable 768 px screenshots pass. The existing Chromium large-story
   rename/reference/persistence journey also passes on this revision.
+- AI code-repair boundary checks: 48 Electron main/IPC tests and seven proposal/
+  review component tests pass; the Chromium browser journey confirms opening the
+  desktop-only panel preserves passage text through reload. Web/Electron builds
+  and lint pass. No paid provider request or native end-to-end accept/undo was run.
 - Native format acceptance passes with an isolated Windows profile: bundled
   Harlowe Styles/Bold insertion, local file-format installation, preview/export,
   exact-source editor approval and revocation retained across restart. Reproduce
@@ -89,8 +93,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - 41 npm advisories remain after fixing the two critical entries; triage runtime
   exposure and upgrade safely. Do not interpret zero critical as secure overall.
 - Complete Paperthin historical license notice and bundled/transitive attribution.
-- AI implementation, safe proposal review and credential management are pending;
-  current provider constraints are documented in ai-evaluation.md.
+- Optional desktop AI code repair now has a main-process provider adapter, native
+  send confirmation and validated, reviewable single-passage proposals. A real
+  paid round trip, native review/undo acceptance, credential-management UI and
+  broader AI story-modification journey remain pending. See ai-evaluation.md.
 - Story logic has bounded yes/no/numeric assignments and conditional choices;
   broader logic, story planning, map improvements and polished first-run experience
   remain incomplete. New UI translations currently fall back to English.
@@ -104,7 +110,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | --- | --- | --- |
 | A: first story | Choice creation, writing, undo, publish and original two-route sample verified | Human beginner study pending |
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
-| C: AI modification | Provider constraints researched | Integration, proposal review and credential isolation unimplemented |
+| C: AI modification | Desktop Harlowe/SugarCube code-repair adapter, mock contract/review tests and browser boundary pass | Live paid request, native accept/undo and broader story-modification experience pending |
 | D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; navigation also passes Firefox/WebKit | Irregular/long-text projects and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |

@@ -3,9 +3,19 @@
 
 import {contextBridge, ipcRenderer} from 'electron';
 import {Story} from '../../store/stories/stories.types';
+import {AiPassageEditPayload} from '../shared';
 
 if (process.isMainFrame) {
 	contextBridge.exposeInMainWorld('twineElectron', {
+		aiAvailability() {
+			return ipcRenderer.invoke('ai-availability');
+		},
+		requestAiPassageEdit(payload: AiPassageEditPayload) {
+			return ipcRenderer.invoke('request-ai-passage-edit', payload);
+		},
+		cancelAiPassageEdit(sessionId: string) {
+			ipcRenderer.send('cancel-ai-passage-edit', sessionId);
+		},
 		deleteStory(story: Story) {
 			return ipcRenderer.invoke('delete-story', story);
 		},

@@ -13,6 +13,7 @@ import {PassageToolbar} from './passage-toolbar';
 import {StoryFormatToolbar} from './story-format-toolbar';
 import './passage-edit-contents.css';
 import {usePrefsContext} from '../../store/prefs';
+import {PassageAiReview} from './passage-ai-review';
 
 export interface PassageEditContentsProps {
 	disabled?: boolean;
@@ -28,6 +29,7 @@ export const PassageEditContents: React.FC<
 		React.useState(true);
 	const [editorCrashed, setEditorCrashed] = React.useState(false);
 	const [cmEditor, setCmEditor] = React.useState<CodeMirror.Editor>();
+	const [aiReviewOpen, setAiReviewOpen] = React.useState(false);
 	const {ErrorBoundary, error, reset: resetError} = useErrorBoundary();
 	const {prefs} = usePrefsContext();
 	const {dispatch, stories} = useUndoableStoriesContext();
@@ -94,10 +96,18 @@ export const PassageEditContents: React.FC<
 			<PassageToolbar
 				disabled={disabled}
 				editor={cmEditor}
+				onAiReview={disabled ? undefined : () => setAiReviewOpen(value => !value)}
 				passage={passage}
 				story={story}
 				useCodeMirror={prefs.useCodeMirror}
 			/>
+			{aiReviewOpen && !disabled && (
+				<PassageAiReview
+					onClose={() => setAiReviewOpen(false)}
+					passage={passage}
+					story={story}
+				/>
+			)}
 			{prefs.useCodeMirror && storyFormatExtensionsEnabled && (
 				<StoryFormatToolbar
 					disabled={disabled}
