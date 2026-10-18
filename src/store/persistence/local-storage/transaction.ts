@@ -3,12 +3,14 @@
  * later record write fails. No old records are touched before that boundary.
  */
 import {v4 as uuid} from '@lukeed/uuid';
+import {clearEditorDraft, exportEditorDrafts} from './editor-drafts';
 
 const legacyJournalKey = 'twine-studio-pending-transaction';
 const journalSessionKey = 'twine-studio-journal-owner';
 const journalHistorySessionKey = 'twine-studio-journal-history';
 const journalOwner = uuid();
 let previousOwners: string[] = [];
+let journalHistoryAvailable = true;
 try {
 	const saved = window.sessionStorage.getItem(journalHistorySessionKey);
 	const history = saved ? JSON.parse(saved) : [];
@@ -20,16 +22,28 @@ try {
 		typeof owner === 'string' && /^[a-zA-Z0-9-]{1,64}$/.test(owner)
 	))];
 } catch {
-	// Local storage remains usable in profiles that block session storage.
+	journalHistoryAvailable = false;
 }
 try {
 	window.sessionStorage.setItem(journalSessionKey, journalOwner);
 	window.sessionStorage.setItem(journalHistorySessionKey, JSON.stringify(previousOwners));
 } catch {
-	// Saving still works; recovery after reload needs session storage access.
+	journalHistoryAvailable = false;
 }
 const previousJournalKeys = previousOwners.map(owner => `${legacyJournalKey}-${owner}`);
 export const journalKey = `${legacyJournalKey}-${journalOwner}`;
+function inheritedJournalKeys() {
+	if (journalHistoryAvailable) return previousJournalKeys;
+	// Session storage can be blocked or full while local storage still holds a
+	// durable journal. Discover those bytes rather than orphaning them on reload.
+	const keys: string[] = [];
+	for (let i = 0; i < window.localStorage.length; i++) {
+		const key = window.localStorage.key(i)!;
+		if (key.startsWith(`${legacyJournalKey}-`) && key !== journalKey)
+			keys.push(key);
+	}
+	return keys;
+}
 const eventName = 'twine-studio-storage-status';
 type Changes = Map<string, string | null>;
 let pending: Changes = new Map();
@@ -39,6 +53,9 @@ let durable = false;
 let notificationPending = false;
 let storyGuardActive = false;
 let storyConflict = false;
+let recoveredDraftConflict = false;
+const conflictingDraftIds = new Set<string>();
+const orphanDraftIds = new Set<string>();
 let observedJournal: string | null = null;
 const observedStories = new Map<string, string | null>();
 const conflictMessage =
@@ -123,10 +140,13 @@ function readJournal(key: string, snapshots?: Map<string, string | null>): Chang
 	return new Map(parsed.changes);
 }
 
-function savedJournal(snapshots?: Map<string, string | null>): Changes {
+function savedJournal(
+	snapshots?: Map<string, string | null>,
+	inheritedKeys = inheritedJournalKeys()
+): Changes {
 	return new Map([
 		...readJournal(legacyJournalKey, snapshots),
-		...previousJournalKeys.flatMap(key => [...readJournal(key, snapshots)]),
+		...inheritedKeys.flatMap(key => [...readJournal(key, snapshots)]),
 		...readJournal(journalKey, snapshots)
 	]);
 }
@@ -143,7 +163,33 @@ function notify() {
 }
 
 export function getStorageStatus() {
-	return {dirty: storyConflict || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict};
+	return {dirty: storyConflict || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0};
+}
+
+/** Keep a recovered editor draft in memory without replacing a changed saved passage. */
+export function preserveConflictingEditorDraft(key: string, value: string) {
+	if (!key.startsWith('twine-studio-passages-') || !validKey(key))
+		throw new Error('Invalid editor draft recovery key.');
+	pending.set(key, value);
+	conflictingDraftIds.add(key.slice('twine-studio-passages-'.length));
+	recoveredDraftConflict = true;
+	markStoryConflict();
+}
+
+export function discardConflictingEditorDrafts() {
+	for (const passageId of conflictingDraftIds) clearEditorDraft(passageId);
+}
+
+/** Surface draft bytes whose passage could not be loaded into an editable story. */
+export function reportOrphanEditorDraft(passageId: string) {
+	orphanDraftIds.add(passageId);
+	notify();
+}
+
+export function discardOrphanEditorDrafts() {
+	for (const passageId of orphanDraftIds)
+		if (clearEditorDraft(passageId)) orphanDraftIds.delete(passageId);
+	notify();
 }
 
 export function subscribeStorageStatus(listener: () => void) {
@@ -151,8 +197,11 @@ export function subscribeStorageStatus(listener: () => void) {
 	return () => window.removeEventListener(eventName, listener);
 }
 
-function outstanding(snapshots?: Map<string, string | null>): Changes {
-	return new Map([...savedJournal(snapshots), ...pending]);
+function outstanding(
+	snapshots?: Map<string, string | null>,
+	inheritedKeys = inheritedJournalKeys()
+): Changes {
+	return new Map([...savedJournal(snapshots, inheritedKeys), ...pending]);
 }
 
 export function readStorageItem(key: string): string | null {
@@ -176,7 +225,8 @@ export function commitStorageChanges(changes: Changes) {
 		if (!validKey(key)) throw new Error('Invalid storage transaction key.');
 	checkStoryStorageGuard(new Map([...pending, ...changes]));
 	const recoveredJournals = new Map<string, string | null>();
-	pending = new Map([...outstanding(recoveredJournals), ...changes]);
+	const inheritedKeys = inheritedJournalKeys();
+	pending = new Map([...outstanding(recoveredJournals, inheritedKeys), ...changes]);
 	if (!pending.size) return;
 	durable = false;
 	try {
@@ -200,20 +250,22 @@ export function commitStorageChanges(changes: Changes) {
 		if (storyGuardActive) observedJournal = null;
 		// A duplicated tab may still own an inherited key. Clear only the exact
 		// journal version included in this commit, never a newer write to that key.
-		for (const key of [legacyJournalKey, ...previousJournalKeys]) {
+		for (const key of [legacyJournalKey, ...inheritedKeys]) {
 			const recovered = recoveredJournals.get(key);
 			if (recovered && window.localStorage.getItem(key) === recovered)
 				window.localStorage.removeItem(key);
 		}
-		try {
-			window.sessionStorage.setItem(
-				journalHistorySessionKey,
-				JSON.stringify(previousOwners.filter((_, i) =>
-					window.localStorage.getItem(previousJournalKeys[i]) !== null
-				))
-			);
-		} catch {
-			// The committed records do not depend on session storage cleanup.
+		if (journalHistoryAvailable) {
+			try {
+				window.sessionStorage.setItem(
+					journalHistorySessionKey,
+					JSON.stringify(previousOwners.filter((_, i) =>
+						window.localStorage.getItem(previousJournalKeys[i]) !== null
+					))
+				);
+			} catch {
+				// The committed records do not depend on session storage cleanup.
+			}
 		}
 		pending.clear();
 		if (!storyConflict) error = '';
@@ -260,7 +312,7 @@ export function exportStorageRecovery() {
 			records[key] = window.localStorage.getItem(key);
 	}
 	return JSON.stringify(
-		{version: 1, records, unsavedChanges: [...pending]},
+		{version: 1, records, sessionDrafts: exportEditorDrafts(), unsavedChanges: [...pending]},
 		null,
 		2
 	);

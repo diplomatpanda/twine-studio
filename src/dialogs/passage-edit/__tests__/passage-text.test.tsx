@@ -37,12 +37,15 @@ describe('<PassageText>', () => {
 
 	beforeEach(() => {
 		jest.useFakeTimers();
+		window.localStorage.clear();
+		window.sessionStorage.clear();
 		useFormatCodeMirrorModeMock.mockReturnValue(undefined);
 	});
 
 	afterEach(() => {
 		jest.clearAllTimers();
 		jest.useRealTimers();
+		jest.restoreAllMocks();
 	});
 
 	function renderComponent(
@@ -66,6 +69,10 @@ describe('<PassageText>', () => {
 	it('writes pending text synchronously when the page exits', () => {
 		const story = fakeStory();
 		const passage = story.passages[0];
+		localStorage.setItem(`twine-studio-stories-${story.id}`,
+			JSON.stringify({...story, passages: undefined}));
+		localStorage.setItem(`twine-studio-passages-${passage.id}`,
+			JSON.stringify(passage));
 		renderComponent(undefined, {stories: [story]});
 		fireEvent.change(
 			screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'),
@@ -75,6 +82,41 @@ describe('<PassageText>', () => {
 		expect(
 			JSON.parse(localStorage.getItem(`twine-studio-passages-${passage.id}`)!).text
 		).toBe('Final text before page exit');
+	});
+
+	it('does not recreate a deleted passage while flushing pending text', () => {
+		const story = fakeStory();
+		const passage = story.passages[0];
+		localStorage.setItem(`twine-studio-stories-${story.id}`,
+			JSON.stringify({...story, passages: undefined}));
+		localStorage.setItem(`twine-studio-passages-${passage.id}`,
+			JSON.stringify(passage));
+		renderComponent(undefined, {stories: [story]});
+		fireEvent.change(
+			screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'),
+			{target: {value: 'Pending text'}}
+		);
+		localStorage.removeItem(`twine-studio-passages-${passage.id}`);
+		fireEvent(window, new Event('pagehide'));
+		expect(localStorage.getItem(`twine-studio-passages-${passage.id}`))
+			.toBeNull();
+	});
+
+	it('sends each edit to the normal save path if session storage rejects drafts', () => {
+		const onChange = jest.fn();
+		const original = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+			this: Storage, key, value
+		) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			original.call(this, key, value);
+		});
+		renderComponent({onChange});
+		fireEvent.change(
+			screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel'),
+			{target: {value: 'Save without tab storage'}}
+		);
+		expect(onChange).toHaveBeenCalledWith('Save without tab storage');
 	});
 
 	it('updates the passage text if it has been changed elsewhere', () => {

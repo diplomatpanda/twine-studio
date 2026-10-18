@@ -77,8 +77,12 @@ and the prior single-key journal remains recoverable. The two-tab journeys pass
 Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven.
 The editor now writes pending text directly before page exit; ten consecutive
 Firefox reloads inside the debounce interval passed, as did Chromium and WebKit.
-Firefox's simulated full-storage reload still did not show a beforeunload warning,
-so that failure path remains a release blocker.
+An edit-time session draft now survives a Firefox reload even when a simulated
+full-storage failure prevents the normal save and Firefox shows no unload warning.
+The draft restores automatically only if the saved passage still matches its
+starting text; otherwise the writer can export the recovered story without
+overwriting the newer saved passage. Tab closure, blocked or exhausted session
+storage, and truly simultaneous writes remain outside this evidence.
 
 ## Next priorities
 

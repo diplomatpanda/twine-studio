@@ -5,7 +5,10 @@ import {useStoriesContext} from '../store/stories';
 import {
 	getStorageStatus,
 	subscribeStorageStatus,
-	retryStorageChanges
+	retryStorageChanges,
+	discardConflictingEditorDrafts,
+	discardOrphanEditorDrafts,
+	exportStorageRecovery
 } from '../store/persistence/local-storage/transaction';
 import {publishArchive} from '../util/publish';
 import {getAppInfo} from '../util/app-info';
@@ -20,18 +23,24 @@ export const StorageStatus: React.FC = () => {
 		[]
 	);
 	if (!status.dirty) return null;
+	const titleKey = status.orphanDrafts
+		? 'studio.storage.orphanDraftTitle'
+		: status.recoveredDraftConflict
+		? 'studio.storage.draftConflictTitle'
+		: status.conflict ? 'studio.storage.conflictTitle' : 'studio.storage.unsaved';
+	const helpKey = status.orphanDrafts
+		? 'studio.storage.orphanDraftHelp'
+		: status.recoveredDraftConflict
+		? 'studio.storage.draftConflictHelp'
+		: status.conflict
+			? 'studio.storage.conflictHelp'
+			: status.durable ? 'studio.storage.recovered' : 'studio.storage.keepOpen';
 	return (
 		<aside className="storage-status" role="alert">
-			<strong>{t(status.conflict ? 'studio.storage.conflictTitle' : 'studio.storage.unsaved')}</strong>
-			<p>
-				{t(status.conflict
-					? 'studio.storage.conflictHelp'
-					: status.durable
-						? 'studio.storage.recovered'
-						: 'studio.storage.keepOpen')}
-			</p>
+			<strong>{t(titleKey)}</strong>
+			<p>{t(helpKey)}</p>
 			{!status.conflict && <p>{status.error}</p>}
-			{!status.conflict && <button
+			{!status.conflict && !status.orphanDrafts && <button
 				onClick={() => {
 					try {
 						retryStorageChanges();
@@ -54,6 +63,19 @@ export const StorageStatus: React.FC = () => {
 			>
 				{t('studio.storage.export')}
 			</button>
+			{status.orphanDrafts && <button onClick={() =>
+				saveAs(
+					new Blob([exportStorageRecovery()], {type: 'application/json'}),
+					'Twine Studio recovery.json'
+				)
+			}>{t('studio.storage.exportRaw')}</button>}
+			{status.orphanDrafts && <button onClick={discardOrphanEditorDrafts}>
+				{t('studio.storage.discardOrphanDrafts')}
+			</button>}
+			{status.recoveredDraftConflict && <button onClick={() => {
+				discardConflictingEditorDrafts();
+				window.location.reload();
+			}}>{t('studio.storage.discardRecoveredDraft')}</button>}
 		</aside>
 	);
 };

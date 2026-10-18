@@ -7,9 +7,9 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The last full Jest checkpoint passed **263 suites and 1,925 tests**, with 4
-  skipped and 41 TODOs. The subsequent page-exit change passed its 19-test
-  passage-editor suite.
+- The latest full Jest checkpoint passed **264 suites and 1,935 tests**, with 4
+  skipped and 41 TODOs. It includes the page-exit and editor-draft recovery
+  changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -67,14 +67,20 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - The editor's synchronous page-exit write retained final typing in ten
   consecutive Firefox reloads inside the debounce interval; the same journey
   passed in Chromium and WebKit. A unit test verifies the direct write on
-  `pagehide`. The Firefox simulated full-storage warning still fails.
+  `pagehide`. An edit-time session draft also restores final typing after the
+  simulated Firefox full-storage reload when no unload warning appears.
+  Recovered drafts that differ from saved passages stay available for backup
+  without overwriting saved work; the conflict journey passes in all three
+  browser engines. Orphaned drafts surface a raw recovery export instead of
+  silently disappearing.
 - Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery
   journals use a distinct key per page load, and the immediately preceding
   journal remains readable after reload. Unit tests also verify recovery across
   two reloads before retry and preserve a duplicated tab's inherited journal if
-  its owner writes a newer version during another tab's commit. This is a
+  its owner writes a newer version during another tab's commit. A unit test
+  verifies journal recovery when session storage is blocked. This is a
   sequential stale-write guard, not an atomic cross-tab transaction guarantee.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
@@ -111,9 +117,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Simultaneous browser writes still lack an atomic cross-tab lock. Duplicated-tab
   journal cleanup is version-checked, but full concurrent editing and journal
   handoff still need stronger validation.
-  Firefox's normal reload-before-debounce journey now passed ten focused repeats,
-  but the simulated full-storage reload did not fire an observable beforeunload
-  warning. Resolve that failure path before release.
+  Firefox's normal reload-before-debounce journey passed ten focused repeats.
+  Session drafts cover the observed missing unload warning, but tab closure,
+  blocked or exhausted session storage, and concurrent saves still need
+  stronger failure testing before release.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime

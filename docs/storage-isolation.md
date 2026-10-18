@@ -16,17 +16,25 @@ a partially written story or index from becoming the visible state.
 The page keeps a session history of journal owners so a second reload before
 retry can still recover the earlier durable journal. Cleanup removes an inherited
 journal only when its bytes still match the version applied by that commit.
+When session storage is unavailable, recovery scans the page-specific journal
+keys in local storage; a unit test verifies a durable interrupted save across
+reload in that condition. This fallback is not cross-tab coordination.
 
 A persistent recovery panel offers retry and an HTML archive of the current
 stories. Continued edits merge into the pending change set. Browser navigation
-tries to warn when the latest changes have not reached durable storage. Firefox
-did not present that warning in a simulated full-storage reload, so navigation
-warnings alone are not a recovery guarantee. An invalid
+tries to warn when the latest changes have not reached durable storage. Each
+passage edit also checkpoints its latest text in this tab's session storage before
+the debounced save. On reload, a draft is restored and saved only when the saved
+passage still matches the draft's starting text. If it changed, Studio shows the
+recovered draft for backup and blocks an overwrite. Firefox did not present an
+unload warning in a simulated full-storage reload; the session draft preserved
+that final text. A draft whose passage or story no longer loads raises a warning
+with a raw recovery export containing its bytes. An invalid
 journal stops loading and offers a raw JSON rescue export without deleting data.
 
 The journal requires extra browser storage while saving. This is not an atomic
 multi-tab transaction protocol or a substitute for
 external backups. Browser eviction, cleared site data, forced process kills
 before a typing flush, and hardware/power failures remain outside this guarantee.
-Raw rescue JSON is intended for recovery investigation; ordinary Library Import
+Raw rescue JSON includes session drafts for recovery investigation; ordinary Library Import
 accepts the HTML story backup, not that diagnostic JSON.

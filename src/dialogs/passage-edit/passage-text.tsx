@@ -10,8 +10,10 @@ import {useFormatCodeMirrorMode} from '../../store/use-format-codemirror-mode';
 import {codeMirrorOptionsFromPrefs} from '../../util/codemirror-options';
 import {ChoiceComposer} from '../../components/passage/choice-composer';
 import {FactComposer} from '../../components/passage/fact-composer';
-import {protectUnsavedChanges} from '../../store/persistence/local-storage/transaction';
+import {protectUnsavedChanges, readStorageItem} from '../../store/persistence/local-storage/transaction';
 import {doUpdateTransaction, savePassage, saveStory} from '../../store/persistence/local-storage/stories/save';
+import {clearSavedEditorDraft, saveEditorDraft} from '../../store/persistence/local-storage/editor-drafts';
+import {storageKey} from '../../store/persistence/local-storage/keys';
 import {isElectronRenderer} from '../../util/is-electron';
 
 export interface PassageTextProps {
@@ -72,6 +74,9 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 	const persistPendingOnExit = React.useCallback(() => {
 		if (!onChangeTimeout.current || isElectronRenderer()) return;
 		try {
+			// A passage removed while this dialog was open must stay removed.
+			if (!readStorageItem(storageKey('stories', story.id)) ||
+				!readStorageItem(storageKey('passages', passage.id))) return;
 			// A reducer dispatched during pagehide may not render before Firefox
 			// leaves. Write the latest editor text synchronously as a fallback.
 			doUpdateTransaction(transaction => {
@@ -127,6 +132,10 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 		}
 	}, [localText, passage.text]);
 
+	React.useEffect(() => {
+		if (!isElectronRenderer()) clearSavedEditorDraft(passage);
+	}, [passage]);
+
 	const handleLocalChangeText = React.useCallback(
 		(text: string) => {
 			// Set local state because the CodeMirror instance is controlled, and
@@ -144,9 +153,20 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 			// effect.
 
 			onChangeText.current = text;
+			if (!isElectronRenderer()) {
+				try {
+					saveEditorDraft(passage, text);
+				} catch {
+					// If tab storage is unavailable, send every change to the
+					// ordinary save path immediately instead of leaving it debounced.
+					onChangeTimeout.current = undefined;
+					onChange(text);
+					return;
+				}
+			}
 			scheduleCommit();
 		},
-		[onEditorChange, scheduleCommit]
+		[onChange, passage, scheduleCommit]
 	);
 
 	// If the onChange prop changes while an onChange call is pending, reset the

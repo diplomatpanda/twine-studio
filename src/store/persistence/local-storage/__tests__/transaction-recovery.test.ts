@@ -116,6 +116,7 @@ describe('recoverable local storage transactions', () => {
 	it('initializes when session storage is blocked', () => {
 		const originalGet = Storage.prototype.getItem;
 		const originalSet = Storage.prototype.setItem;
+		let failRecord = false;
 		jest.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
 			this: Storage, key
 		) {
@@ -126,12 +127,24 @@ describe('recoverable local storage transactions', () => {
 			this: Storage, key, value
 		) {
 			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			if (this === window.localStorage && key === newKey && failRecord)
+				throw new Error('Interrupted record write');
 			originalSet.call(this, key, value);
 		});
 		jest.resetModules();
 		tx = require('../transaction');
-		tx.writeStorageItem(newKey, 'still saved');
-		expect(window.localStorage.getItem(newKey)).toBe('still saved');
+		failRecord = true;
+		expect(() => tx.writeStorageItem(newKey, 'durable draft'))
+			.toThrow('Interrupted record write');
+		const oldJournal = tx.journalKey;
+		expect(window.localStorage.getItem(oldJournal)).not.toBeNull();
+		failRecord = false;
+		jest.resetModules();
+		tx = require('../transaction');
+		expect(tx.readStorageItem(newKey)).toBe('durable draft');
+		tx.retryStorageChanges();
+		expect(window.localStorage.getItem(newKey)).toBe('durable draft');
+		expect(window.localStorage.getItem(oldJournal)).toBeNull();
 	});
 
 	it('replays and clears a journal from the previous single-key format', () => {

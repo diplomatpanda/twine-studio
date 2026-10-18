@@ -44,7 +44,7 @@ test('recovers passage creation and map movement from an interrupted save', asyn
 	expect(await position()).toEqual(moved);
 });
 
-test('warns before leaving when the first failed save happens during reload', async ({
+test('preserves final typing when the first save fails during reload', async ({
 	page
 }) => {
 	await createDraft(page);
@@ -55,6 +55,8 @@ test('warns before leaving when the first failed save happens during reload', as
 	expect(
 		await page.evaluate(() => JSON.stringify({...localStorage}))
 	).not.toContain('Do not lose this final sentence.');
+	expect(await page.evaluate(() => JSON.stringify({...sessionStorage})))
+		.toContain('Do not lose this final sentence.');
 	let warned = false;
 	page.on('dialog', async dialog => {
 		if (dialog.type() === 'beforeunload') {
@@ -63,11 +65,12 @@ test('warns before leaving when the first failed save happens during reload', as
 		}
 	});
 	await page.reload({timeout: 3000}).catch(() => undefined);
-	expect(warned).toBe(true);
-	await expect(page.getByRole('alert')).toContainText('Keep it open');
-	await page.evaluate(() => (window as any).restoreStorage());
-	await page.getByRole('button', {name: 'Retry saving'}).click();
-	await page.reload();
+	if (warned) {
+		await expect(page.getByRole('alert')).toContainText('Keep it open');
+		await page.evaluate(() => (window as any).restoreStorage());
+		await page.getByRole('button', {name: 'Retry saving'}).click();
+		await page.reload();
+	}
 	await expect(
 		page.getByRole('button', {name: 'Untitled Passage', exact: true})
 	).toContainText('Do not lose this final sentence.');
@@ -127,6 +130,65 @@ test('retains typing when reloaded inside the editor debounce interval', async (
 	await expect(
 		page.getByRole('button', {name: 'Untitled Passage', exact: true})
 	).toContainText('Keep this last sentence.');
+});
+
+test('a recovered editor draft cannot replace a newer saved passage', async ({page}, testInfo) => {
+	await createDraft(page);
+	await page.evaluate(() => {
+		const key = Object.keys(localStorage)
+			.find(candidate => candidate.startsWith('twine-studio-passages-'))!;
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		sessionStorage.setItem(`twine-studio-editor-draft-${passage.id}`,
+			JSON.stringify({version: 1, storyId: passage.story,
+				passageId: passage.id, baseText: passage.text,
+				text: 'Local recovered sentence.'}));
+		localStorage.setItem(key, JSON.stringify({...passage,
+			text: 'Other tab saved sentence.'}));
+	});
+	await page.reload();
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Recovered writing differs from the saved story'});
+	await expect(warning).toBeVisible();
+	await page.screenshot({path: testInfo.outputPath('recovered-draft-conflict.png')});
+	await expect(page.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText('Local recovered sentence.');
+	expect(await page.evaluate(() => JSON.stringify({...localStorage})))
+		.toContain('Other tab saved sentence.');
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export story backup'}).click();
+	const backup = await readFile((await (await downloadPromise).path())!, 'utf8');
+	expect(backup).toContain('Local recovered sentence.');
+	await warning.getByRole('button',
+		{name: 'Discard recovered draft and open saved version'}).click();
+	await expect(page.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText('Other tab saved sentence.');
+	await expect(page.getByRole('alert')
+		.filter({hasText: 'Recovered writing differs from the saved story'}))
+		.toHaveCount(0);
+});
+
+test('an orphaned editor draft remains available in raw recovery', async ({page}) => {
+	await createDraft(page);
+	await page.evaluate(() => {
+		const key = Object.keys(localStorage)
+			.find(candidate => candidate.startsWith('twine-studio-passages-'))!;
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		sessionStorage.setItem(`twine-studio-editor-draft-${passage.id}`,
+			JSON.stringify({version: 1, storyId: passage.story,
+				passageId: passage.id, baseText: passage.text,
+				text: 'Writing from a deleted passage.'}));
+		localStorage.removeItem(key);
+	});
+	await page.reload();
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Recovered writing has no saved passage'});
+	await expect(warning).toBeVisible();
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = await readFile((await (await downloadPromise).path())!, 'utf8');
+	expect(recovery).toContain('Writing from a deleted passage.');
+	await warning.getByRole('button', {name: 'Discard orphaned drafts'}).click();
+	await expect(warning).toHaveCount(0);
 });
 
 test('failed save keeps latest writing available for backup, retry and reload', async ({

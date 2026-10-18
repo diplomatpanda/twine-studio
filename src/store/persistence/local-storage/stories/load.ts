@@ -1,16 +1,26 @@
 import {passageDefaults, storyDefaults} from '../../../stories/defaults';
 import {Passage, Story} from '../../../stories/stories.types';
 import {storageKey} from '../keys';
-import {readStorageItem} from '../transaction';
+import {clearSavedEditorDraft, exportEditorDrafts, readEditorDraft} from '../editor-drafts';
+import {preserveConflictingEditorDraft, readStorageItem, reportOrphanEditorDraft, writeStorageItem} from '../transaction';
+
+function reportUnmatchedEditorDrafts(handled: Set<string>) {
+	for (const key of Object.keys(exportEditorDrafts())) {
+		const passageId = key.slice('twine-studio-editor-draft-'.length);
+		if (!handled.has(passageId)) reportOrphanEditorDraft(passageId);
+	}
+}
 
 /**
  * Parses initial state from local storage.
  */
 export async function load(): Promise<Story[]> {
 	const stories: Record<string, Story> = {};
+	const handledDrafts = new Set<string>();
 	const serializedStories = readStorageItem(storageKey('stories'));
 
 	if (!serializedStories) {
+		reportUnmatchedEditorDrafts(handledDrafts);
 		return [];
 	}
 
@@ -88,13 +98,36 @@ export async function load(): Promise<Story[]> {
 					return;
 				}
 
-				stories[passage.story].passages.push({
+				let loadedPassage: Passage = {
 					...passageDefaults,
 					...passage,
 
 					// Remove empty tags.
 					tags: passage.tags ? passage.tags.filter(t => t.trim() !== '') : []
-				});
+				};
+				const draft = readEditorDraft(loadedPassage);
+				if (draft) {
+					handledDrafts.add(draft.passageId);
+					if (loadedPassage.text === draft.text) {
+						clearSavedEditorDraft(loadedPassage);
+					} else {
+						const savedText = loadedPassage.text;
+						loadedPassage = {...loadedPassage, text: draft.text};
+						const key = storageKey('passages', passage.id);
+						const serialized = JSON.stringify(loadedPassage);
+						if (savedText === draft.baseText) {
+							try {
+								writeStorageItem(key, serialized);
+								clearSavedEditorDraft(loadedPassage);
+							} catch {
+								// The pending transaction and tab draft remain available.
+							}
+						} else {
+							preserveConflictingEditorDraft(key, serialized);
+						}
+					}
+				}
+				stories[passage.story].passages.push(loadedPassage);
 			} catch (e) {
 				console.warn(
 					`Could not parse passage as JSON, skipping: ${serializedPassage}`
@@ -104,5 +137,6 @@ export async function load(): Promise<Story[]> {
 	}
 
 	// Flatten the stories object.
+	reportUnmatchedEditorDrafts(handledDrafts);
 	return Object.values(stories);
 }
