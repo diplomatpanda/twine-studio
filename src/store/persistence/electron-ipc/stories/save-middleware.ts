@@ -10,7 +10,7 @@ import {
 	isPersistablePassageChange,
 	isPersistableStoryChange
 } from '../../persistable-changes';
-import {saveStory} from './save-story';
+import {deleteStory, renameStory, restoreStory, saveStory} from './save-story';
 
 // When a story is deleted, we need to be able to look up information about it
 // from the last state.
@@ -49,8 +49,7 @@ export function saveMiddleware(
 			}
 
 			const createdStory = storyWithName(state, action.props.name);
-			twineElectron.restoreStory?.(createdStory);
-			saveStory(createdStory, formats);
+			restoreStory(createdStory, formats);
 			break;
 		}
 
@@ -58,7 +57,7 @@ export function saveMiddleware(
 			// We have to look up the story in our saved last state to know what file
 			// to delete.
 
-			twineElectron.deleteStory(storyWithId(lastState, action.storyId));
+			deleteStory(storyWithId(lastState, action.storyId));
 			break;
 		}
 
@@ -72,11 +71,7 @@ export function saveMiddleware(
 					const oldStory = storyWithId(lastState, action.storyId);
 					const newStory = storyWithId(state, action.storyId);
 
-					// It's crucial that we only respond to this event once. Otherwise,
-					// multiple renames in one session will cause mayhem.
-
-					twineElectron.onceStoryRenamed(() => saveStory(newStory, formats));
-					twineElectron.renameStory(oldStory, newStory);
+					renameStory(oldStory, newStory, formats);
 				} else {
 					// An ordinary update.
 

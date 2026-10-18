@@ -7,13 +7,13 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- Full Jest checkpoint: **256 suites passed**, **1,803 tests passed**, 23 skipped
+- Full Jest checkpoint: **257 suites passed**, **1,816 tests passed**, 23 skipped
   and 42 TODOs. This includes browser recovery, startup failure, passage lifecycle
   and desktop publication/close coverage. Final IPC race fixes are checked again
   with the affected suites; unchanged suites reuse this full-run evidence.
-- Final desktop queue checks: **3 suites, 50 tests passed**, including obsolete
-  failed-save retry, a third flush after retry, deletion/retry exclusion and
-  restoration while deletion is still in progress.
+- Final desktop queue checks: **4 suites, 90 tests passed**, including rename
+  tracking retry, app-preference ordering, late writes during shutdown, deletion/
+  retry exclusion and restoration while deletion is still in progress.
 - ESLint: no errors/warnings. TypeScript web and Electron main builds pass.
 - Production web build and renderer copy both pass; no shell copy error remains.
 - Chromium upstream smoke journeys: **6 passed**.
@@ -39,6 +39,12 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
   publication race. Shutdown failures leave the window open for retry.
+- Desktop rename/delete requests now have correlated replies and preserve
+  per-story operation order. Shutdown includes preference/format JSON writes and
+  main-only app preferences. JSON files are replaced after a complete temporary
+  write. Native rename/delete/immediate-close/reopen scenarios pass, as do theme
+  and default-format changes. Installed format metadata is preserved; custom
+  format installation during close is not covered by that native harness.
 - New component has a passing automated axe check. This is not a full
   accessibility audit or human usability study.
 - Production offline acceptance passed after an initial online load: cached
@@ -51,10 +57,8 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Finish the remaining acceptance limits below, especially advanced existing
   projects, AI modification, cross-browser behavior and harder failure modes.
 - Resolve inherited preview-origin/renderer trust boundaries before credentials.
-- Desktop shutdown waits for story HTML saves, but concurrent rename, deletion
-  and preference/format JSON operations are not yet part of that barrier. Their
-  immediate-close behavior remains a release blocker; do not infer it from the
-  verified typing/close journey.
+- Desktop normal-close mutation coverage now passes. Abrupt termination, real
+  full disks, external concurrent file edits and power failure remain unverified.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime

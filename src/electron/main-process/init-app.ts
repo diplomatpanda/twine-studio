@@ -99,24 +99,32 @@ export async function initApp() {
 			event?.preventDefault();
 			if (quitStarted) return;
 			quitStarted = true;
+			// Do not accept another edit while the final renderer/disk snapshot is
+			// being drained. Restore input if saving fails and the window stays open.
+			mainWindow?.setEnabled(false);
 
 			void (async () => {
 				try {
 					await flushRendererChanges();
 					await flushStorySaves();
+					try {
+						await cleanScratchDirectory();
+					} catch (error) {
+						console.error('Error while cleaning scratch files:', error);
+					}
+					// Native menu actions can enqueue preferences during cleanup.
+					// Finish those writes immediately before the controlled quit.
+					await flushStorySaves();
 				} catch (error) {
-					console.error(
-						'Error while flushing renderer or story saves:',
-						error
-					);
+					console.error('Error while flushing renderer or story saves:', error);
 					quitStarted = false;
+					mainWindow?.setEnabled(true);
+					dialog.showErrorBox(
+						'Twine Studio could not finish saving.',
+						'Your window has been kept open. Check the storage location and try closing again. ' +
+							(error as Error).message
+					);
 					return;
-				}
-
-				try {
-					await cleanScratchDirectory();
-				} catch (error) {
-					console.error('Error while cleaning scratch files:', error);
 				}
 
 				quitFinished = true;

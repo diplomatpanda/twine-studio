@@ -23,6 +23,10 @@ export interface StoryFile {
 	mtime: Date;
 }
 
+// If refreshing file tracking fails after a successful rename, retry only the
+// unfinished bookkeeping. The old filename no longer exists at that point.
+const pendingRenameTracking = new Map<string, string>();
+
 /**
  * Returns a promise resolving to an array of HTML strings to load from the
  * story directory. Each string corresponds to an individual story.
@@ -127,10 +131,24 @@ export async function renameStory(oldStory: Story, newStory: Story) {
 		const newStoryPath = join(storyPath, storyFileName(newStory));
 		const oldStoryPath = join(storyPath, storyFileName(oldStory));
 
+		// A later move involving either filename invalidates an earlier pending
+		// tracking refresh (for example A→B, then B→A after a stat failure).
+		for (const [from, to] of pendingRenameTracking) {
+			if (from === oldStoryPath && to === newStoryPath) continue;
+			if (
+				[from, to].some(path => path === oldStoryPath || path === newStoryPath)
+			) {
+				pendingRenameTracking.delete(from);
+			}
+		}
 		console.log(`Renaming ${oldStoryPath} to ${newStoryPath}`);
-		await rename(oldStoryPath, newStoryPath);
+		if (pendingRenameTracking.get(oldStoryPath) !== newStoryPath) {
+			await rename(oldStoryPath, newStoryPath);
+			pendingRenameTracking.set(oldStoryPath, newStoryPath);
+		}
 		stopTrackingFile(oldStoryPath);
 		await fileWasTouched(newStoryPath);
+		pendingRenameTracking.delete(oldStoryPath);
 		console.log(`Successfully renamed ${oldStoryPath} to ${newStoryPath}`);
 	} catch (e) {
 		console.warn(`Error while renaming story: ${e}`);

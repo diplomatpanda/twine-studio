@@ -2,6 +2,7 @@ import {ipcMain} from 'electron';
 import {initIpc} from '../ipc';
 import {loadPrefs} from '../prefs';
 import {saveJsonFile} from '../json-file';
+import {flushAppPrefs, getAppPrefsSaveVersion} from '../app-prefs';
 import {openHtmlWithScratchFile} from '../scratch-file';
 import {
 	deleteStory,
@@ -14,6 +15,7 @@ import {fakePendingStoryFormat, fakePrefs, fakeStory} from '../../../test-util';
 import {loadStoryFormats} from '../story-formats';
 
 jest.mock('../json-file');
+jest.mock('../app-prefs');
 jest.mock('../prefs');
 jest.mock('../scratch-file');
 jest.mock('../story-file');
@@ -37,12 +39,108 @@ describe('initIpc()', () => {
 		flushStorySaves = initIpc();
 	});
 
+	it('waits for main-only preference writes before shutdown', async () => {
+		let release!: () => void;
+		(flushAppPrefs as jest.Mock).mockImplementation(
+			() => new Promise<void>(resolve => (release = resolve))
+		);
+		let closed = false;
+		const closing = flushStorySaves!().then(() => {
+			closed = true;
+		});
+		while (!release) await Promise.resolve();
+		expect(closed).toBe(false);
+		release();
+		await closing;
+		expect(closed).toBe(true);
+	});
+
+	it('checks again when a main-only preference changes during the barrier', async () => {
+		let version = 0;
+		(getAppPrefsSaveVersion as jest.Mock).mockImplementation(() => version);
+		(flushAppPrefs as jest.Mock).mockImplementationOnce(async () => {
+			version++;
+		});
+		await flushStorySaves!();
+		expect(flushAppPrefs).toHaveBeenCalledTimes(2);
+	});
+
+	it.each(['rename-story', 'delete-story'])(
+		'waits for an active %s operation before shutdown',
+		async operation => {
+			let release!: () => void;
+			const mock =
+				operation === 'rename-story' ? renameStoryMock : deleteStoryMock;
+			mock.mockImplementation(
+				() => new Promise<void>(resolve => (release = resolve))
+			);
+			const handler = handleMock.mock.calls.find(
+				call => call[0] === operation
+			)![1];
+			const story = fakeStory();
+			const mutation = handler({sender: {send: jest.fn()}}, story, {
+				...story,
+				name: 'Renamed'
+			});
+			let closed = false;
+			const closing = flushStorySaves!().then(() => {
+				closed = true;
+			});
+			// Wait until the filesystem operation has begun, without releasing it.
+			while (!release) await Promise.resolve();
+			expect(closed).toBe(false);
+			release();
+			await Promise.all([mutation, closing]);
+			expect(closed).toBe(true);
+		}
+	);
+
+	it('serializes settings writes and waits for the latest version during shutdown', async () => {
+		let release!: () => void;
+		saveJsonFileMock
+			.mockImplementationOnce(
+				() => new Promise<void>(resolve => (release = resolve))
+			)
+			.mockResolvedValue(undefined);
+		const handler = onMock.mock.calls.find(call => call[0] === 'save-json')![1];
+		const first = handler({}, 'prefs.json', {theme: 'light'});
+		const second = handler({}, 'prefs.json', {theme: 'dark'});
+		let closed = false;
+		const closing = flushStorySaves!().then(() => {
+			closed = true;
+		});
+		await Promise.resolve();
+		expect(saveJsonFileMock).toHaveBeenCalledTimes(1);
+		expect(closed).toBe(false);
+		release();
+		await Promise.all([first, second, closing]);
+		expect(saveJsonFileMock.mock.calls).toEqual([
+			['prefs.json', {theme: 'light'}],
+			['prefs.json', {theme: 'dark'}]
+		]);
+	});
+
+	it('retains a failed settings write and later edits for shutdown retry', async () => {
+		saveJsonFileMock
+			.mockRejectedValueOnce(new Error('settings unavailable'))
+			.mockResolvedValue(undefined);
+		const handler = onMock.mock.calls.find(call => call[0] === 'save-json')![1];
+		const first = handler({}, 'prefs.json', {theme: 'light'});
+		const second = handler({}, 'prefs.json', {theme: 'dark'});
+		await expect(first).rejects.toThrow('settings unavailable');
+		await expect(second).rejects.toThrow('settings unavailable');
+		await flushStorySaves!();
+		expect(saveJsonFileMock).toHaveBeenLastCalledWith('prefs.json', {
+			theme: 'dark'
+		});
+	});
+
 	describe('the listener it adds for delete-story events', () => {
 		let listener: any[];
 		let story: Story;
 
 		beforeEach(() => {
-			listener = onMock.mock.calls.find(call => call[0] === 'delete-story');
+			listener = handleMock.mock.calls.find(call => call[0] === 'delete-story');
 			story = fakeStory();
 		});
 
@@ -240,23 +338,23 @@ describe('initIpc()', () => {
 		let oldStory: Story;
 
 		beforeEach(() => {
-			listener = onMock.mock.calls.find(call => call[0] === 'rename-story');
+			listener = handleMock.mock.calls.find(call => call[0] === 'rename-story');
 			oldStory = fakeStory();
 			newStory = {...oldStory, name: 'new-name'};
 		});
 
 		it('calls renameStory()', async () => {
 			expect(listener).not.toBeUndefined();
-			listener[1]({sender: {send: jest.fn()}}, oldStory, newStory);
+			await listener[1]({sender: {send: jest.fn()}}, oldStory, newStory);
 			expect(renameStoryMock.mock.calls).toEqual([[oldStory, newStory]]);
 		});
 
-		it('sends back a story-renamed event', async () => {
+		it('resolves its own request without a global completion event', async () => {
 			const send = jest.fn();
 
 			expect(listener).not.toBeUndefined();
 			await listener[1]({sender: {send}}, oldStory, newStory);
-			expect(send.mock.calls).toEqual([['story-renamed', oldStory, newStory]]);
+			expect(send).not.toHaveBeenCalled();
 		});
 	});
 
@@ -265,7 +363,8 @@ describe('initIpc()', () => {
 			onMock.mock.calls.find(call => call[0] === 'save-json');
 
 		it.each(['prefs.json', 'story-formats.json'])(
-			'accepts the renderer filename %s', async filename => {
+			'accepts the renderer filename %s',
+			async filename => {
 				const testData = {};
 
 				const listener = getListener();
@@ -275,16 +374,19 @@ describe('initIpc()', () => {
 			}
 		);
 
-		it.each(['test-filename.json', '../prefs.json', '..\\prefs.json', 'C:\\temp\\prefs.json'])(
-			'rejects an unsafe filename %s before writing', async filename => {
-				const listener = getListener();
-				expect(listener).not.toBeUndefined();
-				await expect(listener![1]({}, filename, {})).rejects.toThrow(
-					'Invalid JSON filename.'
-				);
-				expect(saveJsonFileMock).not.toHaveBeenCalledWith(filename, {});
-			}
-		);
+		it.each([
+			'test-filename.json',
+			'../prefs.json',
+			'..\\prefs.json',
+			'C:\\temp\\prefs.json'
+		])('rejects an unsafe filename %s before writing', async filename => {
+			const listener = getListener();
+			expect(listener).not.toBeUndefined();
+			await expect(listener![1]({}, filename, {})).rejects.toThrow(
+				'Invalid JSON filename.'
+			);
+			expect(saveJsonFileMock).not.toHaveBeenCalledWith(filename, {});
+		});
 	});
 
 	describe('the listener it adds for save-story-html events', () => {

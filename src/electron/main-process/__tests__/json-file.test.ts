@@ -1,5 +1,5 @@
 import {loadJsonFile, loadJsonFileSync, saveJsonFile} from '../json-file';
-import {readJson, readJsonSync, writeJson} from 'fs-extra';
+import {readJson, readJsonSync, rename, writeJson} from 'fs-extra';
 import {join} from 'path';
 
 jest.mock('fs-extra');
@@ -56,9 +56,13 @@ describe('saveJsonFile()', () => {
 		const mockData = {test: true};
 
 		await saveJsonFile('test.json', mockData);
-		expect(writeJsonMock.mock.calls).toEqual([
-			[mockUserDataFile('test.json'), mockData]
-		]);
+		const temporary = writeJsonMock.mock.calls[0][0];
+		expect(temporary).toMatch(/test\.json\..+\.tmp$/);
+		expect(writeJsonMock).toHaveBeenCalledWith(temporary, mockData);
+		expect(rename).toHaveBeenCalledWith(
+			temporary,
+			mockUserDataFile('test.json')
+		);
 	});
 
 	it('rejects if there is an error writing data', async () => {
@@ -66,5 +70,6 @@ describe('saveJsonFile()', () => {
 
 		writeJsonMock.mockRejectedValue(mockError);
 		await expect(saveJsonFile('test.json', {})).rejects.toBe(mockError);
+		expect(rename).not.toHaveBeenCalled();
 	});
 });

@@ -7,14 +7,12 @@ import {
 } from '../../../story-formats';
 import {getAppInfo} from '../../../../util/app-info';
 import {fetchStoryFormatProperties} from '../../../../util/story-format/fetch-properties';
+import {PersistenceQueue} from '../../../../util/persistence-queue';
 
-const pendingStorySaves = new Set<Promise<void>>();
-const storySaveChains = new Map<string, Promise<void>>();
+const storyTasks = new PersistenceQueue();
 
 export async function waitForPendingStorySaves() {
-	while (pendingStorySaves.size > 0) {
-		await Promise.all([...pendingStorySaves]);
-	}
+	await storyTasks.flush();
 }
 
 declare global {
@@ -31,27 +29,48 @@ if (typeof window !== 'undefined') {
  * Sends an IPC message to save a story to disk, ideally in published form.
  */
 export function saveStory(story: Story, formats: StoryFormatsState) {
-	const previousSave = storySaveChains.get(story.id);
-	const save = previousSave
-		? previousSave.catch(() => undefined).then(() => saveStoryNow(story, formats))
-		: saveStoryNow(story, formats);
-	storySaveChains.set(story.id, save);
-	pendingStorySaves.add(save);
-	void save.then(
-		() => {
-			pendingStorySaves.delete(save);
-			if (storySaveChains.get(story.id) === save) {
-				storySaveChains.delete(story.id);
-			}
-		},
-		() => {
-			pendingStorySaves.delete(save);
-			if (storySaveChains.get(story.id) === save) {
-				storySaveChains.delete(story.id);
-			}
-		}
+	return queueTask(story.id, () => saveStoryNow(story, formats));
+}
+
+function queueTask(id: string, task: () => Promise<void>) {
+	const attempt = storyTasks.enqueue(id, task);
+	// Reducer middleware cannot await. Retain failures for shutdown/retry; main
+	// process operations show their own error dialog.
+	void attempt.catch(error =>
+		console.error('Story persistence failed:', error)
 	);
-	return save;
+	return attempt;
+}
+
+export function deleteStory(story: Story) {
+	return queueTask(story.id, async () => {
+		await (window as TwineElectronWindow).twineElectron!.deleteStory(story);
+	});
+}
+
+export function restoreStory(story: Story, formats: StoryFormatsState) {
+	return queueTask(story.id, async () => {
+		(window as TwineElectronWindow).twineElectron!.restoreStory?.(story);
+		await saveStoryNow(story, formats);
+	});
+}
+
+export function renameStory(
+	oldStory: Story,
+	story: Story,
+	formats: StoryFormatsState
+) {
+	let renamed = false;
+	return queueTask(story.id, async () => {
+		if (!renamed) {
+			await (window as TwineElectronWindow).twineElectron!.renameStory(
+				oldStory,
+				story
+			);
+			renamed = true;
+		}
+		await saveStoryNow(story, formats);
+	});
 }
 
 async function saveStoryNow(story: Story, formats: StoryFormatsState) {

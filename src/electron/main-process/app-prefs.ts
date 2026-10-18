@@ -1,5 +1,6 @@
 import minimist from 'minimist';
 import {loadJsonFileSync, saveJsonFile} from './json-file';
+import {PersistenceQueue} from '../../util/persistence-queue';
 
 /**
  * Name of an app-specific preference. These should only be used for preferences
@@ -21,6 +22,16 @@ const prefNames: AppPrefName[] = [
 ];
 const prefs: Partial<Record<AppPrefName, unknown>> = {};
 let prefsLoaded = false;
+const writes = new PersistenceQueue();
+let saveVersion = 0;
+
+export function getAppPrefsSaveVersion() {
+	return saveVersion;
+}
+
+export function flushAppPrefs() {
+	return writes.flush();
+}
 
 /**
  * Loads app-specific (e.g. not shared by the browser version) prefs. This
@@ -70,11 +81,22 @@ export function getAppPref(name: AppPrefName): unknown {
 /**
  * Sets an app preference and saves it to the app preference file.
  */
-export async function setAppPref(name: AppPrefName, value: unknown) {
+export function setAppPref(name: AppPrefName, value: unknown) {
 	if (!prefsLoaded) {
-		throw new Error('Tried to set an app pref before they were loaded');
+		return Promise.reject(
+			new Error('Tried to set an app pref before they were loaded')
+		);
 	}
 
 	prefs[name] = value;
-	await saveJsonFile('app-prefs.json', prefs);
+	saveVersion++;
+	const snapshot = {...prefs};
+	const attempt = writes.enqueue('app-prefs.json', () =>
+		saveJsonFile('app-prefs.json', snapshot)
+	);
+	// Menu actions may not await this. Retain failed work for the close barrier.
+	void attempt.catch(error =>
+		console.warn('Could not save app preferences', error)
+	);
+	return attempt;
 }

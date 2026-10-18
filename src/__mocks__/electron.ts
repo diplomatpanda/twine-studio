@@ -18,6 +18,7 @@ export class BrowserWindow {
 
 	public readonly on = jest.fn();
 	public readonly once = jest.fn();
+	public readonly setEnabled = jest.fn();
 
 	constructor() {
 		BrowserWindow.instances.push(this);

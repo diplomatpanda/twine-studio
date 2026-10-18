@@ -3,6 +3,7 @@ import debounce from 'lodash/debounce';
 import type {DebouncedFunc} from 'lodash';
 import {i18n} from './locales';
 import {saveJsonFile} from './json-file';
+import {flushAppPrefs, getAppPrefsSaveVersion} from './app-prefs';
 import {
 	deleteStory,
 	loadStories,
@@ -13,6 +14,7 @@ import {loadStoryFormats} from './story-formats';
 import {loadPrefs} from './prefs';
 import {openHtmlWithScratchFile} from './scratch-file';
 import {Story} from '../../store/stories/stories.types';
+import {PersistenceQueue} from '../../util/persistence-queue';
 
 const allowedJsonFilenames = new Set(['prefs.json', 'story-formats.json']);
 
@@ -50,6 +52,17 @@ export function initIpc() {
 	const deletingStoryIds = new Set<string>();
 	const pendingStoryRestores = new Set<string>();
 	const deferredRestoredStorySaves = new Map<string, StorySaveArgs>();
+	const jsonWrites = new PersistenceQueue();
+	const activeOperations = new Set<Promise<void>>();
+	let mutationVersion = 0;
+
+	function trackOperation(operation: Promise<void>) {
+		mutationVersion++;
+		activeOperations.add(operation);
+		const cleanup = () => activeOperations.delete(operation);
+		void operation.then(cleanup, cleanup);
+		return operation;
+	}
 
 	const enqueueStorySave = (args: StorySaveArgs) => {
 		const {event, story, storyHtml} = args;
@@ -102,6 +115,7 @@ export function initIpc() {
 	};
 
 	const scheduleStorySave = (args: StorySaveArgs) => {
+		mutationVersion++;
 		const {story} = args;
 		if (!storySavers[story.id]) {
 			storySavers[story.id] = debounce(
@@ -113,53 +127,57 @@ export function initIpc() {
 		storySavers[story.id](args);
 	};
 
-	ipcMain.on('delete-story', async (event, story) => {
-		const storyId = story.id;
-		deletingStoryIds.add(storyId);
-		deletedStoryIds.add(storyId);
-		storySavers[storyId]?.cancel();
+	ipcMain.handle('delete-story', (event, story) =>
+		trackOperation(
+			(async () => {
+				const storyId = story.id;
+				deletingStoryIds.add(storyId);
+				deletedStoryIds.add(storyId);
+				storySavers[storyId]?.cancel();
 
-		try {
-			// Finish a write that was already active before deleting the file. Any
-			// trailing debounce is canceled above, and new saves are ignored while
-			// this deletion is in progress.
-			await storySaveChains.get(storyId)?.catch(() => undefined);
-			await deleteStory(story);
-			const restoreRequested = pendingStoryRestores.delete(storyId);
-			const deferredRestore = deferredRestoredStorySaves.get(storyId);
-			deferredRestoredStorySaves.delete(storyId);
-			delete storySavers[storyId];
-			storySaveChains.delete(storyId);
-			latestStorySaveArgs.delete(storyId);
-			failedStorySaves.delete(storyId);
-			deletingStoryIds.delete(storyId);
-			if (restoreRequested) {
-				deletedStoryIds.delete(storyId);
-				if (deferredRestore) {
-					latestStorySaveArgs.set(storyId, deferredRestore);
-					scheduleStorySave(deferredRestore);
+				try {
+					// Finish a write that was already active before deleting the file. Any
+					// trailing debounce is canceled above, and new saves are ignored while
+					// this deletion is in progress.
+					await storySaveChains.get(storyId)?.catch(() => undefined);
+					await deleteStory(story);
+					const restoreRequested = pendingStoryRestores.delete(storyId);
+					const deferredRestore = deferredRestoredStorySaves.get(storyId);
+					deferredRestoredStorySaves.delete(storyId);
+					delete storySavers[storyId];
+					storySaveChains.delete(storyId);
+					latestStorySaveArgs.delete(storyId);
+					failedStorySaves.delete(storyId);
+					deletingStoryIds.delete(storyId);
+					if (restoreRequested) {
+						deletedStoryIds.delete(storyId);
+						if (deferredRestore) {
+							latestStorySaveArgs.set(storyId, deferredRestore);
+							scheduleStorySave(deferredRestore);
+						}
+					}
+					// Keep this ID blocked unless the renderer explicitly restored it while
+					// deletion was in progress.
+					event.sender.send('story-deleted', story);
+				} catch (error) {
+					deletingStoryIds.delete(storyId);
+					const restoreRequested = pendingStoryRestores.delete(storyId);
+					const deferredRestore = deferredRestoredStorySaves.get(storyId);
+					deferredRestoredStorySaves.delete(storyId);
+					deletedStoryIds.delete(storyId);
+					if (restoreRequested && deferredRestore) {
+						latestStorySaveArgs.set(storyId, deferredRestore);
+						scheduleStorySave(deferredRestore);
+					}
+					dialog.showErrorBox(
+						i18n.t('electron.errors.storyDelete'),
+						(error as Error).message
+					);
+					throw error;
 				}
-			}
-			// Keep this ID blocked unless the renderer explicitly restored it while
-			// deletion was in progress.
-			event.sender.send('story-deleted', story);
-		} catch (error) {
-			deletingStoryIds.delete(storyId);
-			const restoreRequested = pendingStoryRestores.delete(storyId);
-			const deferredRestore = deferredRestoredStorySaves.get(storyId);
-			deferredRestoredStorySaves.delete(storyId);
-			deletedStoryIds.delete(storyId);
-			if (restoreRequested && deferredRestore) {
-				latestStorySaveArgs.set(storyId, deferredRestore);
-				scheduleStorySave(deferredRestore);
-			}
-			dialog.showErrorBox(
-				i18n.t('electron.errors.storyDelete'),
-				(error as Error).message
-			);
-			throw error;
-		}
-	});
+			})()
+		)
+	);
 
 	ipcMain.on('restore-story', (_event, story) => {
 		// Do not clear the tombstone until trashing finishes. Any save emitted by
@@ -202,33 +220,56 @@ export function initIpc() {
 		}
 	);
 
-	// This doesn't use handle() because state reducers in the renderer process
-	// can't be be asynchronous--we have to send a signal back.
+	// A per-request reply prevents unrelated renames consuming each other's
+	// completion callbacks. The renderer tracks this promise outside its reducer.
+	ipcMain.handle('rename-story', (event, oldStory, newStory) =>
+		trackOperation(
+			(async () => {
+				try {
+					await flushOneStory(oldStory.id);
+					const previous = storySaveChains.get(oldStory.id);
+					const operation = (previous ?? Promise.resolve())
+						.catch(() => undefined)
+						.then(() => renameStory(oldStory, newStory));
+					storySaveChains.set(oldStory.id, operation);
+					await operation;
+				} catch (error) {
+					dialog.showErrorBox(
+						i18n.t('electron.errors.storyRename'),
+						(error as Error).message
+					);
+					throw error;
+				}
+			})()
+		)
+	);
 
-	ipcMain.on('rename-story', async (event, oldStory, newStory) => {
-		try {
-			await renameStory(oldStory, newStory);
-			event.sender.send('story-renamed', oldStory, newStory);
-		} catch (error) {
-			dialog.showErrorBox(
-				i18n.t('electron.errors.storyRename'),
-				(error as Error).message
-			);
-			throw error;
-		}
-	});
-
-	ipcMain.on('save-json', async (event, filename: string, data: any) => {
+	ipcMain.on('save-json', (_event, filename: string, data: any) => {
+		let attempt: Promise<void>;
 		try {
 			validateJsonFilename(filename);
-			await saveJsonFile(filename, data);
+			mutationVersion++;
+			attempt = jsonWrites.enqueue(filename, async () => {
+				try {
+					await saveJsonFile(filename, data);
+				} catch (error) {
+					dialog.showErrorBox(
+						i18n.t('electron.errors.jsonSave'),
+						(error as Error).message
+					);
+					throw error;
+				}
+			});
 		} catch (error) {
 			dialog.showErrorBox(
 				i18n.t('electron.errors.jsonSave'),
 				(error as Error).message
 			);
-			throw error;
+			attempt = Promise.reject(error);
 		}
+		// send() has no awaiting caller. The queue retains failed work for retry.
+		void attempt.catch(() => undefined);
+		return attempt;
 	});
 
 	ipcMain.on('save-story-html', async (event, story, storyHtml) => {
@@ -244,7 +285,10 @@ export function initIpc() {
 			nextStorySaveGeneration.set(story.id, generation);
 			const args: StorySaveArgs = {event, story, storyHtml, generation};
 			if (deletedStoryIds.has(story.id)) {
-				if (deletingStoryIds.has(story.id) && pendingStoryRestores.has(story.id)) {
+				if (
+					deletingStoryIds.has(story.id) &&
+					pendingStoryRestores.has(story.id)
+				) {
 					deferredRestoredStorySaves.set(story.id, args);
 				}
 				return;
@@ -260,60 +304,49 @@ export function initIpc() {
 		}
 	});
 
-	const flushStorySaves = async function flushStorySaves() {
-		const errors: unknown[] = [];
-
-		if (Object.keys(storySavers).length > 0) {
-			// Flush all pending story saves.
-
-			for (const storyId of Object.keys(storySavers)) {
-				console.log(`Flushing pending story saves for story ID ${storyId}`);
-				const failedBeforeFlush = failedStorySaves.has(storyId);
-				let flushError: unknown;
-				try {
-					await storySavers[storyId].flush();
-				} catch (error) {
-					// lodash retains a rejected lastResult forever. If no failed save
-					// is currently cached, this rejection is stale after a successful
-					// retry and must not make a later flush fail again.
-					if (failedStorySaves.has(storyId)) flushError = error;
-				}
-
-				// A rejected lodash flush remains rejected on subsequent flushes and
-				// does not invoke the callback again. Retry only on a later shutdown
-				// attempt, leaving the window open after the first failed attempt.
-				if (failedBeforeFlush) {
-					const failedArgs = failedStorySaves.get(storyId);
-					if (failedArgs) {
-						try {
-							await enqueueStorySave(failedArgs);
-							flushError = undefined;
-						} catch (error) {
-							flushError = error;
-						}
-					}
-				}
-
-				if (flushError) {
-					errors.push(flushError);
-				}
-			}
-
-			// Wait for both leading and trailing writes before allowing quit.
-			while (activeStorySaves.size > 0) {
-				const saves = [...activeStorySaves];
-				const results = await Promise.allSettled(saves);
-				for (const result of results) {
-					if (result.status === 'rejected') errors.push(result.reason);
-				}
-			}
-
-			console.log('All pending story saves flushed successfully');
-		} else {
-			console.log('No pending story saves to flush');
+	async function flushOneStory(
+		storyId: string,
+		failedBeforeFlush = failedStorySaves.has(storyId)
+	) {
+		let flushError: unknown;
+		try {
+			await storySavers[storyId]?.flush();
+		} catch (error) {
+			// Lodash retains rejected lastResult even after a successful retry.
+			if (failedStorySaves.has(storyId)) flushError = error;
 		}
+		if (failedBeforeFlush) {
+			const failedArgs = failedStorySaves.get(storyId);
+			if (failedArgs) {
+				await enqueueStorySave(failedArgs);
+				flushError = undefined;
+			}
+		}
+		if (flushError) throw flushError;
+	}
 
-		if (errors.length > 0) throw errors[0];
+	const flushStorySaves = async () => {
+		const retryable = new Set(failedStorySaves.keys());
+		let version: number;
+		let appPrefsVersion: number;
+		do {
+			version = mutationVersion;
+			appPrefsVersion = getAppPrefsSaveVersion();
+			// A completed deletion may schedule a deferred restore. Drain those
+			// operations before taking the current list of story debouncers.
+			await Promise.all([...activeOperations]);
+			await Promise.all(
+				Object.keys(storySavers).map(id => flushOneStory(id, retryable.has(id)))
+			);
+			await Promise.all([...activeStorySaves]);
+			await jsonWrites.flush();
+			await flushAppPrefs();
+		} while (
+			activeOperations.size ||
+			activeStorySaves.size ||
+			version !== mutationVersion ||
+			appPrefsVersion !== getAppPrefsSaveVersion()
+		);
 	};
 
 	// The renderer invokes this after dispatching its beforeunload flush hook.

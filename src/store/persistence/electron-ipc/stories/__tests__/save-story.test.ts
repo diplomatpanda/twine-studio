@@ -12,7 +12,14 @@ import {
 	publishStoryWithFormat
 } from '../../../../../util/publish';
 import * as fetchStoryFormatProperties from '../../../../../util/story-format/fetch-properties';
-import {saveStory, waitForPendingStorySaves} from '../save-story';
+import {
+	deleteStory,
+	renameStory,
+	restoreStory,
+	saveStory,
+	waitForPendingStorySaves
+} from '../save-story';
+import {waitFor} from '@testing-library/react';
 
 describe('saveStory()', () => {
 	let formatsState: StoryFormatsState;
@@ -110,15 +117,58 @@ describe('saveStory()', () => {
 		expect(saveStoryHtml).not.toHaveBeenCalled();
 
 		resolveFirst(properties);
-		await firstSave;
-		await Promise.resolve();
+		await waitFor(() => expect(fetchProperties).toHaveBeenCalledTimes(2));
 		expect(fetchProperties).toHaveBeenCalledTimes(2);
 		expect(saveStoryHtml).toHaveBeenCalledTimes(1);
 
 		resolveSecond(properties);
-		await Promise.all([secondSave, pendingPublication]);
+		await Promise.all([firstSave, secondSave, pendingPublication]);
 		expect(saveStoryHtml).toHaveBeenCalledTimes(2);
 		expect(saveStoryHtml.mock.calls[0][0]).toBe(firstStory);
 		expect(saveStoryHtml.mock.calls[1][0]).toBe(secondStory);
+	});
+
+	it('retries a failed rename before a later rename and its latest publication', async () => {
+		const renamed = {...story, name: 'Second name'};
+		const final = {...story, name: 'Final name'};
+		const rename = jest
+			.fn()
+			.mockRejectedValueOnce(new Error('rename unavailable'))
+			.mockResolvedValue(undefined);
+		(window as any).twineElectron.renameStory = rename;
+		jest.spyOn(console, 'error').mockReturnValue();
+		const first = renameStory(story, renamed, formatsState);
+		const second = renameStory(renamed, final, formatsState);
+		await expect(first).rejects.toThrow('rename unavailable');
+		await expect(second).rejects.toThrow('rename unavailable');
+		expect(saveStoryHtml).not.toHaveBeenCalled();
+		await waitForPendingStorySaves();
+		expect(rename.mock.calls).toEqual([
+			[story, renamed],
+			[story, renamed],
+			[renamed, final]
+		]);
+		expect(saveStoryHtml.mock.calls.map(call => call[0].name)).toEqual([
+			'Second name',
+			'Final name'
+		]);
+	});
+
+	it('waits for deletion before restoring and saving the same story', async () => {
+		let finishDelete!: () => void;
+		const deletion = jest.fn(
+			() => new Promise<void>(resolve => (finishDelete = resolve))
+		);
+		const restore = jest.fn();
+		(window as any).twineElectron.deleteStory = deletion;
+		(window as any).twineElectron.restoreStory = restore;
+		const deleted = deleteStory(story);
+		const restored = restoreStory(story, formatsState);
+		await Promise.resolve();
+		expect(restore).not.toHaveBeenCalled();
+		finishDelete();
+		await Promise.all([deleted, restored]);
+		expect(restore).toHaveBeenCalledWith(story);
+		expect(saveStoryHtml).toHaveBeenCalledTimes(1);
 	});
 });

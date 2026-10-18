@@ -112,6 +112,34 @@ describe('initApp', () => {
 		expect(event.preventDefault).toHaveBeenCalledTimes(1);
 		expect(cleanScratchDirectoryMock).not.toHaveBeenCalled();
 		expect(quitMock).not.toHaveBeenCalled();
+		expect(showErrorBoxMock).toHaveBeenCalledWith(
+			'Twine Studio could not finish saving.',
+			expect.stringContaining('Your window has been kept open')
+		);
+		const window = browserWindowMock.instances.at(-1)! as unknown as {
+			setEnabled: jest.Mock;
+		};
+		expect(window.setEnabled.mock.calls).toEqual([[false], [true]]);
+	});
+
+	it('waits for writes queued during cleanup before completing shutdown', async () => {
+		let release!: () => void;
+		const flush = jest
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockImplementationOnce(
+				() => new Promise<void>(resolve => (release = resolve))
+			);
+		initIpcMock.mockReturnValue(flush);
+		await initApp();
+		const onQuit = onMock.mock.calls.find(([event]) => event === 'before-quit');
+		onQuit[1]({preventDefault: jest.fn()});
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(cleanScratchDirectoryMock).toHaveBeenCalledTimes(1);
+		expect(quitMock).not.toHaveBeenCalled();
+		release();
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(quitMock).toHaveBeenCalledTimes(1);
 	});
 
 	it('initializes IPC', async () => {

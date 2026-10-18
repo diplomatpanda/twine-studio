@@ -1,5 +1,5 @@
 import minimist from 'minimist';
-import {getAppPref, loadAppPrefs, setAppPref} from '../app-prefs';
+import {flushAppPrefs, getAppPref, loadAppPrefs, setAppPref} from '../app-prefs';
 import {loadJsonFileSync, saveJsonFile} from '../json-file';
 
 jest.mock('minimist');
@@ -109,6 +109,30 @@ describe('setAppPref', () => {
 		await expect(() =>
 			setAppPref('scratchFolderPath', 'mock-value')
 		).rejects.toBeInstanceOf(Error);
+		saveJsonFileMock.mockResolvedValue(undefined);
+		await flushAppPrefs();
+	});
+
+	it('drains immutable settings snapshots in order before closing', async () => {
+		loadAppPrefs();
+		let release!: () => void;
+		saveJsonFileMock.mockImplementationOnce(
+			() => new Promise<void>(resolve => (release = resolve))
+		);
+		const first = setAppPref('scratchFolderPath', 'first');
+		const second = setAppPref('scratchFolderPath', 'second');
+		let finished = false;
+		const closing = flushAppPrefs().then(() => {
+			finished = true;
+		});
+		await Promise.resolve();
+		expect(saveJsonFileMock).toHaveBeenCalledTimes(1);
+		expect(saveJsonFileMock.mock.calls[0][1].scratchFolderPath).toBe('first');
+		expect(finished).toBe(false);
+		release();
+		await Promise.all([first, second, closing]);
+		expect(saveJsonFileMock.mock.calls[1][1].scratchFolderPath).toBe('second');
+		expect(finished).toBe(true);
 	});
 
 	// Because this is stored in the module itself, unclear how to test this.

@@ -96,8 +96,30 @@ edits was invalidated by Vite hot reload; the stable-source rerun passed. Three
 consecutive native close/restart checks passed after fixing the publication race.
 The full unit checkpoint passed 256 suites and 1,803 tests. Final desktop queue
 race fixes receive affected-suite checks after that checkpoint.
-Those checks passed 50 tests across three suites. Main-process rename, deletion
-and settings JSON operations still need coordinated shutdown coverage; current
-native close evidence applies to story writing.
+Those checks passed 50 tests across three suites.
 The broader Twine Studio goal remains incomplete; see release-readiness.md for
 the current scope and remaining acceptance work.
+
+## Desktop mutation shutdown pass
+
+Renderer persistence now orders rename, publication, deletion and restoration per
+story. Rename/delete requests have individual replies, and failed operations keep
+their dependent edits for retry. Main-process shutdown waits for those operations,
+serialized preference/format JSON writes and desktop-only app preferences.
+JSON writes replace the destination only after a complete temporary file exists.
+The window stops accepting edits during shutdown and stays open with an error
+message if saving fails.
+
+Independent review caught stale bookkeeping after a successful rename followed
+by a tracking failure, and a late app-preference write during cleanup. Both were
+fixed with regression coverage. The review confirmed those findings resolved.
+The full unit checkpoint passed 257 suites and 1,816 tests; final affected checks
+passed 90 tests in four suites. All 23 Chromium journeys, lint, type checking and
+web/Electron builds passed.
+
+The native UI harness now closes and reopens immediately after story rename,
+deletion, theme/default-format changes. All scenarios passed against the rebuilt
+application. An initial rename test selected the passage rename control; inspecting
+the exported story metadata identified the harness mistake, which was corrected
+before accepting the result. Installed format metadata preservation is verified;
+this is not a native test of adding a custom format during shutdown.

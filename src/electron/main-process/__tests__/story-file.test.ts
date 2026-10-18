@@ -307,6 +307,22 @@ describe('renameStory', () => {
 		await expect(renameStory(oldStory, newStory)).rejects.toBe(mockError);
 	});
 
+	it('retries tracking after a successful rename without moving the missing old file again', async () => {
+		fileWasTouchedMock.mockRejectedValueOnce(new Error('Cannot stat file'));
+		await expect(renameStory(oldStory, newStory)).rejects.toThrow('Cannot stat file');
+		await renameStory(oldStory, newStory);
+		expect(renameMock).toHaveBeenCalledTimes(1);
+		expect(fileWasTouchedMock).toHaveBeenCalledTimes(2);
+	});
+
+	it('invalidates stale tracking when a later move uses the same filenames', async () => {
+		fileWasTouchedMock.mockRejectedValueOnce(new Error('Cannot stat file'));
+		await expect(renameStory(oldStory, newStory)).rejects.toThrow('Cannot stat file');
+		await renameStory(newStory, oldStory);
+		await renameStory(oldStory, newStory);
+		expect(renameMock).toHaveBeenCalledTimes(3);
+	});
+
 	it('does not resolve until all async file operations have finished', async () => {
 		let resolveRename = () => {};
 		let resolveFileWasTouched = () => {};
