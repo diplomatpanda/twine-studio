@@ -32,6 +32,21 @@
 	min-width: 0;
 }
 
+.fuzzy-finder-controls {
+	padding: 0 var(--grid-size) var(--grid-size);
+}
+
+.fuzzy-finder-controls label {
+	display: inline-flex;
+	gap: calc(var(--grid-size) / 2);
+	align-items: center;
+}
+
+.fuzzy-finder-controls p {
+	font-size: 0.85em;
+	margin: calc(var(--grid-size) / 2) 0 0;
+}
+
 @media (max-width: 560px) {
 	.fuzzy-finder .search .text-input label {
 		align-items: stretch;

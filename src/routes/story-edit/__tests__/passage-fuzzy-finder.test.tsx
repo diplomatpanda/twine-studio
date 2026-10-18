@@ -72,6 +72,41 @@ describe('PassageFuzzyFinder', () => {
 			).toEqual(['A passage', 'B passage', 'C passage']);
 		});
 
+		it('filters to passages with no standard-link path from Start and resets on reopen', () => {
+			const story = fakeStory(3);
+			story.passages[0].name = 'Start';
+			story.passages[1].name = 'Linked';
+			story.passages[2].name = 'Loose';
+			story.passages[0].text = '[[Linked]]';
+			const {rerender} = renderComponent({}, story);
+			fireEvent.click(screen.getByRole('checkbox', {name: 'components.passageFuzzyFinder.onlyWithoutPath'}));
+			expect(screen.getByRole('button', {name: /Loose/})).toBeInTheDocument();
+			expect(screen.queryByRole('button', {name: /Linked/})).not.toBeInTheDocument();
+			expect(screen.getByText('components.passageFuzzyFinder.pathLimit')).toBeInTheDocument();
+			rerender(
+				<FakeStateProvider stories={[story]}>
+					<PassageFuzzyFinder onClose={jest.fn()} onOpen={jest.fn()} open={false} setCenter={jest.fn()} story={story} />
+				</FakeStateProvider>
+			);
+			rerender(
+				<FakeStateProvider stories={[story]}>
+					<PassageFuzzyFinder onClose={jest.fn()} onOpen={jest.fn()} open setCenter={jest.fn()} story={story} />
+				</FakeStateProvider>
+			);
+			expect(screen.getByRole('checkbox', {name: 'components.passageFuzzyFinder.onlyWithoutPath'})).not.toBeChecked();
+			expect(screen.getAllByRole('button').some(button =>
+				button.querySelector('.heading')?.textContent === 'Linked'
+			)).toBe(true);
+		});
+
+		it('asks for a start passage when none exists', () => {
+			const story = fakeStory(2);
+			story.startPassage = 'missing';
+			renderComponent({}, story);
+			fireEvent.click(screen.getByRole('checkbox', {name: 'components.passageFuzzyFinder.onlyWithoutPath'}));
+			expect(screen.getByText('components.passageFuzzyFinder.missingStart')).toBeInTheDocument();
+		});
+
 		describe('When a result is selected', () => {
 			it('centers the view on a passage and selects it when a result is selected', () => {
 				const setCenter = jest.fn();

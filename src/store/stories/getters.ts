@@ -92,6 +92,26 @@ export function passageConnections(
 	return result;
 }
 
+/** Passages with no path from Start through ordinary [[...]] links. */
+export function passagesWithoutStandardLinkPath(story: Story): Passage[] {
+	const start = story.passages.find(passage => passage.id === story.startPassage);
+	if (!start) return [];
+
+	const byName = new Map(story.passages.map(passage => [passage.name, passage]));
+	const visited = new Set([start.id]);
+	const pending = [start];
+	for (let index = 0; index < pending.length; index++) {
+		for (const name of parseLinks(pending[index].text, true)) {
+			const target = byName.get(name);
+			if (target && !visited.has(target.id)) {
+				visited.add(target.id);
+				pending.push(target);
+			}
+		}
+	}
+	return story.passages.filter(passage => !visited.has(passage.id));
+}
+
 /**
  * Returns a set of passages matching a fuzzy search crtieria.
  */

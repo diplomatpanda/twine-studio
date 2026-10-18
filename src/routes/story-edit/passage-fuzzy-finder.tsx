@@ -6,6 +6,7 @@ import {CSSTransition} from 'react-transition-group';
 import {FuzzyFinder} from '../../components/fuzzy-finder';
 import {
 	passagesMatchingFuzzySearch,
+	passagesWithoutStandardLinkPath,
 	selectPassage,
 	Story,
 	useStoriesContext
@@ -24,14 +25,21 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 	const {onClose, onOpen, open, setCenter, story} = props;
 	const {dispatch} = useStoriesContext();
 	const [search, setSearch] = React.useState('');
+	const [onlyWithoutPath, setOnlyWithoutPath] = React.useState(false);
+	const hasStart = story.passages.some(passage => passage.id === story.startPassage);
 	React.useEffect(() => {
 		if (!open) {
 			setSearch('');
+			setOnlyWithoutPath(false);
 		}
 	}, [open]);
+	const candidatePassages = React.useMemo(
+		() => onlyWithoutPath ? passagesWithoutStandardLinkPath(story) : story.passages,
+		[onlyWithoutPath, story]
+	);
 	const matches = React.useMemo(
-		() => passagesMatchingFuzzySearch(story.passages, search),
-		[search, story.passages]
+		() => passagesMatchingFuzzySearch(candidatePassages, search),
+		[candidatePassages, search]
 	);
 	const results = React.useMemo(
 		() =>
@@ -47,6 +55,11 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 	);
 	useHotkeys('p', onOpen);
 	const {t} = useTranslation();
+	const noResultsKey = onlyWithoutPath && !hasStart
+		? 'components.passageFuzzyFinder.missingStart'
+		: onlyWithoutPath && !search.trim()
+			? 'components.passageFuzzyFinder.noUnlinked'
+			: 'components.passageFuzzyFinder.noResults';
 
 	function handleChangeSearch(value: string) {
 		setSearch(value);
@@ -71,13 +84,28 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 			in={open}
 		>
 			<FuzzyFinder
-				noResultsText={t('components.passageFuzzyFinder.noResults')}
+				controls={
+					<>
+						<label>
+							<input
+								checked={onlyWithoutPath}
+								onChange={event => setOnlyWithoutPath(event.target.checked)}
+								type="checkbox"
+							/>
+							{t('components.passageFuzzyFinder.onlyWithoutPath')}
+						</label>
+						{onlyWithoutPath && <p>{t('components.passageFuzzyFinder.pathLimit')}</p>}
+					</>
+				}
+				noResultsText={t(noResultsKey)}
 				onClose={onClose}
 				onChangeSearch={handleChangeSearch}
 				onSelectResult={handleSelectResult}
 				prompt={t('components.passageFuzzyFinder.prompt')}
 				search={search}
 				results={results}
+				selectionResetKey={onlyWithoutPath}
+				showEmptyResults={onlyWithoutPath}
 			/>
 		</CSSTransition>,
 		document.body

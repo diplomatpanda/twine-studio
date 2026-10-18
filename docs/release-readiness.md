@@ -34,6 +34,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   reset, long-title selection, editing and publication. Real input clicks at
   375 px and stable 768 px screenshots pass. The existing Chromium large-story
   rename/reference/persistence journey also passes on this revision.
+- Go To's standard-link path filter passes 54 affected unit tests and its 375 px
+  import/search/select/reset journey in Chromium, Firefox and WebKit. The narrow
+  screenshot was inspected. It follows ordinary `[[...]]` links; dynamic format
+  navigation and special passages can affect actual playability.
 - AI code-repair boundary checks: 48 Electron main/IPC tests and seven proposal/
   review component tests pass; the Chromium browser journey confirms opening the
   desktop-only panel preserves passage text through reload. Web/Electron builds
@@ -112,7 +116,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
 | C: AI modification | Desktop Harlowe/SugarCube code-repair adapter, mock contract/review tests and browser boundary pass | Live paid request, native accept/undo and broader story-modification experience pending |
 | D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
-| E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; navigation also passes Firefox/WebKit | Irregular/long-text projects and repeated performance runs pending |
+| E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Production Chromium reload/edit/save/Harlowe preview/export pass | Other formats, cache eviction and cross-browser coverage pending |

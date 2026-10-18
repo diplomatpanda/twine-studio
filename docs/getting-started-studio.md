@@ -40,6 +40,11 @@ Choose **Go To** to browse all passage names in alphabetical order. Type part of
 a name, passage text, or tag to find a match. Use the arrow keys and Enter, or
 click a result, to select that passage and center it on the map. Choose **Edit**
 to continue writing. Escape closes the list; reopening it starts with all passages.
+For a larger story, check **Show passages with no link path from Start** to find
+draft passages that no ordinary `[[...]]` link chain reaches. Select one to jump
+to it and connect or remove it as you decide. The check counts conditional links
+as possible paths and cannot follow dynamic format-specific navigation; special
+story-format passages may appear in the list.
 
 ## Remembering clues and relationships
 
@@ -101,7 +106,11 @@ preview and HTML export. Development-server and user-added remote formats are
 not covered by that offline guarantee. Clearing site data removes browser work
 and the offline cache; keep exported backups.
 
-AI proposals and broader workflow modernization are not yet available. The
+An optional desktop-only AI action can propose code repair for a selected
+Harlowe or SugarCube passage; it requires your own OpenCode Go key, explicit
+send confirmation and approval of the proposed edit. See
+[AI boundary and limits](ai-evaluation.md). Broader AI story modification and
+workflow modernization are not yet available. The
 inherited app has remaining dependency and release-readiness work; see
 release-readiness.md. Browser Studio uses its own storage namespace and desktop
 Studio uses its own application identity and default story folders. Import

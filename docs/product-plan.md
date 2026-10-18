@@ -49,3 +49,5 @@ search names/text/tags, select with keyboard or pointer, and continue through th
 existing Edit action. Keep results usable at tablet widths, clear stale queries
 on reopening, and preserve passage content, selection behavior and export data.
 This does not add a chapter hierarchy or reinterpret format-specific source.
+The optional filter now shows passages with no path from Start through ordinary
+`[[...]]` links; it explicitly excludes dynamic format-specific navigation.

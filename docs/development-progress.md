@@ -225,6 +225,12 @@ rename/reference/persistence journey also passes. Stable 768 px and 375 px
 screenshots were inspected; the narrow textbox is clicked without forcing the
 pointer. See ux-audit.md for the fixture and evidence limits.
 
+Go To also filters passages with no path from Start through ordinary `[[...]]`
+links. It resets on close, works with search and selection, and explains that
+dynamic links and format-specific passages need author review. The filter passed
+54 affected unit tests plus a 375 px import/search/select/reset journey in
+Chromium, Firefox and WebKit; the Chromium screenshot was inspected.
+
 ## Optional desktop AI code repair
 
 The first OpenCode Go action is restricted to a selected Harlowe or SugarCube

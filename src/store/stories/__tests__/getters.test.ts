@@ -6,7 +6,8 @@ import {
 	storyWithName,
 	storyTags,
 	passagesMatchingSearch,
-	passagesMatchingFuzzySearch
+	passagesMatchingFuzzySearch,
+	passagesWithoutStandardLinkPath
 } from '../getters';
 import {Passage, Story} from '../stories.types';
 import {fakePassage, fakeStory} from '../../../test-util';
@@ -182,6 +183,30 @@ describe('passageWithName()', () => {
 		expect(() =>
 			passageWithName([story], story.id, story.passages[0].name + 'nonexistent')
 		).toThrow());
+});
+
+describe('passagesWithoutStandardLinkPath', () => {
+	it('follows chains and cycles, leaving disconnected passages', () => {
+		const story = fakeStory(4);
+		const [start, middle, ending, disconnected] = story.passages;
+		start.name = 'Start';
+		middle.name = 'Middle';
+		ending.name = 'Ending';
+		disconnected.name = 'Disconnected';
+		start.text = '[[Visit middle->Middle]]';
+		middle.text = '[[Ending]]';
+		ending.text = '[[Start]]';
+		disconnected.text = '[[Middle]]';
+		expect(passagesWithoutStandardLinkPath(story)).toEqual([disconnected]);
+	});
+
+	it('does not invent a start or infer dynamic links', () => {
+		const story = fakeStory(2);
+		story.passages[0].text = '<<goto "Later">>';
+		expect(passagesWithoutStandardLinkPath(story)).toEqual([story.passages[1]]);
+		story.startPassage = 'missing';
+		expect(passagesWithoutStandardLinkPath(story)).toEqual([]);
+	});
 });
 
 describe('passagesMatchingFuzzySearch', () => {

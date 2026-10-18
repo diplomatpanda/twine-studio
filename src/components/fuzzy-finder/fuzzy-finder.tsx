@@ -8,6 +8,7 @@ import {FuzzyFinderResult, FuzzyFinderResultProps} from './fuzzy-finder-result';
 import './fuzzy-finder.css';
 
 export interface FuzzyFinderProps {
+	controls?: React.ReactNode;
 	noResultsText: string;
 	onChangeSearch: (value: string) => void;
 	onClose: () => void;
@@ -15,17 +16,22 @@ export interface FuzzyFinderProps {
 	prompt: string;
 	results: Omit<FuzzyFinderResultProps, 'onClick'>[];
 	search: string;
+	selectionResetKey?: unknown;
+	showEmptyResults?: boolean;
 }
 
 export const FuzzyFinder: React.FC<FuzzyFinderProps> = props => {
 	const {
+		controls,
 		noResultsText,
 		onChangeSearch,
 		onClose,
 		onSelectResult,
 		prompt,
 		search,
-		results
+		results,
+		selectionResetKey,
+		showEmptyResults
 	} = props;
 	const [selectedResult, setSelectedResult] = React.useState(0);
 	const containerRef = React.useRef<HTMLDivElement>(null);
@@ -77,7 +83,7 @@ export const FuzzyFinder: React.FC<FuzzyFinderProps> = props => {
 
 	React.useEffect(() => {
 		setSelectedResult(0);
-	}, [search]);
+	}, [search, selectionResetKey]);
 
 	React.useEffect(() => {
 		setSelectedResult(value =>
@@ -150,10 +156,11 @@ export const FuzzyFinder: React.FC<FuzzyFinderProps> = props => {
 						tooltipPosition="bottom"
 					/>
 				</div>
+				{controls && <div className="fuzzy-finder-controls">{controls}</div>}
 				<div
 					className={classnames('results', {'has-results': results.length > 0})}
 				>
-					{search.trim().length > 0 && results.length === 0 && (
+					{(search.trim().length > 0 || showEmptyResults) && results.length === 0 && (
 						<div className="no-results">{noResultsText}</div>
 					)}
 					{results.length > 0 && (
