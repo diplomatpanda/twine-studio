@@ -9,6 +9,7 @@ import {
 	passagesMatchingSearch,
 	passagesMatchingFuzzySearch,
 	passagesMatchingFuzzySearchWithKnowledge,
+	passagesWithoutReferencePath,
 	passagesWithoutStandardLinkPath
 } from '../getters';
 import {Passage, Story} from '../stories.types';
@@ -27,6 +28,16 @@ describe('brokenStoryLinks()', () => {
 		expect(brokenStoryLinks(story)).toEqual([
 			{sourceId: start.id, sourceName: 'Start', target: 'Missing'}
 		]);
+	});
+
+	it('combines ordinary links and format-specific static references without duplicates', () => {
+		const story = fakeStory(2);
+		story.passages[0].name = 'Start';
+		story.passages[0].text = '[[Ending]] (go-to: "Missing")';
+		story.passages[1].name = 'Ending';
+		expect(brokenStoryLinks(story, text =>
+			text.includes('(go-to:') ? ['Ending', 'Missing'] : []
+		)).toEqual([{sourceId: story.passages[0].id, sourceName: 'Start', target: 'Missing'}]);
 	});
 });
 
@@ -215,6 +226,20 @@ describe('passagesWithoutStandardLinkPath', () => {
 		ending.text = '[[Start]]';
 		disconnected.text = '[[Middle]]';
 		expect(passagesWithoutStandardLinkPath(story)).toEqual([disconnected]);
+	});
+
+	it('follows format-specific static references when available', () => {
+		const story = fakeStory(3);
+		const [start, middle, ending] = story.passages;
+		start.name = 'Start';
+		middle.name = 'Middle';
+		ending.name = 'Ending';
+		start.text = '(go-to: "Middle")';
+		middle.text = '[[Ending]]';
+		expect(passagesWithoutReferencePath(story, text =>
+			text.includes('(go-to:') ? ['Middle'] : []
+		)).toEqual([]);
+		expect(passagesWithoutStandardLinkPath(story)).toEqual([middle, ending]);
 	});
 
 	it('does not invent a start or infer dynamic links', () => {

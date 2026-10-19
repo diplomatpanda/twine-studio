@@ -231,7 +231,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Four bundled formats reload/edit/save/preview/export in Chromium, Firefox and WebKit; Harlowe linked ending passes | Remote formats, cache eviction and native offline-mode UI pending |
 | I: recovery | Browser journal failure, partial writes, backup restoration, corrupt-journal export, guarded reload, passage creation/map drag recovery and native immediate close pass | Abrupt kills, real full disks and cross-browser behavior pending |
-| J: publication | Original complete three-passage story plays both endings independently; missing static links surface source/target before export, and repair-to-publish passes three browser engines | Dynamic navigation and human review remain; no public release performed |
+| J: publication | Original complete three-passage story plays both endings independently; broken static links surface source/target before export and repair-to-publish passes three browser engines. Publish preflight now also flags a missing start and statically unreachable passages, with an undoable start chooser and edit navigation; the unreachable warning was checked in a rebuilt browser. | Dynamic navigation and human review remain; no public release performed |
 
 Independent review found no source-injection path in the bounded helper inputs.
 Submit-focus concerns were checked against the parent insertion handler and live

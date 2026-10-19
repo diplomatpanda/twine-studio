@@ -10,22 +10,24 @@ import {formatEditorExtensionsDisabled, usePrefsContext} from './prefs';
 const emptyFunc = () => [];
 
 export function useFormatReferenceParser(
-	formatName: string,
-	formatVersion: string
+	formatName?: string,
+	formatVersion?: string
 ) {
 	const {prefs} = usePrefsContext();
 	const {dispatch, formats} = useStoryFormatsContext();
-	const format = formatWithNameAndVersion(formats, formatName, formatVersion);
+	const format = formatName && formatVersion
+		? formatWithNameAndVersion(formats, formatName, formatVersion)
+		: undefined;
 	const loadedProperties =
-		format.loadState === 'loaded' ? format.properties : undefined;
-	const extensionsDisabled = formatEditorExtensionsDisabled(
+		format?.loadState === 'loaded' ? format.properties : undefined;
+	const extensionsDisabled = !formatName || !formatVersion || formatEditorExtensionsDisabled(
 		prefs,
 		formatName,
 		formatVersion
 	);
 
 	React.useEffect(() => {
-		if (extensionsDisabled) {
+		if (extensionsDisabled || !format) {
 			return;
 		}
 
@@ -35,24 +37,24 @@ export function useFormatReferenceParser(
 	}, [
 		dispatch,
 		extensionsDisabled,
-		format.id,
-		format.name,
-		format.version,
-		format.loadState
+		format?.id,
+		format?.name,
+		format?.version,
+		format?.loadState
 	]);
 
 	const editorExtensions = React.useMemo(() => {
-		if (extensionsDisabled || format.loadState !== 'loaded') {
+		if (extensionsDisabled || !format || format.loadState !== 'loaded') {
 			return undefined;
 		}
 
 		return formatEditorExtensions(format);
 	}, [
 		extensionsDisabled,
-		format.id,
-		format.name,
-		format.version,
-		format.loadState,
+		format?.id,
+		format?.name,
+		format?.version,
+		format?.loadState,
 		loadedProperties
 	]);
 

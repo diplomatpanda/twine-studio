@@ -7,17 +7,13 @@ import {useUndoableStoriesContext} from '../../store/undoable-stories';
 import {useFormatReferenceParser} from '../../store/use-format-reference-parser';
 import {passageDefaults} from '../../store/stories/defaults';
 import {rectsIntersect} from '../../util/geometry';
-import {parseLinks} from '../../util/parse-links';
+import {passageReferenceNames} from '../../util/passage-references';
 import './passage-links.css';
 
 export interface PassageLinksProps {
 	backPassageId?: string;
 	passage: Passage;
 	story: Story;
-}
-
-export function passageReferenceNames(text: string, formatReferences: (text: string) => string[]) {
-	return Array.from(new Set([...parseLinks(text, true), ...formatReferences(text)]));
 }
 
 export const PassageLinks: React.FC<PassageLinksProps> = ({backPassageId, passage, story}) => {

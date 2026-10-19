@@ -304,3 +304,21 @@ and a Chromium browser journey confirms that opening the desktop-only panel
 does not disturb recently typed passage text through reload. Builds and lint
 pass. A real paid request, native end-to-end accept/undo, and broader author
 experience remain unverified. See ai-evaluation.md and release-readiness.md.
+
+## Writing and publication follow-up
+
+The passage editor now has a collapsible Connections panel for incoming and
+outgoing static references, navigation back to the previous passage, and creation
+of a missing linked destination. It combines ordinary links with references
+recognized by the selected format's editor extension. Browser checks covered
+opening, returning, and repairing a missing destination.
+
+Publish to File now reviews missing start passages, broken static references and
+passages without a recognized path from the start. A writer can choose a start
+passage with undo support, open a passage to repair a warning, or publish an
+intentional disconnected structure anyway. A failing format-reference parser
+shows a nonfatal warning and leaves ordinary-link checks available. The rebuilt
+browser flow showed and navigated to an unreachable passage. The complete unit
+suite passed 275 suites and 2,068 tests; lint and the web build passed. Static
+analysis cannot prove paths created by dynamic story-format code, so playtesting
+remains necessary.

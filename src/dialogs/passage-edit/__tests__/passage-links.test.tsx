@@ -4,7 +4,8 @@ import {axe} from 'jest-axe';
 import {useDialogsContext} from '../../context';
 import {fakeLoadedStoryFormat, fakeStory, FakeStateProvider, StoryInspector} from '../../../test-util';
 import {useFormatReferenceParser} from '../../../store/use-format-reference-parser';
-import {PassageLinks, passageReferenceNames} from '../passage-links';
+import {PassageLinks} from '../passage-links';
+import {passageReferenceNames} from '../../../util/passage-references';
 
 jest.mock('../../../store/use-format-reference-parser');
 jest.mock('../passage-edit-stack', () => ({PassageEditStack: () => null}));

@@ -3,6 +3,8 @@ import {axe} from 'jest-axe';
 import * as React from 'react';
 import {storyFileName} from '../../electron/shared';
 import {Story} from '../../store/stories';
+import {useFormatReferenceParser} from '../../store/use-format-reference-parser';
+import {UndoableStoriesContext} from '../../store/undoable-stories';
 import {usePublishing} from '../../store/use-publishing';
 import {useStoryLaunch} from '../../store/use-story-launch';
 import {fakeStory} from '../../test-util';
@@ -12,6 +14,7 @@ import {BuildActions, BuildActionsProps} from '../build-actions';
 
 jest.mock('../../store/use-publishing');
 jest.mock('../../store/use-story-launch');
+jest.mock('../../store/use-format-reference-parser');
 jest.mock('../../util/save-file');
 
 describe('<BuildActions>', () => {
@@ -19,6 +22,8 @@ describe('<BuildActions>', () => {
 	const saveHtmlMock = saveHtml as jest.Mock;
 	const usePublishingMock = usePublishing as jest.Mock;
 	const useStoryLaunchMock = useStoryLaunch as jest.Mock;
+	const referenceParserMock = useFormatReferenceParser as jest.Mock;
+	beforeEach(() => referenceParserMock.mockReturnValue(() => []));
 
 	function renderComponent(props?: Partial<BuildActionsProps>) {
 		return render(<BuildActions story={fakeStory()} {...props} />);
@@ -158,6 +163,71 @@ describe('<BuildActions>', () => {
 			fireEvent.click(screen.getByText('common.cancel'));
 			expect(publishStory).not.toHaveBeenCalled();
 		});
+	});
+
+	it('warns about passages without a recognized path, while allowing publication', async () => {
+		const story = fakeStory(2);
+		story.passages[0].name = 'Start';
+		story.passages[1].name = 'Unused';
+		const publishStory = jest.fn().mockResolvedValue('<html>published</html>');
+		usePublishingMock.mockReturnValue({publishStory});
+		useStoryLaunchMock.mockReturnValue({});
+		renderComponent({story});
+		fireEvent.click(screen.getByText('routeActions.build.publishToFile'));
+		expect(publishStory).not.toHaveBeenCalled();
+		expect(screen.getByText('Unused')).toBeInTheDocument();
+		expect(screen.getByText('routeActions.build.unreachableHelp')).toBeInTheDocument();
+		fireEvent.click(screen.getByText('routeActions.build.publishAnyway'));
+		await waitFor(() => expect(saveHtmlMock).toHaveBeenCalledWith(
+			'<html>published</html>', storyFileName(story)
+		));
+	});
+
+	it('allows the author to choose a missing start before publishing', () => {
+		const story = fakeStory(2);
+		story.startPassage = 'deleted';
+		const dispatch = jest.fn();
+		usePublishingMock.mockReturnValue({publishStory: jest.fn()});
+		useStoryLaunchMock.mockReturnValue({});
+		render(<UndoableStoriesContext.Provider value={{stories: [story], dispatch}}>
+			<BuildActions story={story} />
+		</UndoableStoriesContext.Provider>);
+		fireEvent.click(screen.getByText('routeActions.build.publishToFile'));
+		expect(screen.getByText('routeActions.build.missingStart')).toBeInTheDocument();
+		expect(screen.queryByText('routeActions.build.publishAnyway')).not.toBeInTheDocument();
+		fireEvent.change(screen.getByLabelText('routeActions.build.chooseStart'),
+			{target: {value: story.passages[1].id}});
+		fireEvent.click(screen.getByText('routeActions.build.setStart'));
+		expect(dispatch).toHaveBeenCalledWith({
+			type: 'updateStory', storyId: story.id,
+			props: {startPassage: story.passages[1].id}
+		}, 'routeActions.build.setStart');
+	});
+
+	it('keeps publishing available when a format reference parser fails', () => {
+		const story = fakeStory();
+		referenceParserMock.mockReturnValue(() => {throw new Error('format parser failed');});
+		usePublishingMock.mockReturnValue({publishStory: jest.fn()});
+		useStoryLaunchMock.mockReturnValue({});
+		renderComponent({story});
+		fireEvent.click(screen.getByText('routeActions.build.publishToFile'));
+		expect(screen.getByText('routeActions.build.formatParserWarning')).toBeInTheDocument();
+		expect(screen.getByText('routeActions.build.publishAnyway')).toBeInTheDocument();
+	});
+
+	it('uses format-specific references in the publish warning', () => {
+		const story = fakeStory(2);
+		story.passages[0].name = 'Start';
+		story.passages[0].text = '(go-to: "Second") (go-to: "Missing")';
+		story.passages[1].name = 'Second';
+		referenceParserMock.mockReturnValue((text: string) =>
+			text.includes('(go-to:') ? ['Second', 'Missing'] : []);
+		usePublishingMock.mockReturnValue({publishStory: jest.fn()});
+		useStoryLaunchMock.mockReturnValue({});
+		renderComponent({story});
+		fireEvent.click(screen.getByText('routeActions.build.publishToFile'));
+		expect(screen.getByText('Start → Missing')).toBeInTheDocument();
+		expect(screen.queryByText('Second')).not.toBeInTheDocument();
 	});
 
 	it('is accessible', async () => {

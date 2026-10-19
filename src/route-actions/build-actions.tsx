@@ -15,7 +15,9 @@ import {IconButton} from '../components/control/icon-button';
 import {IconFileTwee} from '../components/image/icon';
 import {addPassageEditors, useDialogsContext} from '../dialogs';
 import {storyFileName} from '../electron/shared';
-import {brokenStoryLinks, Story} from '../store/stories';
+import {brokenStoryLinks, passagesWithoutReferencePath, Story} from '../store/stories';
+import {useFormatReferenceParser} from '../store/use-format-reference-parser';
+import {useUndoableStoriesContext} from '../store/undoable-stories';
 import {usePublishing} from '../store/use-publishing';
 import {useStoryLaunch} from '../store/use-story-launch';
 import {saveHtml, saveTwee} from '../util/save-file';
@@ -32,12 +34,37 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 	const [proofError, setProofError] = React.useState<Error>();
 	const [publishError, setPublishError] = React.useState<Error>();
 	const [warningStoryId, setWarningStoryId] = React.useState<string>();
+	const [chosenStartId, setChosenStartId] = React.useState('');
 	const [testError, setTestError] = React.useState<Error>();
 	const {dispatch: dialogsDispatch} = useDialogsContext();
+	const {dispatch: storiesDispatch} = useUndoableStoriesContext();
 	const {playStory, proofStory, testStory} = useStoryLaunch();
 	const {t} = useTranslation();
-	const brokenLinks = story ? brokenStoryLinks(story) : [];
-	const publishWarning = warningStoryId === story?.id && brokenLinks.length > 0;
+	const formatReferences = useFormatReferenceParser(story?.storyFormat, story?.storyFormatVersion);
+	const {brokenLinks, formatParserFailed, missingStart, unreachable} = React.useMemo(() => {
+		if (!story) return {brokenLinks: [], formatParserFailed: false,
+			missingStart: false, unreachable: []};
+		let formatParserFailed = false;
+		const safeFormatReferences = (text: string) => {
+			try {
+				const references = formatReferences(text);
+				if (!Array.isArray(references) || !references.every(name => typeof name === 'string')) {
+					throw new Error('Invalid format references');
+				}
+				return references;
+			} catch {
+				formatParserFailed = true;
+				return [];
+			}
+		};
+		const missingStart = !story.passages.some(passage => passage.id === story.startPassage);
+		const brokenLinks = brokenStoryLinks(story, safeFormatReferences);
+		const unreachable = missingStart ? [] : passagesWithoutReferencePath(story, safeFormatReferences);
+		return {brokenLinks, formatParserFailed, missingStart, unreachable};
+	}, [formatReferences, story]);
+	const publishWarning = warningStoryId === story?.id &&
+		(missingStart || formatParserFailed || brokenLinks.length > 0 || unreachable.length > 0);
+	React.useEffect(() => setChosenStartId(''), [story?.id]);
 
 	function resetErrors() {
 		setPlayError(undefined);
@@ -89,7 +116,7 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 
 	function handlePublishFile() {
 		resetErrors();
-		if (brokenLinks.length) {
+		if (missingStart || formatParserFailed || brokenLinks.length || unreachable.length) {
 			setWarningStoryId(story?.id);
 			return;
 		}
@@ -100,6 +127,12 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 		if (!story) return;
 		setWarningStoryId(undefined);
 		dialogsDispatch(addPassageEditors(story.id, [sourceId]));
+	}
+
+	function handleSetStart() {
+		if (!story || !story.passages.some(passage => passage.id === chosenStartId)) return;
+		storiesDispatch({type: 'updateStory', storyId: story.id,
+			props: {startPassage: chosenStartId}}, 'routeActions.build.setStart');
 	}
 
 	async function handleTest() {
@@ -199,8 +232,20 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 					{publishWarning ? (
 						<div className="publish-link-warning">
 							<h2>{t('routeActions.build.linkWarningTitle')}</h2>
-							<p>{t('routeActions.build.linkWarningHelp', {count: brokenLinks.length})}</p>
-							<ul>
+							{missingStart && <div>
+								<p>{t('routeActions.build.missingStart')}</p>
+								{story?.passages.length ? <div className="publish-start-picker">
+									<label htmlFor="publish-start-passage">{t('routeActions.build.chooseStart')}</label>
+									<select id="publish-start-passage" onChange={event => setChosenStartId(event.target.value)} value={chosenStartId}>
+										<option value="">{t('routeActions.build.chooseStartPlaceholder')}</option>
+										{story.passages.map(passage => <option key={passage.id} value={passage.id}>{passage.name}</option>)}
+									</select>
+									<button disabled={!chosenStartId} onClick={handleSetStart} type="button">{t('routeActions.build.setStart')}</button>
+								</div> : <p>{t('routeActions.build.createPassageFirst')}</p>}
+							</div>}
+							{brokenLinks.length > 0 && <>
+								<p>{t('routeActions.build.linkWarningHelp', {count: brokenLinks.length})}</p>
+								<ul>
 								{brokenLinks.map(({sourceId, sourceName, target}) => (
 									<li key={`${sourceId}-${target}`}>
 										<span>{sourceName} → {target}</span>
@@ -211,10 +256,25 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 										/>
 									</li>
 								))}
-							</ul>
+								</ul>
+							</>}
+							{unreachable.length > 0 && <>
+								<p>{t('routeActions.build.unreachableHelp', {count: unreachable.length})}</p>
+								<ul>
+									{unreachable.slice(0, 20).map(passage => <li key={passage.id}>
+										<span>{passage.name}</span>
+										<IconButton
+											icon={<IconEdit />}
+											label={t('routeActions.build.editLinkedPassage', {name: passage.name})}
+											onClick={() => handleEditBrokenLink(passage.id)}
+										/>
+									</li>)}
+								</ul>
+							</>}
+							{formatParserFailed && <p>{t('routeActions.build.formatParserWarning')}</p>}
 							<p>{t('routeActions.build.linkWarningLimit')}</p>
 							<div className="publish-link-warning-actions">
-								<IconButton
+								{!missingStart && <IconButton
 									icon={<IconFileText />}
 									label={t('routeActions.build.publishAnyway')}
 									onClick={() => {
@@ -222,7 +282,7 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 										void publishToFile();
 									}}
 									variant="primary"
-								/>
+								/>}
 								<IconButton
 									icon={<IconX />}
 									label={t('common.cancel')}

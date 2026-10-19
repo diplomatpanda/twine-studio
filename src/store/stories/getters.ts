@@ -3,6 +3,7 @@ import uniq from 'lodash/uniq';
 import {Passage, StorySearchFlags, Story} from './stories.types';
 import {createRegExp} from '../../util/regexp';
 import {parseLinks} from '../../util/parse-links';
+import {passageReferenceNames} from '../../util/passage-references';
 import {StoryKnowledgeEntry} from './story-knowledge';
 
 export function passageWithId(
@@ -95,6 +96,14 @@ export function passageConnections(
 
 /** Passages with no path from Start through ordinary [[...]] links. */
 export function passagesWithoutStandardLinkPath(story: Story): Passage[] {
+	return passagesWithoutReferencePath(story);
+}
+
+/** Passages with no known static path from the start passage. */
+export function passagesWithoutReferencePath(
+	story: Story,
+	formatReferences?: (text: string) => string[]
+): Passage[] {
 	const start = story.passages.find(passage => passage.id === story.startPassage);
 	if (!start) return [];
 
@@ -102,7 +111,7 @@ export function passagesWithoutStandardLinkPath(story: Story): Passage[] {
 	const visited = new Set([start.id]);
 	const pending = [start];
 	for (let index = 0; index < pending.length; index++) {
-		for (const name of parseLinks(pending[index].text, true)) {
+		for (const name of passageReferenceNames(pending[index].text, formatReferences)) {
 			const target = byName.get(name);
 			if (target && !visited.has(target.id)) {
 				visited.add(target.id);
@@ -243,10 +252,10 @@ export function storyPassageTags(story: Story) {
 }
 
 /** Static internal links whose named destination has not been created. */
-export function brokenStoryLinks(story: Story) {
+export function brokenStoryLinks(story: Story, formatReferences?: (text: string) => string[]) {
 	const names = new Set(story.passages.map(passage => passage.name));
 	return story.passages.flatMap(source =>
-		parseLinks(source.text, true)
+		passageReferenceNames(source.text, formatReferences)
 			.filter(target => !names.has(target))
 			.map(target => ({sourceId: source.id, sourceName: source.name, target}))
 	);
