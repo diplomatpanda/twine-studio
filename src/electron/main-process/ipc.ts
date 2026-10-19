@@ -35,9 +35,11 @@ export function initIpc() {
 		requestAiPassageEdit(payload, async request => {
 			const {response} = await dialog.showMessageBox({
 				type: 'question',
-				title: 'Send passage code to OpenCode Go?',
-				message: 'Send the selected passage for AI code repair?',
-				detail: `This sends the selected passage source (${request.passageText.length} characters), its name and ID, and story format to OpenCode Go using your key. A proposed edit will still require your approval in Twine Studio.`,
+				title: 'Send passage to OpenCode Go?',
+				message: request.instruction === 'repair-format-syntax'
+					? 'Send the selected passage for AI code repair?'
+					: 'Send the selected passage for an AI conditional choice proposal?',
+				detail: `This sends the selected passage source (${request.passageText.length} characters), its name and ID, and story format to OpenCode Go using your key.${request.instruction === 'propose-conditional-choice' ? ` It also sends your request and ${request.destinations?.length ?? 0} destination names and IDs.` : ''} A proposed edit will still require your approval in Twine Studio.`,
 				buttons: ['Cancel', 'Send passage'],
 				defaultId: 0,
 				cancelId: 0,

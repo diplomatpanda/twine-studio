@@ -7,7 +7,9 @@ export interface AiPassageEditPayload {
 	passageId: string;
 	passageName: string;
 	passageText: string;
-	instruction: 'repair-format-syntax';
+	instruction: 'repair-format-syntax' | 'propose-conditional-choice';
+	request?: string;
+	destinations?: Array<{id: string; name: string}>;
 }
 
 export interface AiAvailability {

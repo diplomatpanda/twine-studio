@@ -3,6 +3,7 @@ import * as React from 'react';
 import {useTranslation} from 'react-i18next';
 import {
 	canApplyPassageEdit,
+	parseConditionalChoiceProposal,
 	parsePassageEditProposal,
 	PassageEditProposal,
 	PassageEditSnapshot
@@ -10,6 +11,7 @@ import {
 import {TwineElectronWindow} from '../../electron/shared/electron-shared.types';
 import {Passage, Story, updatePassage} from '../../store/stories';
 import {useUndoableStoriesContext} from '../../store/undoable-stories';
+import {supportsChoiceBuilder} from '../../util/choice-source';
 import './passage-ai-review.css';
 
 export interface PassageAiReviewProps {
@@ -31,6 +33,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		reason?: string;
 	}>();
 	const [consent, setConsent] = React.useState(false);
+	const [conditionalRequest, setConditionalRequest] = React.useState('');
 	const [busy, setBusy] = React.useState(false);
 	const [error, setError] = React.useState('');
 	const [proposal, setProposal] = React.useState<PassageEditProposal>();
@@ -59,7 +62,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		};
 	}, [bridge]);
 
-	async function request() {
+	async function request(instruction: 'repair-format-syntax' | 'propose-conditional-choice') {
 		if (
 			busy ||
 			!bridge?.requestAiPassageEdit ||
@@ -72,6 +75,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			setError(t('studio.ai.tooLong'));
 			return;
 		}
+		if (instruction === 'propose-conditional-choice' && !conditionalRequest.trim()) return;
 		const generation = ++requestGeneration.current;
 		const source: PassageEditSnapshot = {
 			storyId: story.id,
@@ -92,10 +96,16 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 				passageId: passage.id,
 				passageName: passage.name,
 				passageText: passage.text,
-				instruction: 'repair-format-syntax'
+				instruction,
+				...(instruction === 'propose-conditional-choice' ? {
+					request: conditionalRequest.trim(),
+					destinations: story.passages.slice(0, 100).map(({id, name}) => ({id, name}))
+				} : {})
 			});
 			if (generation === requestGeneration.current) {
-				setProposal(parsePassageEditProposal(raw, source));
+				setProposal(instruction === 'repair-format-syntax'
+					? parsePassageEditProposal(raw, source)
+					: parseConditionalChoiceProposal(raw, source, story));
 			}
 		} catch (cause) {
 			if (generation === requestGeneration.current) {
@@ -108,7 +118,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 
 	function accept() {
 		if (!snapshot || !proposal) return;
-		if (!canApplyPassageEdit(snapshot, story, passage)) {
+		if (!canApplyPassageEdit(snapshot, story, passage, proposal)) {
 			setError(t('studio.ai.stale'));
 			setProposal(undefined);
 			return;
@@ -125,7 +135,8 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		onClose();
 	}
 
-	const stale = !!snapshot && !canApplyPassageEdit(snapshot, story, passage);
+	const stale = !!snapshot && !canApplyPassageEdit(snapshot, story, passage, proposal);
+	const conditionalSupported = supportsChoiceBuilder(story.storyFormat, story.storyFormatVersion);
 
 	return (
 		<section className="passage-ai-review" aria-label={t('studio.ai.title')}>
@@ -154,11 +165,21 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 					</label>
 					<button
 						disabled={!availability?.configured || !consent || busy}
-						onClick={() => void request()}
+						onClick={() => void request('repair-format-syntax')}
 						type="button"
 					>
 						{busy ? t('studio.ai.working') : t('studio.ai.request')}
 					</button>
+					<label>
+						{t('studio.ai.conditionalRequest')}
+						<textarea maxLength={500} value={conditionalRequest}
+							onChange={event => setConditionalRequest(event.target.value)} />
+					</label>
+					<button disabled={!availability?.configured || !consent || busy || !conditionalRequest.trim() || !conditionalSupported}
+						onClick={() => void request('propose-conditional-choice')} type="button">
+						{t('studio.ai.requestConditional')}
+					</button>
+					{!conditionalSupported && <p>{t('studio.ai.conditionalUnsupported')}</p>}
 				</>
 			)}
 			{error && <p role="alert">{error}</p>}

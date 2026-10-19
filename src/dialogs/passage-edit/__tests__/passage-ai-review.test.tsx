@@ -105,6 +105,36 @@ describe('<PassageAiReview>', () => {
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
 	});
 
+	it('previews a conditional choice and applies only after acceptance', async () => {
+		const story = fakeStory(2);
+		story.storyFormat = 'SugarCube';
+		story.storyFormatVersion = '2.36.1';
+		story.passages[1].name = 'Garden';
+		bridge.requestAiPassageEdit.mockResolvedValue(JSON.stringify({
+			schemaVersion: 1, summary: 'Gate the route on a key.',
+			operation: {
+				type: 'appendConditionalChoice', passageId: story.passages[0].id,
+				factName: 'hasKey', comparison: 'eq', value: true,
+				label: 'Go to garden', destinationId: story.passages[1].id,
+				rationale: 'The route requires a key.'
+			}, warnings: []
+		}));
+		await ready(story);
+		fireEvent.change(screen.getByRole('textbox'), {
+			target: {value: 'If the reader has a key, link to Garden.'}
+		});
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.requestConditional'}));
+		await screen.findByText('Gate the route on a key.');
+		expect(bridge.requestAiPassageEdit).toHaveBeenCalledWith(expect.objectContaining({
+			instruction: 'propose-conditional-choice',
+			request: 'If the reader has a key, link to Garden.',
+			destinations: expect.arrayContaining([{id: story.passages[1].id, name: 'Garden'}])
+		}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('Go to garden');
+	});
+
 	it('blocks acceptance after a writer edits the passage', async () => {
 		const story = fakeStory(1);
 		bridge.requestAiPassageEdit.mockResolvedValue(proposal(story.passages[0].id));

@@ -91,6 +91,14 @@ describe('OpenCode Go desktop adapter', () => {
 		});
 	});
 
+	it('uses a discovered provider-prefixed model ID unchanged', async () => {
+		fetchMock
+			.mockResolvedValueOnce(response({data: [{id: 'opencode-go/deepseek-v4.1-flash'}]}))
+			.mockResolvedValueOnce(response({choices: [{message: {content: '{"schemaVersion":1}'}}]}));
+		await requestAiPassageEdit(payload, async () => true);
+		expect(JSON.parse(fetchMock.mock.calls[1][1].body).model).toBe('opencode-go/deepseek-v4.1-flash');
+	});
+
 	it('normalizes provider failures without exposing the key', async () => {
 		fetchMock.mockResolvedValue(response({error: 'secret-key-adjacent'}, 401));
 		const failure = await aiAvailability();
@@ -104,7 +112,33 @@ describe('OpenCode Go desktop adapter', () => {
 	it('rejects general fiction instructions before contacting the provider', async () => {
 		await expect(
 			requestAiPassageEdit({...payload, instruction: 'Write a story about a cabin.'}, async () => true)
-		).rejects.toThrow('structured story code repair');
+		).rejects.toThrow('structured story code editing');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('sends a bounded conditional code task with destination IDs after approval', async () => {
+		fetchMock
+			.mockResolvedValueOnce(response({data: [{id: 'deepseek-v4.1-flash'}]}))
+			.mockResolvedValueOnce(response({choices: [{message: {content: '{"schemaVersion":1}'}}]}));
+		const conditional = {
+			...payload, passageText: 'The door is locked.',
+			instruction: 'propose-conditional-choice',
+			request: 'If hasKey is true, offer a choice to Garden.',
+			destinations: [{id: 'garden-id', name: 'Garden'}]
+		};
+		await requestAiPassageEdit(conditional, async () => true);
+		const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+		expect(body.messages[0].content).toContain('appendConditionalChoice');
+		expect(body.messages[1].content).toContain('garden-id');
+		expect(body.messages[1].content).toContain('If hasKey is true');
+		expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer test-key-that-must-not-leak');
+	});
+
+	it('rejects conditional requests without safe destination context', async () => {
+		await expect(requestAiPassageEdit({
+			...payload, instruction: 'propose-conditional-choice',
+			request: 'Add a conditional choice', destinations: []
+		}, async () => true)).rejects.toThrow('destinations');
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 

@@ -1,4 +1,5 @@
 import {AiAvailability, AiPassageEditPayload} from '../shared';
+import {supportsChoiceBuilder} from '../../util/choice-source';
 
 const MODELS_URL = 'https://opencode.ai/inference/go/v1/models';
 const COMPLETIONS_URL =
@@ -44,14 +45,26 @@ function validatePayload(payload: unknown): asserts payload is AiPassageEditPayl
 	validateString(value.passageId, 'passage ID', MAX_FIELD_LENGTH);
 	validateString(value.passageName, 'passage name', MAX_FIELD_LENGTH);
 	validateString(value.passageText, 'passage text', MAX_TEXT_LENGTH, true);
-	if (value.instruction !== 'repair-format-syntax') {
-		throw new Error('OpenCode Go is limited to structured story code repair.');
+	if (value.instruction !== 'repair-format-syntax' && value.instruction !== 'propose-conditional-choice') {
+		throw new Error('OpenCode Go is limited to structured story code editing.');
 	}
-	if (
-		!(['Harlowe', 'SugarCube'].includes(value.storyFormat as string)) ||
+	if (value.instruction === 'repair-format-syntax' && (
+		!['Harlowe', 'SugarCube'].includes(value.storyFormat as string) ||
 		!/(?:<<[^>]+>>|\([a-z][\w-]*:)/i.test(value.passageText as string)
-	) {
+	)) {
 		throw new Error('This action needs Harlowe or SugarCube code in the selected passage.');
+	}
+	if (value.instruction === 'propose-conditional-choice') {
+		if (!supportsChoiceBuilder(value.storyFormat as string, value.storyFormatVersion as string)) {
+			throw new Error('This story format is not supported by the conditional choice assistant.');
+		}
+		validateString(value.request, 'conditional choice request', 500);
+		if (!Array.isArray(value.destinations) || value.destinations.length === 0 || value.destinations.length > 100 ||
+			!value.destinations.every(destination => destination && typeof destination === 'object' &&
+				typeof destination.id === 'string' && destination.id.length > 0 && destination.id.length <= 512 &&
+				typeof destination.name === 'string' && destination.name.length > 0 && destination.name.length <= 512)) {
+			throw new Error('Invalid AI request: destinations.');
+		}
 	}
 }
 
@@ -159,7 +172,9 @@ function findDeepSeekFlash(payload: unknown) {
 			  (payload as Record<string, unknown>).models
 			: undefined;
 	if (!Array.isArray(values)) return undefined;
-	return values.map(modelId).find(id => id === 'deepseek-v4.1-flash');
+	return values.map(modelId).find(id =>
+		id === 'deepseek-v4.1-flash' || id === 'opencode-go/deepseek-v4.1-flash'
+	);
 }
 
 async function discoverModel(sessionId: string, signal: AbortSignal) {
@@ -229,19 +244,24 @@ export async function requestAiPassageEdit(
 					messages: [
 						{
 							role: 'system',
-							content:
-								'You are a Twine Studio coding assistant. Repair only story-format syntax or code in the selected passage. Preserve prose, facts, and all link targets. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must be updatePassageText with the given passageId, proposedText, and rationale. Do not use Markdown fences. Do not add, remove, or rename passages or links. Do not answer general fiction-writing requests.'
+							content: payload.instruction === 'repair-format-syntax'
+								? 'You are a Twine Studio coding assistant. Repair only story-format syntax or code in the selected passage. Preserve prose, facts, and all link targets. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must be updatePassageText with the given passageId, proposedText, and rationale. Do not use Markdown fences. Do not add, remove, or rename passages or links. Do not answer general fiction-writing requests.'
+								: 'You are a Twine Studio coding assistant. Propose one Harlowe or SugarCube conditional choice, based on the author request and selected passage code. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendConditionalChoice, the given passageId, factName, comparison (eq, gte, or lte), boolean or numeric value, plain-text label, destinationId from the supplied list, and rationale. The app generates source locally. Do not write proposed source, create passages, alter existing code, or answer general fiction-writing requests. Warn if the fact may need initialization. Do not use Markdown fences.'
 						},
 						{
 							role: 'user',
 							content: JSON.stringify({
-								task: 'repair-selected-passage-code',
+								task: payload.instruction === 'repair-format-syntax' ? 'repair-selected-passage-code' : 'propose-conditional-choice',
 								storyFormat: payload.storyFormat,
 								storyFormatVersion: payload.storyFormatVersion,
 								passageId: payload.passageId,
 								passageName: payload.passageName,
 								passageText: payload.passageText,
-								instruction: payload.instruction
+								instruction: payload.instruction,
+								...(payload.instruction === 'propose-conditional-choice' ? {
+									request: payload.request,
+									destinations: payload.destinations
+								} : {})
 							})
 						}
 					]
