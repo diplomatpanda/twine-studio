@@ -5,6 +5,14 @@ const MODELS_URL = 'https://opencode.ai/inference/go/v1/models';
 const COMPLETIONS_URL =
 	'https://opencode.ai/inference/go/openai/v1/chat/completions';
 const API_KEY_ENV = 'TWINE_STUDIO_OPENCODE_GO_KEY';
+// These Go models are documented for the same OpenAI-compatible chat endpoint.
+// Prefer DeepSeek, but use another listed coding model if it is unavailable.
+const SUPPORTED_MODELS = [
+	'deepseek-v4.1-flash',
+	'glm-5.3-flash',
+	'mimo-v2.6-flash'
+];
+const NO_SUPPORTED_MODEL = 'No supported coding model is available on OpenCode Go.';
 const USER_AGENT = 'Twine-Studio/0.1.0-alpha.1 structured-edit';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 128 * 1024;
@@ -172,21 +180,26 @@ function modelId(value: unknown) {
 			: undefined;
 }
 
-function findDeepSeekFlash(payload: unknown) {
+function findSupportedModel(payload: unknown) {
 	const values =
 		payload && typeof payload === 'object'
 			? (payload as Record<string, unknown>).data ??
 			  (payload as Record<string, unknown>).models
 			: undefined;
 	if (!Array.isArray(values)) return undefined;
-	return values.map(modelId).find(id =>
-		id === 'deepseek-v4.1-flash' || id === 'opencode-go/deepseek-v4.1-flash'
-	);
+	const available = values.map(modelId);
+	for (const model of SUPPORTED_MODELS) {
+		const match = available.find(id =>
+			id === model || id === `opencode-go/${model}`
+		);
+		if (match) return match;
+	}
+	return undefined;
 }
 
 async function discoverModel(sessionId: string, signal: AbortSignal) {
 	const models = await requestJson(MODELS_URL, undefined, sessionId, signal);
-	return findDeepSeekFlash(models);
+	return findSupportedModel(models);
 }
 
 export async function aiAvailability(): Promise<AiAvailability> {
@@ -202,7 +215,7 @@ export async function aiAvailability(): Promise<AiAvailability> {
 			? {configured: true, model}
 			: {
 				configured: false,
-					reason: 'DeepSeek V4.1 Flash is not available on OpenCode Go.'
+					reason: NO_SUPPORTED_MODEL
 			  };
 	} catch (error) {
 		return {
@@ -217,7 +230,7 @@ export async function aiAvailability(): Promise<AiAvailability> {
 
 export async function requestAiPassageEdit(
 	payload: unknown,
-	approve: (payload: AiPassageEditPayload) => Promise<boolean>
+	approve: (payload: AiPassageEditPayload, model: string) => Promise<boolean>
 ): Promise<string> {
 	validatePayload(payload);
 	if (activeRequest) throw new Error('An OpenCode Go request is already running.');
@@ -228,14 +241,14 @@ export async function requestAiPassageEdit(
 	activeRequest = {controller, sessionId: payload.sessionId};
 	const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	try {
-		if (!(await approve(payload))) {
+		const model = await discoverModel(payload.sessionId, controller.signal);
+		if (!model) {
+			throw new Error(NO_SUPPORTED_MODEL);
+		}
+		if (!(await approve(payload, model))) {
 			throw new Error('OpenCode Go request was not approved.');
 		}
 		if (controller.signal.aborted) throw abortError();
-		const model = await discoverModel(payload.sessionId, controller.signal);
-		if (!model) {
-			throw new Error('DeepSeek V4.1 Flash is not available on OpenCode Go.');
-		}
 
 		const response = await requestJson(
 			COMPLETIONS_URL,

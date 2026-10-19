@@ -83,12 +83,44 @@ describe('OpenCode Go desktop adapter', () => {
 		expect(result.includes('test-key-that-must-not-leak')).toBe(false);
 	});
 
-	it('does not claim availability when the preferred model is absent', async () => {
+	it('does not claim availability when no supported model is listed', async () => {
 		fetchMock.mockResolvedValue(response({data: [{id: 'other-model'}]}));
 		expect(await aiAvailability()).toEqual({
 			configured: false,
-			reason: 'DeepSeek V4.1 Flash is not available on OpenCode Go.'
+			reason: 'No supported coding model is available on OpenCode Go.'
 		});
+	});
+
+	it('prefers DeepSeek regardless of provider listing order', async () => {
+		fetchMock.mockResolvedValue(response({data: [
+			{id: 'mimo-v2.6-flash'},
+			{id: 'glm-5.3-flash'},
+			{id: 'deepseek-v4.1-flash'}
+		]}));
+		expect(await aiAvailability()).toEqual({configured: true, model: 'deepseek-v4.1-flash'});
+	});
+
+	it('uses a listed fallback model and discloses it before inference', async () => {
+		fetchMock
+			.mockResolvedValueOnce(response({models: [{name: 'opencode-go/glm-5.3-flash'}]}))
+			.mockResolvedValueOnce(response({choices: [{message: {content: '{"schemaVersion":1}'}}]}));
+		const approve = jest.fn().mockResolvedValue(true);
+		await requestAiPassageEdit(payload, approve);
+		expect(approve).toHaveBeenCalledWith(payload, 'opencode-go/glm-5.3-flash');
+		expect(JSON.parse(fetchMock.mock.calls[1][1].body).model).toBe('opencode-go/glm-5.3-flash');
+	});
+
+	it('offers MiMo when the preferred and first fallback models are absent', async () => {
+		fetchMock.mockResolvedValue(response({data: [{id: 'mimo-v2.6-flash'}]}));
+		expect(await aiAvailability()).toEqual({configured: true, model: 'mimo-v2.6-flash'});
+	});
+
+	it('does not ask for approval or send passage content without a supported model', async () => {
+		fetchMock.mockResolvedValue(response({data: [{id: 'unknown-model'}]}));
+		const approve = jest.fn();
+		await expect(requestAiPassageEdit(payload, approve)).rejects.toThrow('No supported coding model');
+		expect(approve).not.toHaveBeenCalled();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
 	it('uses a discovered provider-prefixed model ID unchanged', async () => {
@@ -158,11 +190,14 @@ describe('OpenCode Go desktop adapter', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('does not contact the provider when native confirmation is declined', async () => {
+	it('does not send passage content when native confirmation is declined', async () => {
+		fetchMock.mockResolvedValue(response({data: [{id: 'deepseek-v4.1-flash'}]}));
 		await expect(requestAiPassageEdit(payload, async () => false)).rejects.toThrow(
 			'not approved'
 		);
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(fetchMock.mock.calls[0][0]).toBe('https://opencode.ai/inference/go/v1/models');
+		expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
 	});
 
 	it('allows only one active request and cancels it', async () => {

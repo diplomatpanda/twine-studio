@@ -32,7 +32,7 @@ function validateJsonFilename(filename: unknown): asserts filename is string {
 export function initIpc() {
 	ipcMain.handle('ai-availability', aiAvailability);
 	ipcMain.handle('request-ai-passage-edit', (_event, payload) =>
-		requestAiPassageEdit(payload, async request => {
+		requestAiPassageEdit(payload, async (request, model) => {
 			const {response} = await dialog.showMessageBox({
 				type: 'question',
 				title: 'Send passage to OpenCode Go?',
@@ -41,7 +41,7 @@ export function initIpc() {
 					: request.instruction === 'propose-conditional-choice'
 						? 'Send the selected passage for an AI conditional choice proposal?'
 						: 'Send the selected passage for an AI branch proposal?',
-				detail: `This sends the selected passage source (${request.passageText.length} characters), its name and ID, story format and version, coding task, and session ID to OpenCode Go using your key.${request.instruction === 'propose-conditional-choice' ? ` It also sends your request and ${request.destinations?.length ?? 0} destination names and IDs.` : request.instruction === 'propose-new-branch' ? ' It also sends your branch request.' : ''} A proposed edit will still require your approval in Twine Studio.`,
+				detail: `Model: ${model}. This sends the selected passage source (${request.passageText.length} characters), its name and ID, story format and version, coding task, and session ID to OpenCode Go using your key.${request.instruction === 'propose-conditional-choice' ? ` It also sends your request and ${request.destinations?.length ?? 0} destination names and IDs.` : request.instruction === 'propose-new-branch' ? ' It also sends your branch request.' : ''} A proposed edit will still require your approval in Twine Studio.`,
 				buttons: ['Cancel', 'Send passage'],
 				defaultId: 0,
 				cancelId: 0,

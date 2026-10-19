@@ -49,7 +49,7 @@ describe('initIpc()', () => {
 			passageText: '<<if $map>>Yes<</if>>'
 		};
 		(requestAiPassageEdit as jest.Mock).mockImplementation(
-			async (_payload, approve) => approve(request)
+			async (_payload, approve) => approve(request, 'glm-5.3-flash')
 		);
 		const handler = handleMock.mock.calls.find(
 			call => call[0] === 'request-ai-passage-edit'
@@ -57,7 +57,11 @@ describe('initIpc()', () => {
 		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 0});
 		expect(await handler({}, request)).toBe(false);
 		expect(dialog.showMessageBox).toHaveBeenCalledWith(
-			expect.objectContaining({defaultId: 0, cancelId: 0})
+			expect.objectContaining({
+				defaultId: 0,
+				cancelId: 0,
+				detail: expect.stringContaining('Model: glm-5.3-flash.')
+			})
 		);
 		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 1});
 		expect(await handler({}, request)).toBe(true);

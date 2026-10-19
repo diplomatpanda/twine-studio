@@ -4,7 +4,7 @@ The desktop app has bounded, opt-in code editing for a selected Harlowe or Sugar
 
 ## OpenCode Go boundary
 
-OpenCode currently describes Go as access for OpenCode and similar coding agents. The adapter uses the public `GET https://opencode.ai/inference/go/v1/models` list to confirm `deepseek-v4.1-flash`, then the model's OpenAI-compatible Chat Completions endpoint for a user-approved coding request. It sends a product-specific User-Agent and a stable `x-opencode-session` per request. Model availability and policies can change.
+OpenCode currently describes Go as access for OpenCode and similar coding agents. The adapter checks the public `GET https://opencode.ai/inference/go/v1/models` list before each request. It prefers `deepseek-v4.1-flash` and, when absent, selects `glm-5.3-flash` or `mimo-v2.6-flash` in that order only if the provider lists them. These are documented Go coding models. The selected model is shown in the native confirmation before the app uses the OpenAI-compatible Chat Completions endpoint. It sends a product-specific User-Agent and a stable `x-opencode-session` per request. Model availability and policies can change.
 
 - Go documentation and current model privacy: https://dev.opencode.ai/v2/docs/console/go/
 - Inference API: https://dev.opencode.ai/v2/docs/console/api/inference/
