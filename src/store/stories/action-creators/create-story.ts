@@ -2,6 +2,7 @@ import {v4 as uuid} from '@lukeed/uuid';
 import {Thunk} from 'react-hook-thunk-reducer';
 import {PrefsState} from '../../prefs';
 import {StoriesAction, StoriesState, Story} from '../stories.types';
+import {storyFileNameKey} from '../../../electron/shared/story-filename';
 
 /**
  * Creates a new story with the default story format.
@@ -18,9 +19,9 @@ export function createStory(
 	}
 
 	if (
-		stories.some(story => story.name.toLowerCase() === props.name.toLowerCase())
+		stories.some(story => storyFileNameKey(story) === storyFileNameKey(props))
 	) {
-		throw new Error(`There is already a story named "${props.name}"`);
+		throw new Error(`A story already uses the filename for "${props.name}"`);
 	}
 
 	return dispatch => {

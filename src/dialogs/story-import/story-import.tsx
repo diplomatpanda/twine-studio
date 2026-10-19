@@ -5,7 +5,7 @@ import {
 	DialogCard,
 	DialogCardProps
 } from '../../components/container/dialog-card';
-import {storyFileName} from '../../electron/shared';
+import {storyFileNameKey} from '../../electron/shared';
 import {importStories, Story, useStoriesContext} from '../../store/stories';
 import {useStoriesRepair} from '../../store/use-stories-repair';
 import {FileChooser} from './file-chooser';
@@ -36,7 +36,7 @@ export const StoryImportDialog: React.FC<StoryImportDialogProps> = props => {
 			stories.length === 0 ||
 			stories.some(story =>
 				existingStories.some(
-					existing => storyFileName(existing) === storyFileName(story)
+					existing => storyFileNameKey(existing) === storyFileNameKey(story)
 				)
 			)
 		) {

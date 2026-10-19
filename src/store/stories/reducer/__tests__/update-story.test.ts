@@ -44,6 +44,15 @@ describe('Story reducer updateStory action handler', () => {
 		expect(warnSpy).toHaveBeenCalledTimes(1);
 	});
 
+	it('does not rename a story onto another desktop filename', () => {
+		const first = fakeStory();
+		const second = fakeStory();
+		second.name = 'Radio: Tomorrow';
+		jest.spyOn(global.console, 'warn').mockImplementation(() => {});
+		expect(updateStory([first, second], first.id, {name: 'Radio? Tomorrow'}))
+			.toEqual([first, second]);
+	});
+
 	it('issues a warning and makes no changes if no story in state has the ID requested', () => {
 		const story1 = fakeStory();
 		const story2 = fakeStory();

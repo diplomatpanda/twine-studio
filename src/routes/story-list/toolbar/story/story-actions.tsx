@@ -3,6 +3,7 @@ import {ButtonBar} from '../../../../components/container/button-bar';
 import {RenameStoryButton} from '../../../../components/story/rename-story-button';
 import {Story, updateStory, useStoriesContext} from '../../../../store/stories';
 import {CreateStoryButton} from './create-story-button';
+import {StoryStarterButton} from './story-starter-button';
 import {DeleteStoryButton} from './delete-story-button';
 import {DuplicateStoryButton} from './duplicate-story-button';
 import {EditStoryButton} from './edit-story-button';
@@ -19,6 +20,7 @@ export const StoryActions: React.FC<StoryActionsProps> = props => {
 	return (
 		<ButtonBar>
 			<CreateStoryButton />
+			<StoryStarterButton />
 			<EditStoryButton story={selectedStory} />
 			<TagStoryButton story={selectedStory} />
 			<RenameStoryButton

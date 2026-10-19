@@ -1,14 +1,17 @@
 import {Story, StoriesState} from '../stories.types';
 import {isPersistableStoryChange} from '../../persistence/persistable-changes';
+import {storyFileNameKey} from '../../../electron/shared/story-filename';
 
 export function updateStory(
 	state: StoriesState,
 	storyId: string,
 	storyProps: Partial<Omit<Story, 'id'>>
 ) {
+	const requestedName = storyProps.name;
 	if (
-		'name' in storyProps &&
-		state.some(story => story.name === storyProps.name && story.id !== storyId)
+		typeof requestedName === 'string' &&
+		state.some(story => storyFileNameKey(story) ===
+			storyFileNameKey({name: requestedName}) && story.id !== storyId)
 	) {
 		console.warn(
 			`There is another story in state with name "${storyProps.name}", taking no action`

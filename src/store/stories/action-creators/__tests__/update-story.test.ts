@@ -23,4 +23,9 @@ describe('updateStory action creator', () => {
 		expect(() => updateStory(state, story, {name: state[0].name})).toThrow();
 		expect(() => updateStory(state, story, {name: story.name})).not.toThrow();
 	});
+
+	it('rejects different names that map to the same filename', () => {
+		state[0].name = 'Radio: Tomorrow';
+		expect(() => updateStory(state, story, {name: 'Radio? Tomorrow'})).toThrow();
+	});
 });

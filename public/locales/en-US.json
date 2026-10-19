@@ -367,7 +367,7 @@
 		},
 		"storyList": {
 			"library": "Library",
-			"noStories": "There are no stories saved in Twine right now. To get started, you can either create a new story or import an existing one from a file.",
+			"noStories": "There are no stories saved in Twine right now. Choose New for a blank story, Start from an idea for a small linked story, or import an existing file.",
 			"taggedTitleCount": "{{count}} Tagged Story",
 			"taggedTitleCount_0": "No Tagged Stories",
 			"taggedTitleCount_plural": "{{count}} Tagged Stories",
@@ -465,6 +465,53 @@
 		"replaceAllText": "Replace All"
 	},
 	"studio": {
+		"starter": {
+			"title": "Start from an idea",
+			"help": "Create six linked, editable passages from one idea. The idea appears in the opening passage and in private story knowledge. Starter prose is brief so you can make it your own; no AI is used.",
+			"storyName": "Story title",
+			"premise": "Your idea in one or two sentences",
+			"plainText": "Use ordinary prose for the idea. Add links, macros, or HTML later in the passage editor.",
+			"premiseNote": "Original idea",
+			"structure": "Small story structure",
+			"preview": "Passages this will create:",
+			"create": "Create starter story",
+			"unsupported": "The starter currently supports Harlowe 3 and SugarCube 2. Your default format is {{format}}. Change the default format or use New for a blank story.",
+			"pattern": {
+				"branch": {
+					"label": "Branch and return",
+					"description": "Two early routes meet at another decision, then lead to different endings.",
+					"passage0Name": "Beginning", "passage0Text": "A decision is close at hand. What do you do?",
+					"passage1Name": "Look Closer", "passage1Text": "A small detail changes what you know.",
+					"passage2Name": "Move On", "passage2Text": "Moving on has a consequence.",
+					"passage3Name": "Turning Point", "passage3Text": "Both routes lead to a final decision.",
+					"passage4Name": "Risk Ending", "passage4Text": "You take the risk. Rewrite this outcome to fit your story.",
+					"passage5Name": "Safe Ending", "passage5Text": "You choose safety. Rewrite this outcome to fit your story.",
+					"choice01": "Look closer", "choice02": "Move on", "choice13": "Continue", "choice23": "Continue", "choice34": "Take the risk", "choice35": "Choose safety"
+				},
+				"mystery": {
+					"label": "Small mystery",
+					"description": "Follow either of two clues, then decide whether to reveal what you find.",
+					"passage0Name": "The Question", "passage0Text": "Something does not add up. Where will you look first?",
+					"passage1Name": "The Scene", "passage1Text": "A clue waits in plain sight. Decide what it means.",
+					"passage2Name": "The Witness", "passage2Text": "A witness knows more than they first say.",
+					"passage3Name": "The Reveal", "passage3Text": "The clues point toward a choice.",
+					"passage4Name": "Truth Ending", "passage4Text": "You reveal the truth. Rewrite the consequences to fit your mystery.",
+					"passage5Name": "Secret Ending", "passage5Text": "You keep the secret. Rewrite the consequences to fit your mystery.",
+					"choice01": "Search the scene", "choice02": "Ask a witness", "choice13": "Follow the clue", "choice23": "Follow the clue", "choice34": "Reveal the truth", "choice35": "Keep the secret"
+				},
+				"conversation": {
+					"label": "Conversation with outcomes",
+					"description": "Respond in two ways, reconnect the exchange, then choose how it ends.",
+					"passage0Name": "The Meeting", "passage0Text": "A difficult conversation begins. How do you respond?",
+					"passage1Name": "Listen", "passage1Text": "You listen. Something important becomes clear.",
+					"passage2Name": "Challenge", "passage2Text": "You challenge what you heard. The answer surprises you.",
+					"passage3Name": "The Decision", "passage3Text": "The conversation reaches a turning point.",
+					"passage4Name": "Reconcile", "passage4Text": "You find a way forward together. Rewrite this ending for your characters.",
+					"passage5Name": "Part Ways", "passage5Text": "You part ways. Rewrite this ending for your characters.",
+					"choice01": "Listen", "choice02": "Challenge", "choice13": "Continue talking", "choice23": "Continue talking", "choice34": "Reconcile", "choice35": "Part ways"
+				}
+			}
+		},
 		"knowledge": {
 			"title": "Story knowledge",
 			"help": "Keep short planning notes without copying your manuscript. Story-wide established facts apply across routes; use a passage or named branch for events that may differ. These private notes are not published in playable HTML.",

@@ -1,8 +1,10 @@
 import {v4 as uuid} from '@lukeed/uuid';
 import {passageDefaults, storyDefaults} from '../defaults';
 import {Story, StoriesState} from '../stories.types';
+import {storyFileNameKey} from '../../../electron/shared/story-filename';
 
 export function createStory(state: StoriesState, storyProps: Partial<Story>) {
+	const requestedName = storyProps.name;
 	if ('id' in storyProps && state.some(story => story.id === storyProps.id)) {
 		console.warn(
 			`There is already a story in state with ID "${storyProps.id}", taking no action`
@@ -11,8 +13,9 @@ export function createStory(state: StoriesState, storyProps: Partial<Story>) {
 	}
 
 	if (
-		'name' in storyProps &&
-		state.some(story => story.name === storyProps.name)
+		typeof requestedName === 'string' &&
+		state.some(story => storyFileNameKey(story) ===
+			storyFileNameKey({name: requestedName}))
 	) {
 		console.warn(
 			`There is already a story in state with name "${storyProps.name}", taking no action`

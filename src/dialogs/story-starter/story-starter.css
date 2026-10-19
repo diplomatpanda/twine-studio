@@ -1,0 +1,8 @@
+.story-starter-dialog .card-content { max-height: 68vh; overflow-y: auto; width: min(38rem, 90vw); }
+.story-starter-dialog label { display: block; margin: 0.75rem 0; }
+.story-starter-dialog label > input,
+.story-starter-dialog label > textarea,
+.story-starter-dialog label > select { display: block; box-sizing: border-box; width: 100%; margin-top: 0.25rem; }
+.story-starter-dialog textarea { min-height: 5rem; }
+.story-starter-dialog ol { columns: 2; }
+@media (max-width: 500px) { .story-starter-dialog ol { columns: 1; } }

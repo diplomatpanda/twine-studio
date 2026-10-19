@@ -5,7 +5,7 @@ import {
 	Story,
 	UpdateStoryAction
 } from '../stories.types';
-import {storyFileName} from '../../../electron/shared';
+import {storyFileNameKey} from '../../../electron/shared';
 
 /**
  * Imports stories, overwriting any stories with the same name.
@@ -19,7 +19,7 @@ export function importStories(
 			toImport.some(
 				otherStory =>
 					otherStory !== importStory &&
-					storyFileName(otherStory) === storyFileName(importStory)
+					storyFileNameKey(otherStory) === storyFileNameKey(importStory)
 			)
 		) {
 			throw new Error(
@@ -37,7 +37,7 @@ export function importStories(
 			delete props.id;
 
 			const existingStory = existingStories.find(
-				s => storyFileName(s) === storyFileName(importStory)
+				s => storyFileNameKey(s) === storyFileNameKey(importStory)
 			);
 
 			// Do an update so that if something goes awry, we won't have deleted the

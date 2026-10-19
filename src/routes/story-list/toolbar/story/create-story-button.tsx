@@ -10,6 +10,7 @@ import {
 } from '../../../../store/stories';
 import {PromptButton} from '../../../../components/control/prompt-button';
 import {unusedName} from '../../../../util/unused-name';
+import {storyFileNameKey} from '../../../../electron/shared/story-filename';
 
 export const CreateStoryButton: React.FC = () => {
 	const {dispatch, stories} = useStoriesContext();
@@ -32,7 +33,8 @@ export const CreateStoryButton: React.FC = () => {
 		}
 
 		if (
-			stories.some(story => story.name.toLowerCase() === value.toLowerCase())
+			stories.some(story => storyFileNameKey(story) ===
+				storyFileNameKey({name: value}))
 		) {
 			return {
 				valid: false,

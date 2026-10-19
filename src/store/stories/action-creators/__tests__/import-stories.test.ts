@@ -101,4 +101,10 @@ describe('importStories action creator', () => {
 		toImport[0].name = toImport[1].name;
 		expect(() => importStories(toImport, state)).toThrow();
 	});
+
+	it('rejects two imported titles that collide on a desktop filename', () => {
+		toImport[0].name = 'Radio: Tomorrow';
+		toImport[1].name = 'Radio? Tomorrow';
+		expect(() => importStories(toImport, state)).toThrow();
+	});
 });

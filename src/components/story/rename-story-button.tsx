@@ -2,7 +2,7 @@ import * as React from 'react';
 import {useTranslation} from 'react-i18next';
 import {IconWriting} from '@tabler/icons';
 import {PromptButton} from '../control/prompt-button';
-import {storyFileName} from '../../electron/shared';
+import {storyFileNameKey} from '../../electron/shared';
 import {Story} from '../../store/stories';
 import {IconButton} from '../control/icon-button';
 
@@ -42,7 +42,7 @@ const EnabledRenameStoryButton: React.FC<EnabledRenameStoryButtonProps> = props 
 			existingStories.some(
 				s =>
 					s.id !== story.id &&
-					storyFileName(s) === storyFileName({...story, name})
+					storyFileNameKey(s) === storyFileNameKey({...story, name})
 			)
 		) {
 			return {

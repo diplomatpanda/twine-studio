@@ -8,6 +8,7 @@ export * from './passage-edit';
 export * from './passage-tags';
 export * from './story-import';
 export * from './story-knowledge';
+export * from './story-starter';
 export * from './story-javascript';
 export * from './story-details';
 export * from './story-search';

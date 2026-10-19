@@ -1,5 +1,5 @@
 import {Story, UpdateStoryAction} from '../stories.types';
-import {storyFileName} from '../../../electron/shared';
+import {storyFileNameKey} from '../../../electron/shared';
 
 /**
  * General update of a story.
@@ -12,7 +12,7 @@ export function updateStory(
 	if (
 		props.name &&
 		stories
-			.filter(s => storyFileName(s) === storyFileName({...s, ...props}))
+			.filter(s => storyFileNameKey(s) === storyFileNameKey({...s, ...props}))
 			.some(s => s.id !== story.id)
 	) {
 		throw new Error(`There is already a story named "${props.name}".`);

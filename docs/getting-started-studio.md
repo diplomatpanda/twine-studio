@@ -3,6 +3,16 @@
 Twine Studio is an independent fork of Twine, currently in development. You can
 write and publish without an AI account or a cloud service.
 
+For a small playable scaffold, choose **Start from an idea** in the Story tab.
+Enter a title and one or two sentences, then choose **Branch and return**,
+**Small mystery**, or **Conversation with outcomes**. Studio creates six linked
+passages with two routes, a return point, and two endings. The opening includes
+your idea; Story Knowledge keeps a private copy. Rewrite the short starter prose
+and endings in the ordinary passage editor. This option currently supports
+Harlowe 3 and SugarCube 2; **New** remains available for a blank story in any
+format. Published HTML includes the passage text but excludes private Story
+Knowledge notes.
+
 1. In the story library, choose **New**, name your story, and choose **Create**.
 2. Double-click the first passage (or select it and choose **Edit**). Write what
    your reader sees. Changes save automatically after a short pause or when you

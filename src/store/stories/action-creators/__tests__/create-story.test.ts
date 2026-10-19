@@ -48,6 +48,14 @@ describe('createStory action creator', () => {
 				)
 			).toThrow());
 
+		it('rejects distinct names that map to the same desktop filename', () => {
+			stories[0].name = 'Radio: Tomorrow';
+			expect(() => createStory(stories, prefs, {name: 'Radio? Tomorrow'})(
+				dispatch, () => stories
+			)).toThrow();
+			expect(dispatch).not.toHaveBeenCalled();
+		});
+
 		it('returns the ID of the new story', () => {
 			const id = createStory(stories, prefs, {name})(dispatch, () => stories);
 

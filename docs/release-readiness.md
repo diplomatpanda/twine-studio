@@ -7,9 +7,10 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **271 suites and 2,020 tests**, with 4
+- The latest full Jest checkpoint passed **273 suites and 2,033 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
-  recovery, duplicated-tab guard and story-knowledge changes.
+  recovery, duplicated-tab guard, story knowledge, the idea starter and
+  filename-collision checks.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -150,6 +151,13 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   Named branches are labels, not verified path-specific facts. Graph-aware
   continuity checks, conditional state reasoning and portable private project
   export remain future work.
+- **Start from an idea** now creates a six-passage editable scaffold for Harlowe 3
+  or SugarCube 2, with two early routes, a reconnection and two endings. A
+  Chromium browser journey created the mystery starter, played one route, then
+  published its HTML and played the other route from a separate local server.
+  The export held six passages and excluded the private premise-note title.
+  Starter prose is intentionally brief; it does not invent a protagonist or
+  narrative conflict from the idea, and human beginner usefulness is untested.
 
 - Finish the remaining acceptance limits below, especially advanced existing
   projects, AI modification, cross-browser behavior and harder failure modes.
@@ -199,7 +207,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Story logic has bounded yes/no/numeric assignments, signed numeric changes,
   conditional choices and short conditional text in Harlowe and SugarCube.
   Authors must initialize numeric facts before changing or checking them;
-  broader logic, story planning, map improvements and polished first-run experience
+  broader logic, richer story planning, map improvements and polished first-run experience
   remain incomplete. New UI translations currently fall back to English.
 - Cross-browser, complete keyboard/touch, long-session and failure-recovery
   evidence is incomplete.

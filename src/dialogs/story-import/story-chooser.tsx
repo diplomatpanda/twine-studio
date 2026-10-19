@@ -3,7 +3,7 @@ import * as React from 'react';
 import {useTranslation} from 'react-i18next';
 import {CheckboxButton} from '../../components/control/checkbox-button';
 import {IconButton} from '../../components/control/icon-button';
-import {storyFileName} from '../../electron/shared';
+import {storyFileNameKey} from '../../electron/shared';
 import {Story} from '../../store/stories';
 import './story-chooser.css';
 
@@ -24,7 +24,7 @@ export const StoryChooser: React.FC<StoryChooserProps> = props => {
 	const willReplaceExisting = React.useCallback(
 		(story: Story) => {
 			return existingStories.some(
-				other => storyFileName(other) === storyFileName(story)
+				other => storyFileNameKey(other) === storyFileNameKey(story)
 			);
 		},
 		[existingStories]

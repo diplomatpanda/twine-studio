@@ -95,6 +95,17 @@ describe('<CreateStoryButton>', () => {
 		expect(screen.getByRole('button', {name: 'common.create'})).toBeDisabled();
 	});
 
+	it('disables a title that would overwrite the same desktop filename', async () => {
+		const story = fakeStory();
+		story.name = 'Radio: Tomorrow';
+		await renderComponent({stories: [story]});
+		fireEvent.change(screen.getByRole('textbox', {
+			name: 'routes.storyList.toolbar.createStoryButton.prompt'
+		}), {target: {value: 'Radio? Tomorrow'}});
+		await act(() => Promise.resolve());
+		expect(screen.getByRole('button', {name: 'common.create'})).toBeDisabled();
+	});
+
 	it('is accessible', async () => {
 		const prefs = fakePrefs();
 		const {container} = await renderComponent({prefs, stories: []});

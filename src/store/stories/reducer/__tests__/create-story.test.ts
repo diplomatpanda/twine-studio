@@ -45,6 +45,15 @@ describe('Story reducer createStory action handler', () => {
 		expect(warnSpy).toHaveBeenCalledTimes(1);
 	});
 
+	it('does not create a story whose title maps to an existing filename', () => {
+		const existing = fakeStory();
+		const incoming = fakeStory();
+		existing.name = 'Radio: Tomorrow';
+		incoming.name = 'Radio? Tomorrow';
+		jest.spyOn(global.console, 'warn').mockImplementation(() => {});
+		expect(createStory([existing], incoming)).toEqual([existing]);
+	});
+
 	it('assigns the story an ID and IFID if not specified', () => {
 		const story = fakeStory(0) as any;
 
