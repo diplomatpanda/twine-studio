@@ -22,6 +22,18 @@
 	margin: var(--grid-size) 0;
 }
 
+.passage-ai-review-knowledge {
+	border: 1px solid var(--light-gray);
+	max-height: 180px;
+	overflow: auto;
+	padding: calc(var(--grid-size) / 2);
+}
+
+.passage-ai-review-knowledge ul {
+	margin: calc(var(--grid-size) / 2) 0;
+	padding-left: calc(2 * var(--grid-size));
+}
+
 .passage-ai-review-proposal fieldset {
 	border: 1px solid var(--light-gray);
 	margin: var(--grid-size) 0;

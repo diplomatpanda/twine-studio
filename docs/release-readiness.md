@@ -198,12 +198,12 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Optional desktop AI code editing now has a main-process provider adapter, an
   isolated credential window and OS-backed encrypted key storage (with no Linux
   `basic_text` fallback), native send confirmation, validated repair proposals, locally generated conditional
-  choices to existing passages, and reviewed links that create one or two empty
-  branch passages. The credential window's save/remove flow passed a Windows Electron
+  choices to existing passages, reviewed links that create one or two empty
+  branch passages, and an opt-in, bounded Story Knowledge context preview with
+  private notes excluded by default. The credential window's save/remove flow passed a Windows Electron
   smoke check with a fake key in isolated user data. A real paid round trip,
   native review/undo acceptance, macOS/Linux credential-window validation, and
-  a broader AI story-modification journey
-  remain pending. See ai-evaluation.md.
+  a broader AI story-modification journey remain pending. See ai-evaluation.md.
 - Story logic has bounded yes/no/numeric assignments, signed numeric changes,
   conditional choices and short conditional text in Harlowe and SugarCube.
   Authors must initialize numeric facts before changing or checking them;
@@ -219,7 +219,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | --- | --- | --- |
 | A: first story | Choice creation, writing, undo, publish and original two-route sample verified | Human beginner study pending |
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
-| C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and one- or two-way forks with empty destinations; either or both routes of a two-way fork can be accepted; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
+| C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and one- or two-way forks with empty destinations; either or both routes of a two-way fork can be accepted; opt-in established Story Knowledge context is previewed and bounded; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
 | D: relationship state | Browser authoring and published playthrough pass in Chromium, Firefox and WebKit for Harlowe/SugarCube: initialize trust, add 3, show conditional dialogue and unlock a separate ending | Native journey, registry and continuity tools pending |
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic four-passage SugarCube fixture preserves StoryInit, custom macro, CSS, tags and passage sources through import/edit/export; published route works in Chromium, Firefox and WebKit | Representative existing third-party projects, external assets and older format versions still required |

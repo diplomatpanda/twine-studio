@@ -13,6 +13,7 @@ import {
 } from '../../ai/passage-edit-proposal';
 import {TwineElectronWindow} from '../../electron/shared/electron-shared.types';
 import {newBranchAction} from '../../ai/new-branch-action';
+import {aiKnowledgeForPassage} from '../../ai/knowledge-context';
 import {Passage, Story, updatePassage} from '../../store/stories';
 import {useUndoableStoriesContext} from '../../store/undoable-stories';
 import {supportsChoiceBuilder} from '../../util/choice-source';
@@ -37,6 +38,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		reason?: string;
 	}>();
 	const [consent, setConsent] = React.useState(false);
+	const [includeKnowledge, setIncludeKnowledge] = React.useState(false);
 	const [conditionalRequest, setConditionalRequest] = React.useState('');
 	const [busy, setBusy] = React.useState(false);
 	const [error, setError] = React.useState('');
@@ -46,6 +48,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 	const reviewProposal = snapshot && proposal
 		? selectTwoWayBranchChoices(proposal, snapshot, selectedBranchNames)
 		: undefined;
+	const availableKnowledge = aiKnowledgeForPassage(story, passage);
 	const sessionId = React.useRef(uuid());
 	const requestGeneration = React.useRef(0);
 	const openCredentialWindow = async () => {
@@ -94,6 +97,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			return;
 		}
 		if (instruction !== 'repair-format-syntax' && !conditionalRequest.trim()) return;
+		const knowledge = includeKnowledge ? aiKnowledgeForPassage(story, passage) : [];
 		const generation = ++requestGeneration.current;
 		const source: PassageEditSnapshot = {
 			storyId: story.id,
@@ -101,6 +105,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			storyFormat: story.storyFormat,
 			storyFormatVersion: story.storyFormatVersion,
 			text: passage.text,
+			...(knowledge.length ? {knowledge} : {}),
 			...(instruction === 'propose-new-branch' || instruction === 'propose-two-way-branch'
 				? {storyPassages: story.passages} : {})
 		};
@@ -117,6 +122,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 				passageId: passage.id,
 				passageName: passage.name,
 				passageText: passage.text,
+				...(knowledge.length ? {knowledge} : {}),
 				instruction,
 				...(instruction !== 'repair-format-syntax' ? {
 					request: conditionalRequest.trim(),
@@ -197,6 +203,20 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 						/>
 						{t('studio.ai.sendNotice', {name: passage.name})}
 					</label>
+					{availableKnowledge.length > 0 && <>
+						<label className="passage-ai-review-consent">
+							<input type="checkbox" checked={includeKnowledge}
+								onChange={event => setIncludeKnowledge(event.target.checked)} />
+							{t('studio.ai.includeKnowledge', {count: availableKnowledge.length})}
+						</label>
+						{includeKnowledge && <div className="passage-ai-review-knowledge">
+							<p>{t('studio.ai.knowledgePreview')}</p>
+							<ul>{availableKnowledge.map((entry, index) => <li key={index}>
+								<strong>{entry.title}</strong> · {t(`studio.ai.knowledgeScope.${entry.scope}`)}
+								{entry.note && <p>{entry.note}</p>}
+							</li>)}</ul>
+						</div>}
+					</>}
 					<button
 						disabled={!availability?.configured || !consent || busy}
 						onClick={() => void request('repair-format-syntax')}

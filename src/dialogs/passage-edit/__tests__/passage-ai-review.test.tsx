@@ -77,7 +77,7 @@ describe('<PassageAiReview>', () => {
 		await waitFor(() =>
 			expect(screen.getByText('studio.ai.model')).toBeInTheDocument()
 		);
-		fireEvent.click(screen.getByRole('checkbox'));
+		fireEvent.click(screen.getByRole('checkbox', {name: 'studio.ai.sendNotice'}));
 		return story;
 	}
 
@@ -115,6 +115,35 @@ describe('<PassageAiReview>', () => {
 		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('repaired macro code');
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it('keeps private notes local by default and previews only eligible opted-in context', async () => {
+		const story = fakeStory(1);
+		story.knowledge = [
+			{id: 'global', kind: 'world-rule', status: 'established', title: 'World rule', note: 'Doors need keys.', scope: 'story'},
+			{id: 'local', kind: 'character', status: 'established', title: 'Maya', note: 'Maya has the map.', scope: 'passage', passageName: story.passages[0].name},
+			{id: 'branch', kind: 'ending', status: 'established', title: 'Branch secret', note: 'Only on route B.', scope: 'branch', branchName: 'B'},
+			{id: 'planned', kind: 'plot-thread', status: 'planned', title: 'Future plan', note: 'Maybe later.', scope: 'story'}
+		];
+		bridge.requestAiPassageEdit.mockResolvedValue(proposal(story.passages[0].id));
+		await ready(story);
+		const contextCheckbox = screen.getByRole('checkbox', {name: 'studio.ai.includeKnowledge'});
+		expect(contextCheckbox).not.toBeChecked();
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.request'}));
+		await screen.findByText('Fix the macro syntax.');
+		expect(bridge.requestAiPassageEdit.mock.calls[0][0]).not.toHaveProperty('knowledge');
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.reject'}));
+		fireEvent.click(contextCheckbox);
+		expect(screen.getByText('Doors need keys.')).toBeInTheDocument();
+		expect(screen.getByText('Maya has the map.')).toBeInTheDocument();
+		expect(screen.queryByText('Only on route B.')).not.toBeInTheDocument();
+		expect(screen.queryByText('Maybe later.')).not.toBeInTheDocument();
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.request'}));
+		await screen.findByText('Fix the macro syntax.');
+		expect(bridge.requestAiPassageEdit.mock.calls[1][0].knowledge).toEqual([
+			{scope: 'passage', kind: 'character', status: 'established', title: 'Maya', note: 'Maya has the map.'},
+			{scope: 'story', kind: 'world-rule', status: 'established', title: 'World rule', note: 'Doors need keys.'}
+		]);
 	});
 
 	it('rejects a proposal without modifying the passage', async () => {

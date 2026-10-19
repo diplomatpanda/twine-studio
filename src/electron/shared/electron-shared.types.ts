@@ -1,4 +1,15 @@
 import {Story} from '../../store/stories/stories.types';
+import {StoryKnowledgeKind} from '../../store/stories/story-knowledge';
+
+export const MAX_AI_KNOWLEDGE_ENTRIES = 4;
+
+export interface AiKnowledgeContextEntry {
+	scope: 'story' | 'passage';
+	kind: StoryKnowledgeKind;
+	status: 'established';
+	title: string;
+	note: string;
+}
 
 export interface AiPassageEditPayload {
 	sessionId: string;
@@ -10,6 +21,7 @@ export interface AiPassageEditPayload {
 	instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch' | 'propose-two-way-branch';
 	request?: string;
 	destinations?: Array<{id: string; name: string}>;
+	knowledge?: AiKnowledgeContextEntry[];
 }
 
 export interface AiAvailability {

@@ -49,7 +49,7 @@ export function initIpc() {
 						: request.instruction === 'propose-two-way-branch'
 							? 'Send the selected passage for an AI two-way branch proposal?'
 							: 'Send the selected passage for an AI branch proposal?',
-				detail: `Model: ${model}. This sends the selected passage source (${request.passageText.length} characters), its name and ID, story format and version, coding task, and session ID to OpenCode Go using your key.${request.instruction === 'propose-conditional-choice' ? ` It also sends your request and ${request.destinations?.length ?? 0} destination names and IDs.` : request.instruction === 'propose-new-branch' || request.instruction === 'propose-two-way-branch' ? ' It also sends your branch request.' : ''} A proposed edit will still require your approval in Twine Studio.`,
+				detail: `Model: ${model}. This sends the selected passage source (${request.passageText.length} characters), its name and ID, story format and version, coding task, and session ID to OpenCode Go using your key.${request.instruction === 'propose-conditional-choice' ? ` It also sends your request and ${request.destinations?.length ?? 0} destination names and IDs.` : request.instruction === 'propose-new-branch' || request.instruction === 'propose-two-way-branch' ? ' It also sends your branch request.' : ''}${request.knowledge?.length ? ` It also sends ${request.knowledge.length} selected established Story Knowledge notes (${request.knowledge.reduce((size, entry) => size + entry.title.length + entry.note.length, 0)} characters); review their exact text in the AI panel.` : ''} A proposed edit will still require your approval in Twine Studio.`,
 				buttons: ['Cancel', 'Send passage'],
 				defaultId: 0,
 				cancelId: 0,

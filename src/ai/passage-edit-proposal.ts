@@ -2,6 +2,8 @@ import {parseLinks} from '../util/parse-links';
 import {choiceSetSource, choiceSource} from '../util/choice-source';
 import {conditionalChoiceSource, FactComparison, StoryFactValue} from '../util/story-fact-source';
 import {Passage, Story} from '../store/stories/stories.types';
+import {AiKnowledgeContextEntry} from '../electron/shared/electron-shared.types';
+import {aiKnowledgeForPassage} from './knowledge-context';
 
 const twineMetadataNames = new Set(['StoryTitle', 'StoryData']);
 const sugarCubeSpecialNames = new Set([
@@ -32,6 +34,7 @@ export interface PassageEditSnapshot {
 	storyFormatVersion: string;
 	text: string;
 	storyPassages?: Passage[];
+	knowledge?: AiKnowledgeContextEntry[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -328,6 +331,8 @@ export function canApplyPassageEdit(
 		story.storyFormat === snapshot.storyFormat &&
 		story.storyFormatVersion === snapshot.storyFormatVersion &&
 		passage.text === snapshot.text &&
+		(!snapshot.knowledge || JSON.stringify(aiKnowledgeForPassage(story, passage)) ===
+			JSON.stringify(snapshot.knowledge)) &&
 		(!proposal?.newPassage && !proposal?.newPassages ||
 			story.passages === snapshot.storyPassages) &&
 		(!proposal?.destination || story.passages.some(candidate =>

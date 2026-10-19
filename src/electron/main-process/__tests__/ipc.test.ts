@@ -91,6 +91,30 @@ describe('initIpc()', () => {
 		);
 	});
 
+	it('discloses the selected Story Knowledge size in native confirmation', async () => {
+		const request = {
+			storyFormat: 'SugarCube', storyFormatVersion: '2.36.1',
+			passageName: 'Start', passageText: 'A closed door.',
+			knowledge: [{
+				scope: 'story', kind: 'world-rule', status: 'established',
+				title: 'Key rule', note: 'Doors need keys.'
+			}]
+		};
+		(requestAiPassageEdit as jest.Mock).mockImplementation(
+			async (_payload, approve) => approve(request, 'deepseek-v4.1-flash')
+		);
+		const handler = handleMock.mock.calls.find(
+			call => call[0] === 'request-ai-passage-edit'
+		)![1];
+		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 0});
+		expect(await handler({}, request)).toBe(false);
+		expect(dialog.showMessageBox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				detail: expect.stringContaining('1 selected established Story Knowledge notes (24 characters)')
+			})
+		);
+	});
+
 	it('waits for main-only preference writes before shutdown', async () => {
 		let release!: () => void;
 		(flushAppPrefs as jest.Mock).mockImplementation(
