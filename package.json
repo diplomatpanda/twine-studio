@@ -116,6 +116,7 @@
 		"build:docs": "cd docs/en && mdbook build",
 		"build:web": "tsc && vite build",
 		"postbuild:web": "node scripts/prepare-electron-renderer.cjs",
+		"serve:web": "node scripts/serve-web.mjs",
 		"build:electron": "npm-run-all --parallel build:web build:electron-main --serial build:electron-bundle",
 		"build:electron-main": "tsc --project tsconfig.electron.json",
 		"build:electron-bundle": "electron-builder --config electron-builder.config.js --linux --mac --windows --publish=never",

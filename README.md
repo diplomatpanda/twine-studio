@@ -5,7 +5,9 @@ project. Upstream history, attribution and GPL-3.0 license are retained.
 
 Run `npm ci`, then `npm start` and open the local URL printed by Vite. Run
 `npm run build:web` for the standalone `dist/web` browser app and copied Electron
-renderer. Run `npm run build:electron-main` for the desktop main process.
+renderer. `npm run serve:web` serves that build on loopback with a health check
+for local preview or reverse-proxy hosting. Run `npm run build:electron-main`
+for the desktop main process.
 `npm run test:ci`, `npm run lint`, and `npm run e2e -- --project=chromium` verify
 the application; first install test browsers with `npx playwright install chromium`.
 
