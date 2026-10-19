@@ -9,7 +9,10 @@ Legacy `twine-*` keys are deliberately left untouched and are not imported autom
 Story, passage, preference and format writes are staged as a single change set.
 Before existing records are changed, Studio writes that set to a page-specific
 `twine-studio-pending-transaction-*` key. The prior single-key journal remains
-readable for recovery. If the journal cannot be written, the old
+readable for recovery. A version-one journal without original record values is
+cleared only when its records already match; otherwise startup stops and offers
+the raw rescue export, because replay could erase a newer tab's work. If the
+journal cannot be written, the old
 records stay intact and the latest changes remain in memory. If a later record
 write fails, loading overlays the durable journal onto the records, preventing
 a partially written story or index from becoming the visible state.

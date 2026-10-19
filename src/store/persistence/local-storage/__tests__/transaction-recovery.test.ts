@@ -104,8 +104,9 @@ describe('recoverable local storage transactions', () => {
 	it('retains a durable journal across repeated reloads before retry', () => {
 		const firstJournal = tx.journalKey;
 		window.localStorage.setItem(firstJournal, JSON.stringify({
-			version: 1,
-			changes: [[newKey, 'draft across reloads']]
+			version: 2,
+			changes: [[newKey, 'draft across reloads']],
+			bases: [[newKey, null]]
 		}));
 		jest.resetModules();
 		tx = require('../transaction');
@@ -118,17 +119,19 @@ describe('recoverable local storage transactions', () => {
 		expect(window.localStorage.getItem(firstJournal)).toBeNull();
 	});
 
-	it('keeps an inherited journal if its owner writes a newer version during commit', () => {
+	it('keeps an inherited journal if its owner writes a conflicting version during commit', () => {
 		const inheritedJournal = tx.journalKey;
 		window.localStorage.setItem(inheritedJournal, JSON.stringify({
-			version: 1,
-			changes: [[newKey, 'first draft']]
+			version: 2,
+			changes: [[newKey, 'first draft']],
+			bases: [[newKey, null]]
 		}));
 		jest.resetModules();
 		tx = require('../transaction');
 		const newer = JSON.stringify({
-			version: 1,
-			changes: [[newKey, 'newer draft']]
+			version: 2,
+			changes: [[newKey, 'newer draft']],
+			bases: [[newKey, null]]
 		});
 		const original = Storage.prototype.setItem;
 		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
@@ -140,7 +143,9 @@ describe('recoverable local storage transactions', () => {
 		});
 		tx.writeStorageItem('twine-studio-prefs-theme', 'dark');
 		expect(window.localStorage.getItem(inheritedJournal)).toBe(newer);
-		expect(tx.readStorageItem(newKey)).toBe('newer draft');
+		expect(window.localStorage.getItem(newKey)).toBe('first draft');
+		expect(() => tx.readStorageItem(newKey))
+			.toThrow('conflicts with newer browser data');
 	});
 
 	it('initializes when session storage is blocked', () => {
@@ -177,8 +182,9 @@ describe('recoverable local storage transactions', () => {
 		expect(window.localStorage.getItem(oldJournal)).toBeNull();
 	});
 
-	it('replays and clears a journal from the previous single-key format', () => {
+	it('clears a legacy journal when its record already matches', () => {
 		const oldJournal = 'twine-studio-pending-transaction';
+		window.localStorage.setItem(newKey, 'legacy recovered draft');
 		window.localStorage.setItem(oldJournal, JSON.stringify({
 			version: 1,
 			changes: [[newKey, 'legacy recovered draft']]
@@ -187,6 +193,23 @@ describe('recoverable local storage transactions', () => {
 		tx.retryStorageChanges();
 		expect(window.localStorage.getItem(newKey)).toBe('legacy recovered draft');
 		expect(window.localStorage.getItem(oldJournal)).toBeNull();
+	});
+
+	it('preserves a legacy journal when its record differs from the draft', () => {
+		const oldJournal = 'twine-studio-pending-transaction';
+		const raw = JSON.stringify({
+			version: 1,
+			changes: [[newKey, 'unverified legacy draft']]
+		});
+		window.localStorage.setItem(oldJournal, raw);
+		window.localStorage.setItem(newKey, 'another tab saved this');
+		expect(() => tx.readStorageItem(newKey))
+			.toThrow('legacy recovery journal cannot be verified');
+		expect(() => tx.retryStorageChanges())
+			.toThrow('legacy recovery journal cannot be verified');
+		expect(window.localStorage.getItem(newKey)).toBe('another tab saved this');
+		expect(window.localStorage.getItem(oldJournal)).toBe(raw);
+		expect(JSON.parse(tx.exportStorageRecovery()).records[oldJournal]).toBe(raw);
 	});
 
 	it('merges continued edits after failure, including deletion and index changes', () => {

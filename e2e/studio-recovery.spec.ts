@@ -28,6 +28,29 @@ test('keeps a newer passage and exports an incompatible recovery journal', async
 		.toContain('Another tab saved this');
 });
 
+test('keeps newer records and exports an unverified legacy journal', async ({page}) => {
+	const passageKey = 'twine-studio-passages-shared';
+	const journalKey = 'twine-studio-pending-transaction';
+	await page.addInitScript(({passageKey, journalKey}) => {
+		if (localStorage.getItem('twine-studio-legacy-journal-fixture')) return;
+		localStorage.setItem('twine-studio-legacy-journal-fixture', 'seeded');
+		localStorage.setItem(passageKey, 'another tab saved this');
+		localStorage.setItem(journalKey, JSON.stringify({
+			version: 1, changes: [[passageKey, 'unverified legacy draft']]
+		}));
+	}, {passageKey, journalKey});
+	await page.goto('http://127.0.0.1:5189');
+	const warning = page.getByRole('alert').filter({hasText: 'Your saved work could not be opened'});
+	await expect(warning).toContainText('legacy recovery journal cannot be verified');
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.records[passageKey]).toBe('another tab saved this');
+	expect(recovery.records[journalKey]).toContain('unverified legacy draft');
+	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
+		.toBe('another tab saved this');
+});
+
 test('warns and exports original bytes when an indexed story cannot be opened', async ({page}) => {
 	await page.addInitScript(() => {
 		if (localStorage.getItem('twine-studio-corrupt-fixture')) return;

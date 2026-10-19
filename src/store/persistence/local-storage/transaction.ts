@@ -177,6 +177,15 @@ function readJournal(key: string, snapshots?: Map<string, string | null>): Chang
 					'A saved recovery journal conflicts with newer browser data. Export recovery data before changing browser storage.'
 				);
 		}
+	} else {
+		// Version-one journals do not record the value before the save. If a
+		// record differs from the intended value, replay could erase a newer
+		// tab's work. Preserve the journal for raw export instead.
+		for (const [changedKey, intended] of parsed.changes as [string, string | null][])
+			if (window.localStorage.getItem(changedKey) !== intended)
+				throw new Error(
+					'A legacy recovery journal cannot be verified against current browser data. Export recovery data before changing browser storage.'
+				);
 	}
 	return new Map(parsed.changes);
 }
