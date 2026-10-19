@@ -71,6 +71,36 @@ describe('recoverable local storage transactions', () => {
 		expect(window.localStorage.getItem(tx.journalKey)).toBeNull();
 	});
 
+	it('does not replay an interrupted journal over a newer saved record', () => {
+		const original = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+			this: Storage,
+			key,
+			value
+		) {
+			if (key === newKey) throw new Error('Interrupted write');
+			original.call(this, key, value);
+		});
+		expect(() => tx.writeStorageItem(newKey, 'interrupted draft'))
+			.toThrow('Interrupted write');
+		const interruptedJournal = tx.journalKey;
+		const journal = JSON.parse(window.localStorage.getItem(interruptedJournal)!);
+		expect(journal).toMatchObject({
+			version: 2,
+			bases: [[newKey, null]]
+		});
+		jest.restoreAllMocks();
+		window.localStorage.setItem(newKey, 'another tab saved this');
+		jest.resetModules();
+		tx = require('../transaction');
+		expect(() => tx.readStorageItem(newKey))
+			.toThrow('conflicts with newer browser data');
+		expect(window.localStorage.getItem(newKey)).toBe('another tab saved this');
+		expect(window.localStorage.getItem(interruptedJournal)).not.toBeNull();
+		expect(JSON.parse(tx.exportStorageRecovery()).records[interruptedJournal])
+			.toContain('interrupted draft');
+	});
+
 	it('retains a durable journal across repeated reloads before retry', () => {
 		const firstJournal = tx.journalKey;
 		window.localStorage.setItem(firstJournal, JSON.stringify({
@@ -197,6 +227,17 @@ describe('recoverable local storage transactions', () => {
 		expect(JSON.parse(tx.exportStorageRecovery()).records[tx.journalKey]).toBe(
 			raw
 		);
+	});
+
+	it('rejects a version-two journal with no base for a changed key', () => {
+		const raw = JSON.stringify({
+			version: 2,
+			changes: [[newKey, 'unverified draft']],
+			bases: []
+		});
+		window.localStorage.setItem(tx.journalKey, raw);
+		expect(() => tx.readStorageItem(newKey)).toThrow('unsupported structure');
+		expect(window.localStorage.getItem(tx.journalKey)).toBe(raw);
 	});
 
 	it('stages nested changes and aborts cleanly if the updater throws', () => {

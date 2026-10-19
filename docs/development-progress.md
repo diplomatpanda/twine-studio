@@ -79,6 +79,11 @@ recovery journals prevent ordinary tabs from replacing one another's journal,
 and the prior single-key journal remains recoverable. The two-tab journeys pass
 Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven.
 
+New recovery journals carry the raw base value for each changed storage key.
+Reload refuses to replay one over a different newer saved value and offers raw
+recovery export instead. The stale-journal browser journey passes all three
+engines. This does not serialize live commits, which remain a release blocker.
+
 Build → Publish to File now checks ordinary internal links for missing passage
 names and shows each source and target. Authors can edit a source, cancel or
 explicitly publish anyway. The repair-to-publication journey passes Chromium,

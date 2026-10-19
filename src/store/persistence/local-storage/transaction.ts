@@ -132,7 +132,7 @@ function readJournal(key: string, snapshots?: Map<string, string | null>): Chang
 	}
 	if (
 		!parsed ||
-		parsed.version !== 1 ||
+		(parsed.version !== 1 && parsed.version !== 2) ||
 		!Array.isArray(parsed.changes) ||
 		parsed.changes.some(
 			(entry: unknown) =>
@@ -141,11 +141,42 @@ function readJournal(key: string, snapshots?: Map<string, string | null>): Chang
 				typeof entry[0] !== 'string' ||
 				!validKey(entry[0]) ||
 				(entry[1] !== null && typeof entry[1] !== 'string')
-		)
+		) ||
+		(parsed.version === 2 &&
+			(!Array.isArray(parsed.bases) ||
+				parsed.bases.length !== parsed.changes.length ||
+				parsed.bases.some(
+					(entry: unknown) =>
+						!Array.isArray(entry) ||
+						entry.length !== 2 ||
+						typeof entry[0] !== 'string' ||
+						!validKey(entry[0]) ||
+						(entry[1] !== null && typeof entry[1] !== 'string')
+				)))
 	) {
 		throw new Error(
 			'The saved recovery journal has an unsupported structure. Export recovery data before changing browser storage.'
 		);
+	}
+	if (parsed.version === 2) {
+		const bases = new Map<string, string | null>(parsed.bases);
+		if (
+			bases.size !== parsed.changes.length ||
+			parsed.changes.some(([changedKey]: [string, string | null]) =>
+				!bases.has(changedKey)
+			)
+		)
+			throw new Error(
+				'The saved recovery journal has an unsupported structure. Export recovery data before changing browser storage.'
+			);
+		for (const [changedKey, intended] of parsed.changes as [string, string | null][]) {
+			const current = window.localStorage.getItem(changedKey);
+			// An interrupted commit may leave each record at its old or new value.
+			if (current !== bases.get(changedKey) && current !== intended)
+				throw new Error(
+					'A saved recovery journal conflicts with newer browser data. Export recovery data before changing browser storage.'
+				);
+		}
 	}
 	return new Map(parsed.changes);
 }
@@ -248,7 +279,11 @@ export function commitStorageChanges(changes: Changes) {
 	durable = false;
 	try {
 		// setItem is atomic: quota failure here leaves every existing record intact.
-		const serializedJournal = JSON.stringify({version: 1, changes: [...pending]});
+		const serializedJournal = JSON.stringify({
+			version: 2,
+			changes: [...pending],
+			bases: [...pending.keys()].map(key => [key, window.localStorage.getItem(key)])
+		});
 		window.localStorage.setItem(journalKey, serializedJournal);
 		if (storyGuardActive) observedJournal = serializedJournal;
 		durable = true;

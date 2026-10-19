@@ -1,6 +1,33 @@
 import {expect, test, Page} from '@playwright/test';
 import {readFile} from 'fs/promises';
 
+test('keeps a newer passage and exports an incompatible recovery journal', async ({page}) => {
+	const passageKey = 'twine-studio-passages-shared';
+	const journalKey = 'twine-studio-pending-transaction-stale-owner';
+	await page.addInitScript(({passageKey, journalKey}) => {
+		if (localStorage.getItem('twine-studio-stale-journal-fixture')) return;
+		localStorage.setItem('twine-studio-stale-journal-fixture', 'seeded');
+		const base = JSON.stringify({id: 'shared', story: 'story', text: 'Original'});
+		const stale = JSON.stringify({id: 'shared', story: 'story', text: 'Interrupted draft'});
+		const newer = JSON.stringify({id: 'shared', story: 'story', text: 'Another tab saved this'});
+		localStorage.setItem(passageKey, newer);
+		localStorage.setItem(journalKey, JSON.stringify({
+			version: 2, changes: [[passageKey, stale]], bases: [[passageKey, base]]
+		}));
+		sessionStorage.setItem('twine-studio-journal-owner', 'stale-owner');
+	}, {passageKey, journalKey});
+	await page.goto('http://127.0.0.1:5189');
+	const warning = page.getByRole('alert').filter({hasText: 'Your saved work could not be opened'});
+	await expect(warning).toContainText('conflicts with newer browser data');
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.records[passageKey]).toContain('Another tab saved this');
+	expect(recovery.records[journalKey]).toContain('Interrupted draft');
+	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
+		.toContain('Another tab saved this');
+});
+
 test('warns and exports original bytes when an indexed story cannot be opened', async ({page}) => {
 	await page.addInitScript(() => {
 		if (localStorage.getItem('twine-studio-corrupt-fixture')) return;

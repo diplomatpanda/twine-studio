@@ -82,6 +82,13 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   records now raise a raw-export warning and stop story saves, so the partial
   Library cannot silently replace their index. The warning/export journey passes
   in Chromium, Firefox and WebKit.
+- New browser recovery journals record the original value of every changed key.
+  On reload, a journal that would replace a different, newer saved value stops
+  startup and offers a raw export. The stale-journal journey passes in Chromium,
+  Firefox and WebKit. Legacy version-one journals remain readable but lack base
+  values, so they cannot receive this conflict check. Live commits still need an
+  atomic cross-tab lock. The affected local-storage unit suites passed 96 tests;
+  all 33 recovery browser journeys passed after this change.
 - Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery
