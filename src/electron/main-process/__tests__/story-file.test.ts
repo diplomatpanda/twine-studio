@@ -15,11 +15,18 @@ import {fakeStory} from '../../../test-util';
 import {Story} from '../../../store/stories';
 import {storyFileName} from '../../shared/story-filename';
 import {join} from 'path';
+import {loadStoryKnowledge, renameStoryKnowledge, saveStoryKnowledge, trashStoryKnowledge} from '../story-knowledge-file';
 
 jest.mock('../story-directory', () => ({
 	getStoryDirectoryPath: () => 'mock-story-directory'
 }));
 jest.mock('../track-file-changes');
+jest.mock('../story-knowledge-file', () => ({
+	loadStoryKnowledge: jest.fn().mockResolvedValue(undefined),
+	renameStoryKnowledge: jest.fn().mockResolvedValue(undefined),
+	saveStoryKnowledge: jest.fn().mockResolvedValue(undefined),
+	trashStoryKnowledge: jest.fn().mockResolvedValue(undefined)
+}));
 
 const mockStoryPath = (filename: string) =>
 	join('mock-story-directory', filename);
@@ -47,6 +54,7 @@ describe('deleteStory', () => {
 		expect(trashItemMock.mock.calls).toEqual([
 			[mockStoryPath(storyFileName(story))]
 		]);
+		expect(trashStoryKnowledge).toHaveBeenCalledWith(story);
 	});
 
 	it('stops tracking the file for changes', async () => {
@@ -122,6 +130,7 @@ describe('loadStories', () => {
 
 	it('resolves to an array of stories in the story library directory', async () => {
 		const result = await loadStories();
+		expect(loadStoryKnowledge).toHaveBeenCalledWith('test-story-1.html');
 
 		expect(result).toEqual([
 			{
@@ -281,6 +290,7 @@ describe('renameStory', () => {
 
 	it('renames the file on disk', async () => {
 		await renameStory(oldStory, newStory);
+		expect(renameStoryKnowledge).toHaveBeenCalledWith(oldStory, newStory);
 		expect(renameMock.mock.calls).toEqual([
 			[mockStoryPath(oldFileName), mockStoryPath(newFileName)]
 		]);
@@ -365,6 +375,7 @@ describe('saveStoryHtml()', () => {
 
 	it('saves the HTML to a temp file, then replaces the destination with the temp file', async () => {
 		await saveStoryHtml(story, 'story html');
+		expect(saveStoryKnowledge).toHaveBeenCalledWith(story);
 		expect(writeFileMock.mock.calls).toEqual([
 			[
 				join('mock-electron-app-path-temp', `${story.id}.html`),

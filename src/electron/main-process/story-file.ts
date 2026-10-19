@@ -11,7 +11,9 @@ import {basename, join} from 'path';
 import {i18n} from './locales';
 import {getStoryDirectoryPath} from './story-directory';
 import {Story} from '../../store/stories/stories.types';
+import {StoryKnowledgeSidecar} from './story-knowledge-file';
 import {storyFileName} from '../shared/story-filename';
+import {loadStoryKnowledge, renameStoryKnowledge, saveStoryKnowledge, trashStoryKnowledge} from './story-knowledge-file';
 import {
 	stopTrackingFile,
 	fileWasTouched,
@@ -21,6 +23,7 @@ import {
 export interface StoryFile {
 	htmlSource: string;
 	mtime: Date;
+	knowledge?: StoryKnowledgeSidecar;
 }
 
 // If refreshing file tracking fails after a successful rename, retry only the
@@ -44,9 +47,11 @@ export async function loadStories() {
 				const stats = await stat(filePath);
 
 				if (!stats.isDirectory()) {
+					const knowledge = await loadStoryKnowledge(f);
 					result.push({
 						mtime: stats.mtime,
-						htmlSource: await readFile(filePath, 'utf8')
+						htmlSource: await readFile(filePath, 'utf8'),
+						...(knowledge ? {knowledge} : {})
 					});
 					return fileWasTouched(filePath);
 				}
@@ -91,6 +96,7 @@ export async function saveStoryHtml(story: Story, storyHtml: string) {
 			}
 		}
 
+		await saveStoryKnowledge(story);
 		await writeFile(tempFilePath, storyHtml, 'utf8');
 		await move(tempFilePath, savedFilePath, {
 			overwrite: true
@@ -113,6 +119,7 @@ export async function deleteStory(story: Story) {
 
 		console.log(`Trashing ${deletedFilePath}`);
 		await shell.trashItem(deletedFilePath);
+		await trashStoryKnowledge(story);
 		stopTrackingFile(deletedFilePath);
 		console.log(`Successfully trashed ${deletedFilePath}`);
 	} catch (e) {
@@ -146,6 +153,7 @@ export async function renameStory(oldStory: Story, newStory: Story) {
 			await rename(oldStoryPath, newStoryPath);
 			pendingRenameTracking.set(oldStoryPath, newStoryPath);
 		}
+		await renameStoryKnowledge(oldStory, newStory);
 		stopTrackingFile(oldStoryPath);
 		await fileWasTouched(newStoryPath);
 		pendingRenameTracking.delete(oldStoryPath);

@@ -1,6 +1,7 @@
 import {TwineElectronWindow} from '../../../../electron/shared';
 import {Story} from '../../../stories/stories.types';
 import {importStories} from '../../../../util/import';
+import {parseStoryKnowledge} from '../../../stories/story-knowledge';
 
 export async function load(): Promise<Story[]> {
 	const {twineElectron} = window as TwineElectronWindow;
@@ -16,7 +17,13 @@ export async function load(): Promise<Story[]> {
 			const story = importStories(file.htmlSource, file.mtime);
 
 			if (story[0]) {
-				return [...result, story[0]];
+				if (file.knowledge && file.knowledge.ifid !== story[0].ifid) {
+					throw new Error(`Story knowledge does not match the IFID of ${story[0].name}. The sidecar was left unchanged.`);
+				}
+				return [...result, {
+					...story[0],
+					knowledge: parseStoryKnowledge(file.knowledge?.entries ?? [])
+				}];
 			}
 
 			console.warn('Could not hydrate story: ', file.htmlSource);

@@ -155,6 +155,7 @@ export function fakeStory(passageCount: number = 1): Story {
 	const tags = [`${tag}-1`, `${tag}-2`, `${tag}-3`];
 
 	const result: Story = {
+		knowledge: [],
 		id: faker.string.uuid(),
 		lastUpdate: faker.date.past(),
 		ifid: faker.string.uuid().toUpperCase(),

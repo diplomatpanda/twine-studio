@@ -1,5 +1,6 @@
 import {passageDefaults, storyDefaults} from '../../../stories/defaults';
 import {Passage, Story} from '../../../stories/stories.types';
+import {parseStoryKnowledge} from '../../../stories/story-knowledge';
 import {storageKey} from '../keys';
 import {clearSavedEditorDraft, exportEditorDrafts, readEditorDraft} from '../editor-drafts';
 import {hasUnreadableDurableEditorDrafts, loadDurableEditorDrafts} from '../durable-editor-drafts';
@@ -62,6 +63,7 @@ export async function load(): Promise<Story[]> {
 			stories[story.id] = {
 				...storyDefaults(),
 				...story,
+				knowledge: parseStoryKnowledge(story.knowledge ?? []),
 
 				// Coerce lastUpdate to a date.
 				lastUpdate: story.lastUpdate

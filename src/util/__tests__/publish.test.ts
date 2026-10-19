@@ -90,6 +90,21 @@ beforeEach(() => {
 	});
 });
 
+it('keeps private story knowledge out of published HTML', () => {
+	story.knowledge = [{
+		id: 'private-note', kind: 'character', status: 'established',
+		title: 'Private motive', note: 'The mayor hid the key under a moonstone',
+		scope: 'story'
+	}];
+	const html = publish.publishStory(story, appInfo);
+	const archive = publish.publishArchive([story], appInfo);
+	for (const output of [html, archive]) {
+		expect(output).not.toContain('Private motive');
+		expect(output).not.toContain('moonstone');
+		expect(output).not.toContain('private-note');
+	}
+});
+
 describe('publishArchive()', () => {
 	it('publishes an archive of all stories', () => {
 		const result = publish.publishArchive([story, story], appInfo);

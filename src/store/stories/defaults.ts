@@ -14,6 +14,7 @@ export const passageDefaults = (): Omit<Passage, 'id' | 'story'> => ({
 });
 
 export const storyDefaults = (): Omit<Story, 'id'> => ({
+	knowledge: [],
 	ifid: '',
 	lastUpdate: new Date(),
 	passages: [],

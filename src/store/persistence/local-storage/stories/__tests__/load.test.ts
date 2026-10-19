@@ -8,6 +8,10 @@ describe('stories local storage load', () => {
 
 	it('resolves to an array of stories', async () => {
 		const state = [fakeStory(), fakeStory()];
+		state[0].knowledge = [{
+			id: 'note-1', kind: 'ending', status: 'planned', title: 'Alternate ending',
+			note: 'Only after the key is found', scope: 'branch', branchName: 'Key route'
+		}];
 		const passageIds: string[] = [];
 
 		window.localStorage.setItem(

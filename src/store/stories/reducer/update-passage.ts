@@ -29,8 +29,16 @@ export function updatePassage(
 			return story;
 		}
 
+		const oldPassageName = story.passages.find(p => p.id === passageId)?.name;
 		const newStory: Story = {
 			...story,
+			knowledge: 'name' in passageProps && passageProps.name
+				? story.knowledge.map(entry =>
+					entry.scope === 'passage' && entry.passageName === oldPassageName
+						? {...entry, passageName: passageProps.name}
+						: entry
+				)
+				: story.knowledge,
 			passages: story.passages.map(passage => {
 				if (passage.id !== passageId) {
 					return passage;

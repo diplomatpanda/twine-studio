@@ -1,0 +1,11 @@
+.story-knowledge-dialog .card-content { max-height: 68vh; overflow-y: auto; width: min(42rem, 90vw); }
+.story-knowledge-dialog label { display: block; margin: 0.65rem 0; }
+.story-knowledge-dialog label > input,
+.story-knowledge-dialog label > select,
+.story-knowledge-dialog label > textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; }
+.story-knowledge-dialog textarea { min-height: 5rem; }
+.story-knowledge-list { list-style: none; padding: 0; }
+.story-knowledge-list li { border-top: 1px solid currentColor; padding: 0.75rem 0; }
+.story-knowledge-list li > span { display: block; }
+.story-knowledge-list p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.story-knowledge-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }

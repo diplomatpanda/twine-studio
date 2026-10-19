@@ -465,6 +465,49 @@
 		"replaceAllText": "Replace All"
 	},
 	"studio": {
+		"knowledge": {
+			"title": "Story knowledge",
+			"help": "Keep short planning notes without copying your manuscript. Story-wide established facts apply across routes; use a passage or named branch for events that may differ. These private notes are not published in playable HTML.",
+			"filter": "Show",
+			"all": "All entries",
+			"empty": "No knowledge entries in this view yet.",
+			"addEntry": "Add entry",
+			"editEntry": "Edit entry",
+			"saveEntry": "Save entry",
+			"undoChange": "Story Knowledge Change",
+			"kindLabel": "Type",
+			"statusLabel": "Status",
+			"entryTitle": "Short title",
+			"note": "Note",
+			"scopeLabel": "Applies to",
+			"storyWide": "Whole story",
+			"passageScope": "One passage",
+			"branchScope": "Named branch",
+			"choosePassage": "Choose a passage",
+			"branchName": "Branch name",
+			"passageNamed": "Passage: {{name}}",
+			"branchNamed": "Branch: {{name}}",
+			"missingPassage": "Missing passage: {{name}}",
+			"openPassage": "Open passage",
+			"kind": {
+				"character": "Character",
+				"relationship": "Relationship",
+				"location": "Location",
+				"world-rule": "World rule",
+				"plot-thread": "Plot thread",
+				"player-choice": "Player choice",
+				"timeline-event": "Timeline event",
+				"question": "Unresolved question",
+				"ending": "Intended ending"
+			},
+			"status": {
+				"established": "Established",
+				"planned": "Planned",
+				"inference": "Inference",
+				"mystery": "Intentional mystery",
+				"outdated": "Outdated"
+			}
+		},
 		"ai": {
 			"title": "Review AI passage code edits",
 			"help": "Repair existing code, propose a conditional choice, or add a branch with a new empty destination passage. Choices are generated locally for Harlowe or SugarCube. Review the exact changes before accepting them.",

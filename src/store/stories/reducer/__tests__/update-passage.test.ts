@@ -34,6 +34,16 @@ describe('Story reducer updatePassage action handler', () => {
 		expect(passage.name).toBe(oldPassageName);
 	});
 
+	it('keeps passage-scoped knowledge linked when its passage is renamed', () => {
+		story.knowledge = [{
+			id: 'note-1', kind: 'plot-thread', status: 'planned', title: 'A clue',
+			note: '', scope: 'passage', passageName: passage.name
+		}];
+		const result = updatePassage([story], story.id, passage.id, {name: 'New passage'});
+		expect(result[0].knowledge[0].passageName).toBe('New passage');
+		expect(story.knowledge[0].passageName).toBe(passage.name);
+	});
+
 	it("changes the parent story's lastUpdate property if the change is persistable", () => {
 		const oldDate = new Date('1/1/1980');
 

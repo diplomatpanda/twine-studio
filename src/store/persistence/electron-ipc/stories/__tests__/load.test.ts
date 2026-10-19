@@ -59,6 +59,21 @@ describe('stories Electron IPC load', () => {
 		}
 	});
 
+	it('restores matching private knowledge sidecars', async () => {
+		const entry = {
+			id: 'secret', kind: 'question' as const, status: 'mystery' as const,
+			title: 'Who opened the gate?', note: 'Author-only answer',
+			scope: 'passage' as const, passageName: stories[0].passages[0].name
+		};
+		storydata[0].knowledge = {version: 1, ifid: stories[0].ifid, entries: [entry]};
+		expect((await load())[0].knowledge).toEqual([entry]);
+	});
+
+	it('rejects a sidecar belonging to a different story', async () => {
+		storydata[0].knowledge = {version: 1, ifid: 'another-ifid', entries: []};
+		await expect(load()).rejects.toThrow('does not match the IFID');
+	});
+
 	it("preserves stories' modification time", async () => {
 		(await load()).forEach((result, index) =>
 			expect(result.lastUpdate).toBe(storydata[index].mtime)

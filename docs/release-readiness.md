@@ -7,9 +7,9 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **266 suites and 1,967 tests**, with 4
+- The latest full Jest checkpoint passed **271 suites and 2,020 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
-  recovery, and duplicated-tab guard changes.
+  recovery, duplicated-tab guard and story-knowledge changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -137,6 +137,19 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   offline-mode UI.
 
 ## Release blockers and required follow-up
+
+- Story Knowledge now supports optional, author-entered characters, relationships,
+  locations, world rules, plot threads, choices, timeline events, questions and
+  endings. Entries carry an explicit status and story, passage or named-branch
+  scope. Passage links follow a rename; deleted passage links remain visibly
+  unresolved. Browser copies live in the story's local storage record. Desktop
+  copies live in a validated JSON sidecar beside the story HTML and are included
+  in story-directory backups. Published playable HTML and archive exports exclude
+  this private context. Authors moving a desktop project must copy the sidecar
+  with its HTML file; importing only playable HTML cannot restore the notes.
+  Named branches are labels, not verified path-specific facts. Graph-aware
+  continuity checks, conditional state reasoning and portable private project
+  export remain future work.
 
 - Finish the remaining acceptance limits below, especially advanced existing
   projects, AI modification, cross-browser behavior and harder failure modes.

@@ -5,6 +5,7 @@ import {Story, updateStory, useStoriesContext} from '../../../../store/stories';
 import {DetailsButton} from './details-button';
 import {FindReplaceButton} from './find-replace-button';
 import {JavaScriptButton} from './javascript-button';
+import {KnowledgeButton} from './knowledge-button';
 import {PassageTagsButton} from './passage-tags-button';
 import {StylesheetButton} from './stylesheet-button';
 
@@ -25,6 +26,7 @@ export const StoryActions: React.FC<StoryActionsProps> = props => {
 				story={story}
 			/>
 			<DetailsButton story={story} />
+			<KnowledgeButton story={story} />
 			<PassageTagsButton story={story} />
 			<JavaScriptButton story={story} />
 			<StylesheetButton story={story} />

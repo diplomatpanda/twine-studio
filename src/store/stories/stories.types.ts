@@ -1,6 +1,7 @@
 import {Thunk} from 'react-hook-thunk-reducer';
 import {Color} from '../../util/color';
 import {StoryFormat} from '../story-formats/story-formats.types';
+import {StoryKnowledgeEntry} from './story-knowledge';
 
 /**
  * A single passage in a story.
@@ -53,6 +54,8 @@ export interface Passage {
 }
 
 export interface Story {
+	/** Author-only planning notes. Never included in playable HTML. */
+	knowledge: StoryKnowledgeEntry[];
 	/**
 	 * IFID of the story. An IFID should stay stable when a story is imported or exported.
 	 */
