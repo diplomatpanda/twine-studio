@@ -1,7 +1,9 @@
 # Release readiness
 
 **Not ready for release.** This is an initial verified foundation, not the complete
-Twine Studio mission. No release has been published or deployed.
+Twine Studio mission. An untagged preview is deployed at
+`https://apps.steadytoucan.box.ca/twine-studio/` from commit `26abb06c`; no tagged
+release has been published.
 
 ## Checks
 

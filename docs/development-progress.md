@@ -134,14 +134,16 @@ completion; use release-readiness.md for the acceptance gaps.
 
 ## Invocation ledger
 
-The 15 bounded implementation/review iterations were: baseline and plan; fork
+The initial 15 bounded implementation/review iterations were: baseline and plan; fork
 identity; Windows build/test portability; IPC/dependency hardening; choice form;
 choice undo/native runtime review; licensing and provenance; browser namespace;
 interrupted typing; fresh-profile cleanup; story facts/conditions; native format
 round trips; production offline recovery; large-story navigation; final review,
 verification and documentation. Each was scoped to authoring or release reliability.
-The two verified local commits retain upstream history. No remote fork, push,
-release, deployment or integration into another checkout was performed.
+The verified commits retain upstream history. On 2026-10-19, the public
+`diplomatpanda/twine-studio` repository was created and the browser app was
+deployed to Whatbox at `/twine-studio/` from commit `26abb06c`. This is an
+untagged preview deployment; overall release readiness remains incomplete.
 
 ## Continued reliability pass
 
