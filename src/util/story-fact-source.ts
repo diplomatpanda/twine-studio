@@ -1,4 +1,4 @@
-import {choiceSource, supportsChoiceBuilder} from './choice-source';
+import {choiceSource, isPlainChoiceText, supportsChoiceBuilder} from './choice-source';
 
 export type StoryFactValue = boolean | number;
 export type FactComparison = 'eq' | 'gte' | 'lte';
@@ -60,6 +60,24 @@ export function assignFactSource(
 		: `<<set $${name} = ${serializedValue}>>`;
 }
 
+/** Change an initialized numeric fact by a signed amount. */
+export function changeFactSource(
+	formatName: string,
+	formatVersion: string,
+	name: string,
+	amount: number
+): string {
+	validateFormat(formatName, formatVersion);
+	validateFactName(name);
+	validateFactValue(amount);
+	if (amount === 0) throw new Error('The amount must be nonzero.');
+	const magnitude = sourceValue(Math.abs(amount));
+	const operator = amount > 0 ? '+' : '-';
+	return formatName === 'Harlowe'
+		? `(set: $${name} to it ${operator} ${magnitude})`
+		: `<<set $${name} ${operator}= ${magnitude}>>`;
+}
+
 export function conditionalChoiceSource(
 	formatName: string,
 	formatVersion: string,
@@ -89,4 +107,31 @@ export function conditionalChoiceSource(
 	const comparison =
 		operator === 'eq' ? '===' : operator === 'gte' ? '>=' : '<=';
 	return `<<if $${name} ${comparison} ${serializedValue}>>${link}<</if>>`;
+}
+
+/** Show a short, plain-text line only when a fact meets the condition. */
+export function conditionalTextSource(
+	formatName: string,
+	formatVersion: string,
+	name: string,
+	operator: FactComparison,
+	value: StoryFactValue,
+	text: string
+): string {
+	validateFormat(formatName, formatVersion);
+	validateFactName(name);
+	if (!['eq', 'gte', 'lte'].includes(operator) ||
+		(operator !== 'eq' && typeof value !== 'number')) {
+		throw new Error('Invalid text condition.');
+	}
+	if (text.length > 500 || !isPlainChoiceText(text)) {
+		throw new Error('Conditional text must be short plain text.');
+	}
+	const serializedValue = sourceValue(value);
+	if (formatName === 'Harlowe') {
+		const comparison = operator === 'eq' ? 'is' : operator === 'gte' ? '>=' : '<=';
+		return `(if: $${name} ${comparison} ${serializedValue})[${text.trim()}]`;
+	}
+	const comparison = operator === 'eq' ? '===' : operator === 'gte' ? '>=' : '<=';
+	return `<<if $${name} ${comparison} ${serializedValue}>>${text.trim()}<</if>>`;
 }

@@ -1,6 +1,8 @@
 import {
 	assignFactSource,
+	changeFactSource,
 	conditionalChoiceSource,
+	conditionalTextSource,
 	FactComparison
 } from '../story-fact-source';
 
@@ -45,6 +47,40 @@ describe('assignFactSource', () => {
 		['Custom', '1.0.0']
 	])('rejects unsupported format/version %s %s', (name, version) => {
 		expect(() => assignFactSource(name, version, 'score', 1)).toThrow();
+	});
+});
+
+describe('conditionalTextSource', () => {
+	it.each([
+		['Harlowe', '3.3.9', '(if: $trust >= 3)[Maya trusts you.]'],
+		['SugarCube', '2.37.3', '<<if $trust >= 3>>Maya trusts you.<</if>>']
+	])('shows numeric conditional dialogue in %s', (format, version, expected) => {
+		expect(conditionalTextSource(format, version, 'trust', 'gte', 3, 'Maya trusts you.')).toBe(expected);
+	});
+	it('rejects markup and mismatched condition values', () => {
+		expect(() => conditionalTextSource('Harlowe', '3.3.9', 'trust', 'gte', true, 'Hello')).toThrow();
+		expect(() => conditionalTextSource('Harlowe', '3.3.9', 'trust', 'eq', 3, 'Hello][(set: $trust to 9)')).toThrow();
+		expect(() => conditionalTextSource('SugarCube', '2.37.3', 'trust', 'eq', 3, '<<set $trust = 9>>')).toThrow();
+	});
+});
+
+describe('changeFactSource', () => {
+	it.each([
+		['Harlowe', '3.3.9', 2, '(set: $trust to it + 2)'],
+		['Harlowe', '3.3.9', -3, '(set: $trust to it - 3)'],
+		['SugarCube', '2.37.3', 2, '<<set $trust += 2>>'],
+		['SugarCube', '2.37.3', -3, '<<set $trust -= 3>>']
+	])('changes a numeric fact for %s %s by %s', (format, version, amount, expected) => {
+		expect(changeFactSource(format as string, version as string, 'trust', amount as number)).toBe(expected);
+	});
+	it.each([0, NaN, Infinity, -Infinity, 1_000_000_001])(
+		'rejects an invalid change amount: %s', amount => {
+			expect(() => changeFactSource('Harlowe', '3.3.9', 'trust', amount)).toThrow();
+		}
+	);
+	it('preserves fact name and format validation', () => {
+		expect(() => changeFactSource('Harlowe', '3.3.9', 'trust-name', 1)).toThrow();
+		expect(() => changeFactSource('Chapbook', '2.0.0', 'trust', 1)).toThrow();
 	});
 });
 

@@ -180,7 +180,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   passage. A real
   paid round trip, native review/undo acceptance, credential-management UI and
   broader AI story-modification journey remain pending. See ai-evaluation.md.
-- Story logic has bounded yes/no/numeric assignments and conditional choices;
+- Story logic has bounded yes/no/numeric assignments, signed numeric changes,
+  conditional choices and short conditional text in Harlowe and SugarCube.
+  Authors must initialize numeric facts before changing or checking them;
   broader logic, story planning, map improvements and polished first-run experience
   remain incomplete. New UI translations currently fall back to English.
 - Cross-browser, complete keyboard/touch, long-session and failure-recovery
@@ -194,7 +196,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | A: first story | Choice creation, writing, undo, publish and original two-route sample verified | Human beginner study pending |
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
 | C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and a new empty branch passage; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
-| D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
+| D: relationship state | Browser authoring and published playthrough pass in Chromium, Firefox and WebKit for Harlowe/SugarCube: initialize trust, add 3, show conditional dialogue and unlock a separate ending | Native journey, registry and continuity tools pending; Chromium automation needed a selection click before double-clicking a new map card, so direct double-click UX needs review |
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |

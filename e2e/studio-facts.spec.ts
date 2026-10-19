@@ -25,7 +25,9 @@ const scenarios: Scenario[] = [
 ];
 
 async function openPassage(page: Page, name: string) {
-	await page.getByRole('button', {name, exact: true}).dblclick();
+	const card = page.getByRole('button', {name, exact: true});
+	await card.click();
+	await card.dblclick();
 	await page.getByRole('dialog', {name, exact: true}).waitFor();
 }
 
@@ -59,7 +61,7 @@ async function insertFact(
 	value: 'yes' | 'no' | 'number',
 	options?: {
 		number?: string;
-		action?: 'remember' | 'condition';
+		action?: 'remember' | 'change' | 'condition' | 'dialogue';
 		operator?: 'eq' | 'gte' | 'lte';
 		label?: string;
 		destination?: string;
@@ -78,15 +80,21 @@ async function insertFact(
 	if (options?.action) {
 		await selectField('Action').selectOption(options.action);
 	}
-	await selectField('Value').selectOption(value);
-	if (value === 'number') {
-		await form.getByLabel('Number', {exact: true}).fill(options?.number ?? '0');
+	if (options?.action === 'change') {
+		await form.getByLabel('Amount to add (negative to subtract)', {exact: true})
+			.fill(options?.number ?? '0');
+	} else {
+		await selectField('Value').selectOption(value);
+		if (value === 'number') {
+			await form.getByLabel('Number', {exact: true}).fill(options?.number ?? '0');
+		}
 	}
 	if (options?.operator) {
 		await selectField('Comparison').selectOption(options.operator);
 	}
 	if (options?.label !== undefined) {
-		await form.getByLabel('Choice text', {exact: true}).fill(options.label);
+		await form.getByLabel(options.action === 'dialogue' ? 'Text to show' : 'Choice text', {exact: true})
+			.fill(options.label);
 	}
 	if (options?.destination !== undefined) {
 		await form
@@ -159,7 +167,7 @@ for (const scenario of scenarios) {
 
 		await openPassage(page, 'Library');
 		await insertFact(page, 'clue', 'yes');
-		await insertFact(page, 'trust', 'number', {number: '3'});
+		await insertFact(page, 'trust', 'number', {action: 'change', number: '3'});
 		await insertChoice(page, 'Continue', 'Gate');
 		await closeCurrentPassage(page);
 
@@ -179,6 +187,12 @@ for (const scenario of scenarios) {
 			operator: 'gte',
 			label: 'Helped',
 			destination: 'Helped'
+		});
+		await insertFact(page, 'trust', 'number', {
+			action: 'dialogue',
+			number: '3',
+			operator: 'gte',
+			label: 'Maya trusts you.'
 		});
 		await closeCurrentPassage(page);
 
@@ -212,6 +226,7 @@ for (const scenario of scenarios) {
 			);
 			await expect(await playerLink(noClue, scenario, 'Solved')).toHaveCount(0);
 			await expect(await playerLink(noClue, scenario, 'Helped')).toHaveCount(0);
+			await expect(noClue.locator(scenario.passageSelector)).not.toContainText('Maya trusts you.');
 			await assertNoErrors(noClue);
 			await noClue.close();
 
@@ -226,6 +241,7 @@ for (const scenario of scenarios) {
 				await expect(
 					await playerLink(player, scenario, 'Helped')
 				).toBeVisible();
+				await expect(player.locator(scenario.passageSelector)).toContainText('Maya trusts you.');
 				await (await playerLink(player, scenario, ending)).click();
 				await expect(player.locator(scenario.passageSelector)).toContainText(
 					`${ending} ending.`

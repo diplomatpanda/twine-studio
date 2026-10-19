@@ -10,7 +10,9 @@ import {
 } from '../../util/choice-source';
 import {
 	assignFactSource,
-	conditionalChoiceSource
+	changeFactSource,
+	conditionalChoiceSource,
+	conditionalTextSource
 } from '../../util/story-fact-source';
 import './choice-composer.css';
 
@@ -42,19 +44,22 @@ export const FactComposer: React.FC<FactComposerProps> = props => {
 	const value = kind === 'number' ? Number(number) : kind === 'yes';
 	let source = '';
 	try {
-		if (kind !== 'number' || number.trim()) {
-			source =
-				action === 'remember'
-					? assignFactSource(props.formatName, props.formatVersion, name, value)
-					: conditionalChoiceSource(
-							props.formatName,
-							props.formatVersion,
-							name,
-							kind === 'number' ? operator : 'eq',
-							value,
-							label,
-							destination
-						);
+		if ((action !== 'change' && kind !== 'number') || number.trim()) {
+			if (action === 'remember') {
+				source = assignFactSource(props.formatName, props.formatVersion, name, value);
+			} else if (action === 'change') {
+				source = changeFactSource(props.formatName, props.formatVersion, name, Number(number));
+			} else if (action === 'dialogue') {
+				source = conditionalTextSource(
+					props.formatName, props.formatVersion, name,
+					kind === 'number' ? operator : 'eq', value, label
+				);
+			} else {
+				source = conditionalChoiceSource(
+					props.formatName, props.formatVersion, name,
+					kind === 'number' ? operator : 'eq', value, label, destination
+				);
+			}
 		}
 	} catch {
 		// Invalid input remains in the form; nothing reaches the story source.
@@ -101,7 +106,7 @@ export const FactComposer: React.FC<FactComposerProps> = props => {
 							<TextSelect
 								value={action}
 								onChange={event => setAction(event.target.value)}
-								options={['remember', 'condition'].map(key => ({
+								options={['remember', 'change', 'condition', 'dialogue'].map(key => ({
 									value: key,
 									label: t(`studio.fact.${key}`)
 								}))}
@@ -116,6 +121,7 @@ export const FactComposer: React.FC<FactComposerProps> = props => {
 							>
 								{t('studio.fact.name')}
 							</TextInput>
+						{action !== 'change' && (
 							<TextSelect
 								value={kind}
 								onChange={event => setKind(event.target.value)}
@@ -126,16 +132,17 @@ export const FactComposer: React.FC<FactComposerProps> = props => {
 							>
 								{t('studio.fact.value')}
 							</TextSelect>
-							{kind === 'number' && (
+						)}
+						{(action === 'change' || kind === 'number') && (
 								<TextInput
 									value={number}
 									onChange={event => setNumber(event.target.value)}
 								>
-									{t('studio.fact.number')}
+									{t(action === 'change' ? 'studio.fact.changeAmount' : 'studio.fact.number')}
 								</TextInput>
-							)}
-							{action === 'condition' && (
-								<>
+						)}
+						{(action === 'condition' || action === 'dialogue') && (
+							<>
 									{kind === 'number' && (
 										<TextSelect
 											value={operator}
@@ -154,29 +161,34 @@ export const FactComposer: React.FC<FactComposerProps> = props => {
 										value={label}
 										onChange={event => setLabel(event.target.value)}
 									>
-										{t('studio.choice.label')}
+										{t(action === 'dialogue' ? 'studio.fact.dialogueText' : 'studio.choice.label')}
 									</TextInput>
-									<TextInput
-										value={destination}
-										list={`${props.id}-fact-destinations`}
-										onChange={event => setDestination(event.target.value)}
-									>
-										{t('studio.choice.destination')}
-									</TextInput>
-									<datalist id={`${props.id}-fact-destinations`}>
-										{props.passageNames
-											.filter(isPlainChoiceText)
-											.map(passageName => (
-												<option key={passageName} value={passageName} />
-											))}
-									</datalist>
-									<p>{t('studio.fact.conditionHelp')}</p>
-								</>
-							)}
-							<p>{t('studio.fact.nameHelp')}</p>
-							{!source && name && (
-								<p role="status">{t('studio.fact.invalid')}</p>
-							)}
+									{action === 'condition' && (
+										<>
+											<TextInput
+												value={destination}
+												list={`${props.id}-fact-destinations`}
+												onChange={event => setDestination(event.target.value)}
+											>
+												{t('studio.choice.destination')}
+											</TextInput>
+											<datalist id={`${props.id}-fact-destinations`}>
+												{props.passageNames
+													.filter(isPlainChoiceText)
+													.map(passageName => (
+														<option key={passageName} value={passageName} />
+													))}
+											</datalist>
+										</>
+									)}
+									<p>{t(action === 'dialogue' ? 'studio.fact.dialogueHelp' : 'studio.fact.conditionHelp')}</p>
+							</>
+						)}
+						{action === 'change' && <p>{t('studio.fact.changeHelp')}</p>}
+						<p>{t('studio.fact.nameHelp')}</p>
+						{!source && name && (
+							<p role="status">{t('studio.fact.invalid')}</p>
+						)}
 							<IconButton
 								buttonType="submit"
 								disabled={!source || props.disabled}
