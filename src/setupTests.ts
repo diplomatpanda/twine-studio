@@ -29,6 +29,20 @@ beforeEach(
 );
 afterEach(() => delete (window as any).matchMedia);
 
+// jsdom has no Web Locks. Run the lock callback immediately in ordinary
+// persistence tests; dedicated concurrency tests replace this with a queued
+// implementation to exercise the asynchronous browser behavior.
+beforeEach(() => {
+	Object.defineProperty(navigator, 'locks', {
+		configurable: true,
+		value: {
+			request: (_name: string, _options: unknown, callback: () => void) =>
+				Promise.resolve(callback())
+		}
+	});
+});
+afterEach(() => { delete (navigator as any).locks; });
+
 // jsdom also doesn't implement pointer events properly.
 // see https://github.com/testing-library/dom-testing-library/issues/558
 

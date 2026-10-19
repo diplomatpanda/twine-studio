@@ -137,7 +137,7 @@ describe('recoverable local storage transactions', () => {
 		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
 			this: Storage, key, value
 		) {
-			if (this === window.localStorage && key === tx.journalKey)
+			if (this === window.localStorage && key === 'twine-studio-prefs-theme')
 				original.call(this, inheritedJournal, newer);
 			original.call(this, key, value);
 		});

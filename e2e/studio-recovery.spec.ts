@@ -51,6 +51,63 @@ test('keeps newer records and exports an unverified legacy journal', async ({pag
 		.toBe('another tab saved this');
 });
 
+test('a fresh tab replays a journal left by a closed tab', async ({page, context}) => {
+	const journalKey = 'twine-studio-pending-transaction-orphaned-owner';
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	await page.getByRole('button', {name: 'New', exact: true}).click();
+	await page.getByRole('textbox').fill('Recovered closed tab');
+	await page.getByRole('button', {name: 'Create', exact: true}).click();
+	const passageKey = await page.evaluate(() => Object.keys(localStorage)
+		.find(key => key.startsWith('twine-studio-passages-'))!);
+	await expect.poll(() => page.evaluate(key => localStorage.getItem(key), passageKey))
+		.not.toBeNull();
+	await page.evaluate(({passageKey, journalKey}) => {
+		const base = localStorage.getItem(passageKey)!;
+		const intended = JSON.stringify({...JSON.parse(base), text: 'closed tab draft'});
+		localStorage.setItem(journalKey, JSON.stringify({
+			version: 2,
+			changes: [[passageKey, intended]],
+			bases: [[passageKey, base]]
+		}));
+	}, {passageKey, journalKey});
+	await page.close();
+	const fresh = await context.newPage();
+	await fresh.goto('http://127.0.0.1:5189');
+	await expect.poll(() => fresh.evaluate(key => localStorage.getItem(key), passageKey))
+		.toContain('closed tab draft');
+	expect(await fresh.evaluate(key => localStorage.getItem(key), journalKey)).toBeNull();
+	await fresh.getByRole('button', {name: 'Recovered closed tab', exact: true}).dblclick();
+	await expect(fresh.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText('closed tab draft');
+	await expect(fresh.getByRole('alert')
+		.filter({hasText: 'Your saved work could not be opened'})).toHaveCount(0);
+});
+
+test('a fresh tab preserves a stale closed-tab journal for raw export', async ({page}) => {
+	const passageKey = 'twine-studio-passages-orphaned';
+	const journalKey = 'twine-studio-pending-transaction-orphaned-owner';
+	await page.addInitScript(({passageKey, journalKey}) => {
+		if (localStorage.getItem('twine-studio-stale-orphan-fixture')) return;
+		localStorage.setItem('twine-studio-stale-orphan-fixture', 'seeded');
+		localStorage.setItem(passageKey, 'newer saved record');
+		localStorage.setItem(journalKey, JSON.stringify({
+			version: 2,
+			changes: [[passageKey, 'closed tab draft']],
+			bases: [[passageKey, 'old saved record']]
+		}));
+	}, {passageKey, journalKey});
+	await page.goto('http://127.0.0.1:5189');
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Your saved work could not be opened'});
+	await expect(warning).toContainText('conflicts with newer browser data');
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.records[passageKey]).toBe('newer saved record');
+	expect(recovery.records[journalKey]).toContain('closed tab draft');
+});
+
 test('warns and exports original bytes when an indexed story cannot be opened', async ({page}) => {
 	await page.addInitScript(() => {
 		if (localStorage.getItem('twine-studio-corrupt-fixture')) return;

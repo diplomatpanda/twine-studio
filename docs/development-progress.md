@@ -82,7 +82,12 @@ Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven.
 New recovery journals carry the raw base value for each changed storage key.
 Reload refuses to replay one over a different newer saved value and offers raw
 recovery export instead. The stale-journal browser journey passes all three
-engines. This does not serialize live commits, which remain a release blocker.
+engines. Browser commits now use an exclusive Web Lock and recheck loaded story
+versions inside it. The held-lock same-passage journey passes Chromium, Firefox
+and WebKit: one queued save commits, while the conflicting tab retains its
+journal. A fresh tab waits for earlier lock holders and replays a valid closed
+tab journal. Conflicting or ambiguous journals stop for raw export. Duplicated
+tab handoff and hard failure modes remain release work.
 
 Build → Publish to File now checks ordinary internal links for missing passage
 names and shows each source and target. Authors can edit a source, cancel or

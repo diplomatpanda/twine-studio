@@ -489,6 +489,8 @@
 		},
 		"storage": {
 			"unsaved": "Saving needs attention",
+			"saving": "Saving changes…",
+			"savingHelp": "Your changes are protected while the browser finishes saving.",
 			"conflictTitle": "Another tab changed saved stories",
 			"conflictHelp": "This tab stopped saving to protect the newer saved version. Your work here is still open. Export a story backup, then reload to see the other tab's changes. Re-import your backup if you want to recover this tab's draft.",
 			"draftConflictTitle": "Recovered writing differs from the saved story",

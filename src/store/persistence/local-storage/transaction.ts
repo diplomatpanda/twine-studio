@@ -32,6 +32,26 @@ try {
 }
 const previousJournalKeys = previousOwners.map(owner => `${legacyJournalKey}-${owner}`);
 export const journalKey = `${legacyJournalKey}-${journalOwner}`;
+const commitLockName = 'twine-studio-storage-commit';
+const commitLockWaitMs = 15000;
+
+function requestCommitLock(callback: () => void) {
+	const controller = new AbortController();
+	const timeout = window.setTimeout(() => controller.abort(), commitLockWaitMs);
+	try {
+		return navigator.locks.request(commitLockName, {signal: controller.signal}, callback)
+			.catch(cause => {
+				if (controller.signal.aborted)
+					throw new Error('Timed out waiting for another tab to finish saving. Retry when it is responsive.');
+				throw cause;
+			})
+			.finally(() => window.clearTimeout(timeout));
+	} catch (cause) {
+		window.clearTimeout(timeout);
+		throw cause;
+	}
+}
+
 function inheritedJournalKeys() {
 	if (journalHistoryAvailable) return previousJournalKeys;
 	// Session storage can be blocked or full while local storage still holds a
@@ -43,6 +63,65 @@ function inheritedJournalKeys() {
 			keys.push(key);
 	}
 	return keys;
+}
+
+function unownedJournalKeys() {
+	if (!journalHistoryAvailable) return [];
+	const known = new Set([journalKey, ...previousJournalKeys]);
+	const keys: string[] = [];
+	for (let i = 0; i < window.localStorage.length; i++) {
+		const key = window.localStorage.key(i)!;
+		if (key.startsWith(`${legacyJournalKey}-`) && !known.has(key))
+			keys.push(key);
+	}
+	return keys.sort();
+}
+
+/** Adopt abandoned page journals only after earlier tab commits release the lock. */
+export async function recoverUnownedJournals() {
+	if (!journalHistoryAvailable) return;
+	if (!navigator.locks?.request) {
+		if (unownedJournalKeys().length)
+			throw new Error(
+				'A recovery journal from another or closed tab needs attention. Export recovery data before changing browser storage.'
+			);
+		return;
+	}
+	await requestCommitLock(() => {
+		const keys = unownedJournalKeys();
+		if (!keys.length) return;
+		if ([legacyJournalKey, journalKey, ...previousJournalKeys]
+			.some(key => window.localStorage.getItem(key) !== null))
+			throw new Error(
+				'Multiple recovery journals need review. Export recovery data before changing browser storage.'
+			);
+		const changes: Changes = new Map();
+		const journalSnapshots = new Map<string, string | null>();
+		for (const key of keys)
+			for (const [changedKey, value] of readJournal(key, journalSnapshots)) {
+				if (changes.has(changedKey) && changes.get(changedKey) !== value)
+					throw new Error(
+						'Conflicting recovery journals need review. Export recovery data before changing browser storage.'
+					);
+				changes.set(changedKey, value);
+			}
+		if (!changes.size) {
+			for (const [key, snapshot] of journalSnapshots)
+				if (window.localStorage.getItem(key) === snapshot)
+					window.localStorage.removeItem(key);
+			if (unownedJournalKeys().length)
+				throw new Error(
+					'A recovery journal changed during replay. Export recovery data before changing browser storage.'
+				);
+			return;
+		}
+		pending = changes;
+		flushStorageChangesUnderLock(keys, journalSnapshots);
+		if (unownedJournalKeys().length)
+			throw new Error(
+				'A recovery journal changed during replay. Export recovery data before changing browser storage.'
+			);
+	});
 }
 const eventName = 'twine-studio-storage-status';
 type Changes = Map<string, string | null>;
@@ -59,6 +138,7 @@ const orphanDraftIds = new Set<string>();
 const unreadableStoryRecords = new Set<string>();
 let observedJournal: string | null = null;
 const observedStories = new Map<string, string | null>();
+let lockRequestPending = false;
 const conflictMessage =
 	'Another tab changed saved stories. This tab cannot safely save over that version.';
 const unreadableMessage =
@@ -213,7 +293,7 @@ function notify() {
 }
 
 export function getStorageStatus() {
-	return {dirty: storyConflict || unreadableStoryRecords.size > 0 || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0, unreadableStoryRecords: unreadableStoryRecords.size > 0};
+	return {dirty: storyConflict || unreadableStoryRecords.size > 0 || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, saving: lockRequestPending && !storyConflict, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0, unreadableStoryRecords: unreadableStoryRecords.size > 0};
 }
 
 /** Stop story saves when indexed records could not be loaded without data loss. */
@@ -276,18 +356,27 @@ export function readStorageItem(key: string): string | null {
 		: window.localStorage.getItem(key);
 }
 
-export function commitStorageChanges(changes: Changes) {
-	// Reject programmer errors before adding them to the recoverable queue.
-	for (const key of changes.keys())
-		if (!validKey(key)) throw new Error('Invalid storage transaction key.');
-	checkStoryStorageGuard(new Map([...pending, ...changes]));
+function flushStorageChangesUnderLock(
+	extraInheritedKeys: string[] = [],
+	expectedJournalSnapshots?: Map<string, string | null>
+) {
+	checkStoryStorageGuard(pending);
 	const recoveredJournals = new Map<string, string | null>();
-	const inheritedKeys = inheritedJournalKeys();
-	pending = new Map([...outstanding(recoveredJournals, inheritedKeys), ...changes]);
+	const inheritedKeys = [...inheritedJournalKeys(), ...extraInheritedKeys];
+	pending = new Map([...outstanding(recoveredJournals, inheritedKeys), ...pending]);
+	if (expectedJournalSnapshots)
+		for (const [key, expected] of expectedJournalSnapshots)
+			if (recoveredJournals.get(key) !== expected)
+				throw new Error(
+					'A recovery journal changed during replay. Export recovery data before changing browser storage.'
+				);
 	if (!pending.size) return;
+	checkStoryStorageGuard(pending);
 	durable = false;
 	try {
-		// setItem is atomic: quota failure here leaves every existing record intact.
+		// Another edit may have joined the queue after the pre-lock journal was
+		// written, or its attempted journal update may have failed. Make the
+		// complete current queue durable before touching any record.
 		const serializedJournal = JSON.stringify({
 			version: 2,
 			changes: [...pending],
@@ -338,6 +427,64 @@ export function commitStorageChanges(changes: Changes) {
 		notify();
 		throw cause;
 	}
+}
+
+function queueStorageFlush() {
+	if (lockRequestPending || !pending.size || storyConflict) return;
+	if (!navigator.locks?.request) {
+		error = 'This browser cannot coordinate safe saves between tabs. Export a backup before leaving.';
+		notify();
+		throw new Error(error);
+	}
+	lockRequestPending = true;
+	try {
+		void requestCommitLock(() => {
+			try {
+				flushStorageChangesUnderLock();
+			} finally {
+				lockRequestPending = false;
+			}
+		}).catch(cause => {
+			lockRequestPending = false;
+			error = (cause as Error).message || 'Browser storage could not save changes.';
+			notify();
+		});
+	} catch (cause) {
+		lockRequestPending = false;
+		error = (cause as Error).message || 'Browser storage could not save changes.';
+		notify();
+		throw cause;
+	}
+}
+
+export function commitStorageChanges(changes: Changes) {
+	// Reject programmer errors before adding them to the recoverable queue.
+	for (const key of changes.keys())
+		if (!validKey(key)) throw new Error('Invalid storage transaction key.');
+	checkStoryStorageGuard(new Map([...pending, ...changes]));
+	const inheritedKeys = inheritedJournalKeys();
+	pending = new Map([...outstanding(undefined, inheritedKeys), ...changes]);
+	if (!pending.size) return;
+	durable = false;
+	try {
+		// The per-tab journal makes this update durable even if the page exits
+		// while the asynchronous Web Lock request is still waiting.
+		const serializedJournal = JSON.stringify({
+			version: 2,
+			changes: [...pending],
+			bases: [...pending.keys()].map(key => [key, window.localStorage.getItem(key)])
+		});
+		window.localStorage.setItem(journalKey, serializedJournal);
+		if (storyGuardActive) observedJournal = serializedJournal;
+		durable = true;
+		if (!unreadableStoryRecords.size) error = '';
+		notify();
+	} catch (cause) {
+		error = (cause as Error).message || 'Browser storage could not save changes.';
+		notify();
+		throw cause;
+	}
+	queueStorageFlush();
 }
 
 export function retryStorageChanges() {

@@ -12,8 +12,14 @@ Before existing records are changed, Studio writes that set to a page-specific
 readable for recovery. A version-one journal without original record values is
 cleared only when its records already match; otherwise startup stops and offers
 the raw rescue export, because replay could erase a newer tab's work. If the
-journal cannot be written, the old
-records stay intact and the latest changes remain in memory. If a later record
+journal cannot be written, the old records stay intact and the latest changes
+remain in memory. Each journal is written before requesting an exclusive
+browser Web Lock. The callback rechecks loaded story versions and journal bases
+and rewrites the complete pending journal before changing records, so
+cooperating tabs cannot both commit stale versions or apply an unjournaled edit.
+If the lock request fails or Web Locks are unavailable, the records stay intact
+and the journal remains available for retry or raw export. A lock request that
+waits longer than 15 seconds stops with a retryable error. If a later record
 write fails, loading overlays the durable journal onto the records, preventing
 a partially written story or index from becoming the visible state.
 The page keeps a session history of journal owners so a second reload before
@@ -22,6 +28,10 @@ journal only when its bytes still match the version applied by that commit.
 When session storage is unavailable, recovery scans the page-specific journal
 keys in local storage; a unit test verifies a durable interrupted save across
 reload in that condition. This fallback is not cross-tab coordination.
+When session history is available, a fresh tab waits for earlier lock holders,
+then replays a valid abandoned journal under the lock before opening the Library.
+If that journal conflicts with newer records, or multiple journals disagree,
+startup stops and offers raw recovery export without changing their bytes.
 
 A persistent recovery panel offers retry and an HTML archive of the current
 stories. Continued edits merge into the pending change set. Browser navigation
@@ -40,9 +50,10 @@ partial Library view cannot replace the saved index. The HTML story backup only
 contains records that could be opened; the raw export retains the original
 storage bytes for investigation and repair.
 
-The journal requires extra browser storage while saving. This is not an atomic
-multi-tab transaction protocol or a substitute for
-external backups. Browser eviction, cleared site data, forced process kills
+The journal requires extra browser storage while saving. Web Locks coordinate
+Studio tabs using the same browser storage origin; they do not protect against
+other same-origin scripts or replace external backups. Browser eviction,
+cleared site data, forced process kills
 before a typing flush, and hardware/power failures remain outside this guarantee.
 Raw rescue JSON includes session drafts for recovery investigation; ordinary Library Import
 accepts the HTML story backup, not that diagnostic JSON.

@@ -29,7 +29,8 @@ export const StorageStatus: React.FC = () => {
 		? 'studio.storage.orphanDraftTitle'
 		: status.recoveredDraftConflict
 		? 'studio.storage.draftConflictTitle'
-		: status.conflict ? 'studio.storage.conflictTitle' : 'studio.storage.unsaved';
+		: status.conflict ? 'studio.storage.conflictTitle'
+		: status.saving ? 'studio.storage.saving' : 'studio.storage.unsaved';
 	const helpKey = status.unreadableStoryRecords
 		? 'studio.storage.unreadableStoryHelp'
 		: status.orphanDrafts
@@ -38,13 +39,14 @@ export const StorageStatus: React.FC = () => {
 		? 'studio.storage.draftConflictHelp'
 		: status.conflict
 			? 'studio.storage.conflictHelp'
+			: status.saving ? 'studio.storage.savingHelp'
 			: status.durable ? 'studio.storage.recovered' : 'studio.storage.keepOpen';
 	return (
-		<aside className="storage-status" role="alert">
+		<aside className="storage-status" role={status.saving ? 'status' : 'alert'}>
 			<strong>{t(titleKey)}</strong>
 			<p>{t(helpKey)}</p>
 			{!status.conflict && status.error && <p>{status.error}</p>}
-			{!status.conflict && !status.orphanDrafts && !status.unreadableStoryRecords && <button
+			{!status.conflict && !status.saving && !status.orphanDrafts && !status.unreadableStoryRecords && <button
 				onClick={() => {
 					try {
 						retryStorageChanges();
@@ -67,12 +69,12 @@ export const StorageStatus: React.FC = () => {
 			>
 				{t('studio.storage.export')}
 			</button>
-			{(status.orphanDrafts || status.unreadableStoryRecords) && <button onClick={() =>
+			<button onClick={() =>
 				saveAs(
 					new Blob([exportStorageRecovery()], {type: 'application/json'}),
 					'Twine Studio recovery.json'
 				)
-			}>{t('studio.storage.exportRaw')}</button>}
+			}>{t('studio.storage.exportRaw')}</button>
 			{status.orphanDrafts && !status.unreadableStoryRecords && <button onClick={discardOrphanEditorDrafts}>
 				{t('studio.storage.discardOrphanDrafts')}
 			</button>}

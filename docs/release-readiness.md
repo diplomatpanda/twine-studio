@@ -7,9 +7,9 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **265 suites and 1,945 tests**, with 4
-  skipped and 41 TODOs. It includes the page-exit and editor-draft recovery
-  changes.
+- The latest full Jest checkpoint passed **266 suites and 1,958 tests**, with 4
+  skipped and 41 TODOs. It includes the browser lock and closed-tab journal
+  recovery changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -88,8 +88,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   Firefox and WebKit. Legacy version-one journals lack base values, so Studio
   now clears them only when the target records already match. If they differ,
   startup preserves both versions and offers raw recovery export. The legacy
-  conflict journey passes in Chromium, Firefox and WebKit. Live commits still
-  need an atomic cross-tab lock.
+  conflict journey passes in Chromium, Firefox and WebKit.
 - Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery
@@ -97,8 +96,15 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   journal remains readable after reload. Unit tests also verify recovery across
   two reloads before retry and preserve a duplicated tab's inherited journal if
   its owner writes a newer version during another tab's commit. A unit test
-  verifies journal recovery when session storage is blocked. This is a
-  sequential stale-write guard, not an atomic cross-tab transaction guarantee.
+  verifies journal recovery when session storage is blocked. Browser commits
+  now take an exclusive Web Lock and recheck story versions before record writes.
+  A held-lock journey confirms that two queued same-passage saves cannot both
+  commit, while the second journal remains intact, in all three engines. A
+  closed-tab journal with no session history now replays under that lock when
+  its bases still match. Conflicting or unverifiable journals stop startup and
+  offer raw export. A fresh tab waits for an active tab's queued commit before
+  classifying its journal. The two affected browser files pass **54 tests** across
+  Chromium, Firefox and WebKit on this revision.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
@@ -137,9 +143,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   future provider credentials outside that renderer. See story-format-trust.md.
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
-- Simultaneous browser writes still lack an atomic cross-tab lock. Duplicated-tab
-  journal cleanup is version-checked, but full concurrent editing and journal
-  handoff still need stronger validation.
+- Browser commits are serialized by Web Locks in supported secure contexts.
+  Duplicated-tab journal handoff and recovery when Web Locks are unavailable
+  still need stronger validation. Closed-tab journals are replayed only when
+  their recorded bases are compatible; ambiguous journals require raw export.
   Firefox's normal reload-before-debounce journey passed ten focused repeats.
   Session drafts cover the observed missing unload warning, but tab closure,
   blocked or exhausted session storage, and concurrent saves still need
