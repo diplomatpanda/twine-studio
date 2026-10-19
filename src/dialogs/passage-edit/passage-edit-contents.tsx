@@ -14,8 +14,10 @@ import {StoryFormatToolbar} from './story-format-toolbar';
 import './passage-edit-contents.css';
 import {usePrefsContext} from '../../store/prefs';
 import {PassageAiReview} from './passage-ai-review';
+import {PassageLinks} from './passage-links';
 
 export interface PassageEditContentsProps {
+	backPassageId?: string;
 	disabled?: boolean;
 	passageId: string;
 	storyId: string;
@@ -24,7 +26,7 @@ export interface PassageEditContentsProps {
 export const PassageEditContents: React.FC<
 	PassageEditContentsProps
 > = props => {
-	const {disabled, passageId, storyId} = props;
+	const {backPassageId, disabled, passageId, storyId} = props;
 	const [storyFormatExtensionsEnabled, setStoryFormatExtensionsEnabled] =
 		React.useState(true);
 	const [editorCrashed, setEditorCrashed] = React.useState(false);
@@ -116,6 +118,11 @@ export const PassageEditContents: React.FC<
 					storyFormat={storyFormat}
 				/>
 			)}
+			{!disabled && <PassageLinks
+				backPassageId={backPassageId}
+				passage={passage}
+				story={story}
+			/>}
 			<ErrorBoundary>
 				<PassageText
 					disabled={disabled}

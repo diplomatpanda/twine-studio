@@ -673,6 +673,17 @@
 			"insertSet": "Insert choices",
 			"unsupported": "The choice helper supports Harlowe 3 and SugarCube 2. You can still write links directly in the source for this format.",
 			"undo": "Add choice"
+		},
+		"passageLinks": {
+			"title": "Connections ({{count}})",
+			"back": "Back to {{name}}",
+			"start": "Start passage",
+			"outgoing": "Links from here",
+			"incoming": "Links to here",
+			"none": "None yet",
+			"create": "Create and open",
+			"createNamed": "Create and open {{name}}",
+			"createUndo": "Create linked passage"
 		}
 	}
 }

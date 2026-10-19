@@ -115,7 +115,11 @@ const InnerPassageEditStack: React.FC<PassageEditStackProps> = props => {
 							maximizable
 							onClose={event => handleClose(passageId, event)}
 						>
-							<PassageEditContents passageId={passageId} storyId={storyId} />
+							<PassageEditContents
+								backPassageId={passageIds[1]}
+								passageId={passageId}
+								storyId={storyId}
+							/>
 						</DialogCard>
 					);
 				})}
