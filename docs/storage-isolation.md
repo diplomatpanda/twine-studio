@@ -52,9 +52,14 @@ localStorage journal is full or session storage is unavailable. Startup reads
 these checkpoints before journal recovery or showing passages, so raw export on
 an early startup error can include them. Distinct drafts from different tabs
 remain separate in the raw recovery export; ambiguous drafts stop story writes
-until reviewed. A successfully saved passage removes only checkpoints whose
-text matches the saved version. IndexedDB writes are asynchronous and can also
-be denied, exhausted or interrupted before commit, so this does not replace an
+until reviewed. The recovery panel shows each valid checkpoint's text and allows
+the writer to discard one exact version after a separate confirmation. It checks
+the complete stored record before deletion, leaves changed records in place,
+and keeps the in-memory export copy if deletion fails. Reload after review to
+reassess unresolved warnings. A successfully saved passage removes only
+checkpoints whose text matches the saved version. IndexedDB writes are
+asynchronous and can also be denied, exhausted or interrupted before commit,
+so this does not replace an
 external backup. A draft whose passage or story no longer loads raises a warning
 with a raw recovery export containing its bytes. An invalid
 journal stops loading and offers a raw JSON rescue export without deleting data.

@@ -109,6 +109,11 @@ close without an unload event in Chromium, Firefox and WebKit. Distinct drafts
 from competing tabs remain in raw export and block story writes. A normal save
 clears matching checkpoints. Abrupt close before IndexedDB commits, denied or
 full IndexedDB, and real concurrent failures remain unverified.
+Denied localStorage reads no longer prevent the IndexedDB checkpoint from being
+queued. Recovery now shows valid durable draft text with exact-record discard;
+the writer can clear one conflicting or orphaned version after review without
+deleting another tab's changed draft. Ambiguous drafts keep story writes blocked
+until the recovery state is reloaded.
 Indexed story and passage records that cannot be opened now raise a visible raw
 recovery export and stop story saves; the malformed-story journey passes in all
 three browser engines.

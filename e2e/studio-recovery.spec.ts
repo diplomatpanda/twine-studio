@@ -64,6 +64,12 @@ test('a fresh tab replays a journal left by a closed tab', async ({page, context
 		.find(key => key.startsWith('twine-studio-passages-'))!);
 	await expect.poll(() => page.evaluate(key => localStorage.getItem(key), passageKey))
 		.not.toBeNull();
+	await expect.poll(() => page.evaluate(key => {
+		const passageId = key.slice('twine-studio-passages-'.length);
+		return localStorage.getItem('twine-studio-passages')?.split(',').includes(passageId) &&
+			!Object.keys(localStorage).some(candidate =>
+				candidate.startsWith('twine-studio-pending-transaction-'));
+	}, passageKey)).toBe(true);
 	await page.evaluate(({passageKey, journalKey}) => {
 		const base = localStorage.getItem(passageKey)!;
 		const intended = JSON.stringify({...JSON.parse(base), text: 'closed tab draft'});
@@ -295,6 +301,40 @@ test('recovers a quota-failed passage draft after the tab closes', async ({page,
 		.toContainText(sentence);
 });
 
+test('checkpoints writing when a saved-passage read is denied', async ({page, context}) => {
+	const sentence = 'Recover writing after a denied storage read.';
+	await createDraft(page);
+	await page.evaluate(() => {
+		const original = Storage.prototype.getItem;
+		Storage.prototype.getItem = function (key) {
+			if (this === localStorage && key.startsWith('twine-studio-passages-'))
+				throw new DOMException('Storage read denied', 'SecurityError');
+			return original.call(this, key);
+		};
+	});
+	await page.getByLabel('Passage Text', {exact: true}).fill(sentence);
+	await expect.poll(() => page.evaluate(async expected => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		return new Promise<boolean>(resolve => {
+			request.onerror = () => resolve(false);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readonly');
+				const read = transaction.objectStore('drafts').getAll();
+				read.onsuccess = () => resolve(read.result.some(draft => draft.text === expected));
+				read.onerror = () => resolve(false);
+				transaction.oncomplete = () => db.close();
+			};
+		});
+	}, sentence)).toBe(true);
+	await page.close({runBeforeUnload: false});
+	const fresh = await context.newPage();
+	await fresh.goto('http://127.0.0.1:5189');
+	await fresh.getByRole('button', {name: 'Recovery draft', exact: true}).dblclick();
+	await expect(fresh.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText(sentence);
+});
+
 test('keeps competing durable drafts separate for recovery export', async ({page}) => {
 	await createDraft(page);
 	const passageKey = await page.evaluate(() => Object.keys(localStorage)
@@ -335,6 +375,26 @@ test('keeps competing durable drafts separate for recovery export', async ({page
 		.not.toContain('First tab draft');
 	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
 		.not.toContain('Second tab draft');
+	const firstDraft = warning.locator('details').filter({hasText: 'First tab draft'});
+	await firstDraft.locator('summary').click();
+	await firstDraft.getByRole('button', {name: 'Discard this draft'}).click();
+	await firstDraft.getByRole('button', {name: 'Confirm discard'}).click();
+	await expect(warning.getByRole('status')).toContainText('Draft removed');
+	await expect.poll(() => page.evaluate(async () => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		return new Promise<string[]>(resolve => {
+			request.onerror = () => resolve([]);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readonly');
+				const read = transaction.objectStore('drafts').getAll();
+				read.onsuccess = () => resolve(read.result.map(draft => draft.text));
+				read.onerror = () => resolve([]);
+				transaction.oncomplete = () => db.close();
+			};
+		});
+	})).toEqual(['Second tab draft']);
+	await expect(warning).toBeVisible();
 	await page.getByRole('button', {name: 'Untitled Passage', exact: true}).dblclick();
 	await page.getByLabel('Passage Text', {exact: true}).fill('Another edit after recovery');
 	await expect(warning).toBeVisible();
@@ -361,6 +421,53 @@ test('clears an emergency draft after an ordinary successful save', async ({page
 			};
 		});
 	})).toBe(0);
+});
+
+test('cleanup preserves a newer draft with the same text but a changed baseline', async ({page}) => {
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	await page.evaluate(async () => {
+		const moduleUrl = '/src/store/persistence/local-storage/durable-editor-drafts.ts';
+		const drafts = await import(/* @vite-ignore */ moduleUrl);
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+		const put = (baseText: string) => new Promise<void>((resolve, reject) => {
+			const transaction = db.transaction('drafts', 'readwrite');
+			transaction.objectStore('drafts').put({
+				id: 'same-owner:passage', owner: 'same-owner', version: 1,
+				storyId: 'story', passageId: 'passage', baseText, text: 'Same draft text'
+			});
+			transaction.oncomplete = () => resolve();
+			transaction.onerror = () => reject(transaction.error);
+		});
+		await put('Old baseline');
+		await drafts.loadDurableEditorDrafts();
+		await put('New baseline');
+		drafts.clearSavedDurableEditorDrafts('passage', 'Same draft text');
+		db.close();
+	});
+	await expect.poll(() => page.evaluate(async () => {
+		const moduleUrl = '/src/store/persistence/local-storage/durable-editor-drafts.ts';
+		const drafts = await import(/* @vite-ignore */ moduleUrl);
+		return drafts.exportDurableEditorDrafts()['same-owner:passage']?.baseText;
+	})).toBe('New baseline');
+	expect(await page.evaluate(async () => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		return new Promise<string | undefined>(resolve => {
+			request.onerror = () => resolve(undefined);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readonly');
+				const read = transaction.objectStore('drafts').get('same-owner:passage');
+				read.onsuccess = () => resolve(read.result?.baseText);
+				read.onerror = () => resolve(undefined);
+				transaction.oncomplete = () => db.close();
+			};
+		});
+	})).toBe('New baseline');
 });
 
 async function createDraft(page: Page) {
@@ -454,6 +561,47 @@ test('a recovered editor draft cannot replace a newer saved passage', async ({pa
 		.toHaveCount(0);
 });
 
+test('a reviewed durable conflict can be discarded without changing saved writing', async ({page}) => {
+	await createDraft(page);
+	await page.evaluate(async () => {
+		const key = Object.keys(localStorage)
+			.find(candidate => candidate.startsWith('twine-studio-passages-'))!;
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		await new Promise<void>((resolve, reject) => {
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readwrite');
+				transaction.objectStore('drafts').put({
+					id: `closed-tab:${passage.id}`, owner: 'closed-tab', version: 1,
+					storyId: passage.story, passageId: passage.id,
+					baseText: passage.text, text: 'Recovered from the closed tab.'
+				});
+				transaction.oncomplete = () => {db.close(); resolve();};
+				transaction.onerror = () => reject(transaction.error);
+			};
+		});
+		localStorage.setItem(key, JSON.stringify({...passage,
+			text: 'The saved passage is newer.'}));
+	});
+	await page.reload();
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Recovered writing differs from the saved story'});
+	await expect(warning).toBeVisible();
+	const draft = warning.locator('details');
+	await draft.locator('summary').click();
+	await expect(draft).toContainText('Recovered from the closed tab.');
+	await draft.getByRole('button', {name: 'Discard this draft'}).click();
+	await draft.getByRole('button', {name: 'Confirm discard'}).click();
+	await expect(warning.getByRole('status')).toContainText('Draft removed');
+	page.on('dialog', dialog => dialog.accept());
+	await warning.getByRole('button', {name: 'Reload after review'}).click();
+	await expect(page.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText('The saved passage is newer.');
+	await expect(warning).toHaveCount(0);
+});
+
 test('an orphaned editor draft remains available in raw recovery', async ({page}) => {
 	await createDraft(page);
 	await page.evaluate(() => {
@@ -476,6 +624,44 @@ test('an orphaned editor draft remains available in raw recovery', async ({page}
 	const recovery = await readFile((await (await downloadPromise).path())!, 'utf8');
 	expect(recovery).toContain('Writing from a deleted passage.');
 	await warning.getByRole('button', {name: 'Discard orphaned drafts'}).click();
+	await expect(warning).toHaveCount(0);
+});
+
+test('a reviewed durable orphan can be discarded', async ({page}) => {
+	await createDraft(page);
+	await page.evaluate(async () => {
+		const key = Object.keys(localStorage)
+			.find(candidate => candidate.startsWith('twine-studio-passages-'))!;
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		await new Promise<void>((resolve, reject) => {
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readwrite');
+				transaction.objectStore('drafts').put({
+					id: `closed-tab:${passage.id}`, owner: 'closed-tab', version: 1,
+					storyId: passage.story, passageId: passage.id,
+					baseText: passage.text, text: 'Writing from the removed passage.'
+				});
+				transaction.oncomplete = () => {db.close(); resolve();};
+				transaction.onerror = () => reject(transaction.error);
+			};
+		});
+		localStorage.removeItem(key);
+		localStorage.setItem('twine-studio-passages', '');
+	});
+	await page.reload();
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Recovered writing has no saved passage'});
+	await expect(warning).toBeVisible();
+	const draft = warning.locator('details');
+	await draft.locator('summary').click();
+	await expect(draft).toContainText('Writing from the removed passage.');
+	await draft.getByRole('button', {name: 'Discard this draft'}).click();
+	await draft.getByRole('button', {name: 'Confirm discard'}).click();
+	await expect(warning.getByRole('status')).toContainText('Draft removed');
+	await warning.getByRole('button', {name: 'Reload after review'}).click();
 	await expect(warning).toHaveCount(0);
 });
 

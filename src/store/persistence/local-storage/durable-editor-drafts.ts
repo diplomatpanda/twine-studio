@@ -27,6 +27,12 @@ function validDraft(value: unknown): value is DurableEditorDraft {
 		draft.id === `${draft.owner}:${draft.passageId}`;
 }
 
+function sameDraft(left: DurableEditorDraft, right: DurableEditorDraft) {
+	return left.id === right.id && left.owner === right.owner &&
+		left.storyId === right.storyId && left.passageId === right.passageId &&
+		left.baseText === right.baseText && left.text === right.text;
+}
+
 function database() {
 	let indexedDB: IDBFactory;
 	try {
@@ -120,6 +126,10 @@ export function exportDurableEditorDrafts() {
 	return Object.fromEntries(drafts);
 }
 
+export function listDurableEditorDrafts() {
+	return [...drafts.values()].filter(validDraft);
+}
+
 export function currentDurableEditorDraft(passageId: string) {
 	const value = drafts.get(`${owner}:${passageId}`);
 	return validDraft(value) ? value : undefined;
@@ -129,34 +139,55 @@ export function hasUnreadableDurableEditorDrafts() {
 	return [...drafts.values()].some(value => !validDraft(value));
 }
 
-function deleteDraft(id: string, text?: string) {
-	return enqueue(id, async () => {
+function deleteDraft(expected: DurableEditorDraft) {
+	let removed = false;
+	return enqueue(expected.id, async () => {
 		const db = await database();
 		if (!db) return;
 		await new Promise<void>(resolve => {
 			try {
 				const transaction = db.transaction(storeName, 'readwrite');
 				const store = transaction.objectStore(storeName);
-				const request = store.get(id);
+				const request = store.get(expected.id);
+				let matched = false;
+				let replacement: unknown;
 				request.onsuccess = () => {
 					const current = request.result as unknown;
-					if (current && (text === undefined ||
-						(validDraft(current) && current.text === text))) store.delete(id);
+					if (!current || (validDraft(current) && sameDraft(current, expected))) {
+						matched = true;
+						if (current) store.delete(expected.id);
+					} else replacement = current;
 				};
-				transaction.oncomplete = () => resolve();
+				transaction.oncomplete = () => {
+					removed = matched;
+					if (replacement && drafts.get(expected.id) === expected)
+						drafts.set(expected.id, replacement);
+					resolve();
+				};
 				transaction.onerror = () => resolve();
 				transaction.onabort = () => resolve();
 			} catch {
 				resolve();
 			}
 		});
-	});
+	}).then(() => removed);
 }
 
 export function clearSavedDurableEditorDrafts(passageId: string, savedText: string) {
 	for (const [id, value] of drafts)
 		if (validDraft(value) && value.passageId === passageId && value.text === savedText) {
-			drafts.delete(id);
-			void deleteDraft(id, savedText);
+			const expected = value;
+			void deleteDraft(expected).then(removed => {
+				if (removed && drafts.get(id) === expected) drafts.delete(id);
+			});
 		}
+}
+
+/** Discard exactly the version the writer reviewed, never a newer tab's draft. */
+export async function discardDurableEditorDraft(expected: DurableEditorDraft) {
+	if (!validDraft(expected) || drafts.get(expected.id) !== expected) return false;
+	const removed = await deleteDraft(expected);
+	if (!removed || drafts.get(expected.id) !== expected) return false;
+	drafts.delete(expected.id);
+	return true;
 }

@@ -87,6 +87,33 @@ describe('browser editor draft recovery', () => {
 		expect(tx.getStorageStatus().recoveredDraftConflict).toBe(true);
 	});
 
+	it('starts the next draft from newly saved text while old cleanup is pending', () => {
+		drafts.saveEditorDraft(story.passages[0], 'first saved edit');
+		window.localStorage.setItem(passageKey, JSON.stringify({
+			...story.passages[0], text: 'first saved edit'
+		}));
+		drafts.saveEditorDraft(
+			{...story.passages[0], text: 'first saved edit'},
+			'second unsaved edit'
+		);
+		expect(drafts.readEditorDraft(story.passages[0])?.baseText)
+			.toBe('first saved edit');
+	});
+
+	it('does not discard a session draft that changed during review', () => {
+		drafts.saveEditorDraft(story.passages[0], 'latest writing');
+		expect(drafts.clearMatchingEditorDraft({
+			version: 1, storyId: story.id, passageId: story.passages[0].id,
+			baseText: 'saved base', text: 'older writing'
+		})).toBe(false);
+		expect(drafts.readEditorDraft(story.passages[0])?.text).toBe('latest writing');
+		expect(drafts.clearMatchingEditorDraft({
+			version: 1, storyId: story.id, passageId: story.passages[0].id,
+			baseText: 'saved base', text: 'latest writing'
+		})).toBe(true);
+		expect(drafts.readEditorDraft(story.passages[0])).toBeUndefined();
+	});
+
 	it('shows raw recovery when a draft passage was deleted', async () => {
 		drafts.saveEditorDraft(story.passages[0], 'writing before deletion');
 		window.localStorage.removeItem(passageKey);

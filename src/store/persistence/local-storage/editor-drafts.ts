@@ -18,8 +18,11 @@ function draftKey(passageId: string) {
 
 /** Keep the latest keystrokes in this tab before the debounced story save runs. */
 export function saveEditorDraft(passage: Passage, text: string) {
-	clearSavedEditorDraft(passage);
-	const previous = readEditorDraft(passage) ?? currentDurableEditorDraft(passage.id);
+	const savedText = clearSavedEditorDraft(passage);
+	const sessionDraft = readEditorDraft(passage);
+	const durableDraft = currentDurableEditorDraft(passage.id);
+	const previous = (sessionDraft?.text === savedText ? undefined : sessionDraft) ??
+		(durableDraft?.text === savedText ? undefined : durableDraft);
 	const draft: EditorDraft = {
 		version: 1,
 		storyId: passage.story,
@@ -55,14 +58,20 @@ export function readEditorDraft(passage: Passage): EditorDraft | undefined {
 
 export function clearSavedEditorDraft(passage: Passage) {
 	const draft = readEditorDraft(passage);
-	const saved = window.localStorage.getItem(storageKey('passages', passage.id));
-	if (!saved) return;
 	try {
+		const saved = window.localStorage.getItem(storageKey('passages', passage.id));
+		if (!saved) return;
 		const savedText = JSON.parse(saved).text;
 		if (typeof savedText !== 'string') return;
-		if (draft && savedText === draft.text)
-			window.sessionStorage.removeItem(draftKey(passage.id));
+		if (draft && savedText === draft.text) {
+			try {
+				window.sessionStorage.removeItem(draftKey(passage.id));
+			} catch {
+				// A blocked session store must not prevent durable cleanup.
+			}
+		}
 		clearSavedDurableEditorDrafts(passage.id, savedText);
+		return savedText;
 	} catch {
 		// Keep the draft if the saved record cannot be read.
 	}
@@ -77,6 +86,24 @@ export function clearEditorDraft(passageId: string) {
 		sessionCleared = false;
 	}
 	return sessionCleared;
+}
+
+export function clearMatchingEditorDraft(expected: EditorDraft) {
+	try {
+		const key = draftKey(expected.passageId);
+		const raw = window.sessionStorage.getItem(key);
+		if (!raw) return true;
+		const current = JSON.parse(raw) as EditorDraft;
+		if (current.version !== expected.version ||
+			current.storyId !== expected.storyId ||
+			current.passageId !== expected.passageId ||
+			current.baseText !== expected.baseText ||
+			current.text !== expected.text) return false;
+		window.sessionStorage.removeItem(key);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export function exportEditorDrafts() {

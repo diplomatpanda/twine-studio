@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **266 suites and 1,965 tests**, with 4
+- The latest full Jest checkpoint passed **266 suites and 1,967 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
   recovery, and duplicated-tab guard changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
@@ -105,9 +105,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   closed-tab journal with no session history now replays under that lock when
   its bases still match. Conflicting or unverifiable journals stop startup and
   offer raw export. A fresh tab waits for an active tab's queued commit before
-  classifying its journal. The two affected browser files pass **69 tests** across
-  Chromium, Firefox and WebKit; an additional early-startup IndexedDB export
-  journey passes in all three engines.
+  classifying its journal. The two affected browser files pass **84 tests** across
+  Chromium, Firefox and WebKit, including early-startup IndexedDB export,
+  exact-draft recovery review, blocked reads and a newer-draft cleanup race.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
@@ -161,9 +161,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   clear matching checkpoints. IndexedDB can also be denied, exhausted or
   interrupted before its asynchronous commit, so abrupt close at that boundary,
   real storage exhaustion and simultaneous saves still need stronger failure
-  testing before release. Durable orphan or conflicting drafts currently offer
-  raw export but no in-app resolution after review; clearing them requires
-  manual storage repair.
+  testing before release. Durable orphan or conflicting drafts now show their
+  text and can be discarded one at a time after review; the delete compares the
+  complete stored record, so a newer version remains untouched. A guided merge
+  or restore of a selected conflicting draft is still pending.
   When session storage is blocked, startup now replays a single compatible
   abandoned journal under the Web Lock and stops for raw export if two journals
   contain different drafts of the same record. Without Web Locks, a pending
