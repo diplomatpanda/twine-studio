@@ -5,6 +5,7 @@ import {
 	parseNewBranchProposal,
 	parsePassageEditProposal,
 	parseTwoWayBranchProposal,
+	selectTwoWayBranchChoices,
 	PassageEditSnapshot
 } from '../passage-edit-proposal';
 
@@ -116,11 +117,30 @@ describe('AI two-way branch proposal boundary', () => {
 		const {story, snapshot, response} = fixture(format);
 		const proposal = parseTwoWayBranchProposal(response(), snapshot, story);
 		expect(proposal.operation.proposedText).toBe(`A fork in the road.\n${links}`);
-		expect(proposal.newPassages).toEqual([{name: 'Cabin'}, {name: 'Road'}]);
+		expect(proposal.newPassages).toEqual([
+			{name: 'Cabin', label: 'Investigate the cabin'},
+			{name: 'Road', label: 'Continue down the road'}
+		]);
 		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(true);
 		expect(canApplyPassageEdit(snapshot, {...story, passages: [...story.passages]}, story.passages[0], proposal)).toBe(false);
 		story.passages.push({...story.passages[0], id: 'other', name: 'Road'});
 		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(false);
+	});
+
+	it('builds the exact accepted source for either selected route', () => {
+		const {story, snapshot, response} = fixture();
+		const proposal = parseTwoWayBranchProposal(response(), snapshot, story);
+		const cabinOnly = selectTwoWayBranchChoices(proposal, snapshot, ['Cabin']);
+		expect(cabinOnly?.operation.proposedText).toBe(
+			'A fork in the road.\n[[Investigate the cabin|Cabin]]'
+		);
+		expect(cabinOnly?.newPassages).toEqual([
+			{name: 'Cabin', label: 'Investigate the cabin'}
+		]);
+		expect(selectTwoWayBranchChoices(proposal, snapshot, ['Road'])?.operation.proposedText)
+			.toBe('A fork in the road.\n[[Continue down the road|Road]]');
+		expect(selectTwoWayBranchChoices(proposal, snapshot, [])).toBeUndefined();
+		expect(selectTwoWayBranchChoices(proposal, snapshot, ['Other'])).toBeUndefined();
 	});
 
 	it('rejects duplicate, reserved, unsafe and unreviewed operations', () => {

@@ -7,6 +7,7 @@ import {
 	parseNewBranchProposal,
 	parsePassageEditProposal,
 	parseTwoWayBranchProposal,
+	selectTwoWayBranchChoices,
 	PassageEditProposal,
 	PassageEditSnapshot
 } from '../../ai/passage-edit-proposal';
@@ -41,6 +42,10 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 	const [error, setError] = React.useState('');
 	const [proposal, setProposal] = React.useState<PassageEditProposal>();
 	const [snapshot, setSnapshot] = React.useState<PassageEditSnapshot>();
+	const [selectedBranchNames, setSelectedBranchNames] = React.useState<string[]>([]);
+	const reviewProposal = snapshot && proposal
+		? selectTwoWayBranchChoices(proposal, snapshot, selectedBranchNames)
+		: undefined;
 	const sessionId = React.useRef(uuid());
 	const requestGeneration = React.useRef(0);
 	const openCredentialWindow = async () => {
@@ -101,6 +106,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		};
 		setSnapshot(source);
 		setProposal(undefined);
+		setSelectedBranchNames([]);
 		setError('');
 		setBusy(true);
 		try {
@@ -120,13 +126,15 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 				} : {})
 			});
 			if (generation === requestGeneration.current) {
-				setProposal(instruction === 'repair-format-syntax'
+				const parsed = instruction === 'repair-format-syntax'
 					? parsePassageEditProposal(raw, source)
 					: instruction === 'propose-conditional-choice'
 						? parseConditionalChoiceProposal(raw, source, story)
 						: instruction === 'propose-new-branch'
 							? parseNewBranchProposal(raw, source, story)
-							: parseTwoWayBranchProposal(raw, source, story));
+							: parseTwoWayBranchProposal(raw, source, story);
+				setProposal(parsed);
+				setSelectedBranchNames(parsed.newPassages?.map(({name}) => name) ?? []);
 			}
 		} catch (cause) {
 			if (generation === requestGeneration.current) {
@@ -138,16 +146,16 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 	}
 
 	function accept() {
-		if (!snapshot || !proposal) return;
-		if (!canApplyPassageEdit(snapshot, story, passage, proposal)) {
+		if (!snapshot || !reviewProposal) return;
+		if (!canApplyPassageEdit(snapshot, story, passage, reviewProposal)) {
 			setError(t('studio.ai.stale'));
 			setProposal(undefined);
 			return;
 		}
 		try {
-			dispatch(proposal.newPassage || proposal.newPassages
-				? newBranchAction(story, passage, proposal)
-				: updatePassage(story, passage, {text: proposal.operation.proposedText}, {dontUpdateOthers: true}),
+			dispatch(reviewProposal.newPassage || reviewProposal.newPassages
+				? newBranchAction(story, passage, reviewProposal)
+				: updatePassage(story, passage, {text: reviewProposal.operation.proposedText}, {dontUpdateOthers: true}),
 			'studio.ai.undo');
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : t('studio.ai.failed'));
@@ -156,7 +164,8 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		onClose();
 	}
 
-	const stale = !!snapshot && !canApplyPassageEdit(snapshot, story, passage, proposal);
+	const stale = !!snapshot && !!reviewProposal &&
+		!canApplyPassageEdit(snapshot, story, passage, reviewProposal);
 	const structuredSupported = supportsChoiceBuilder(story.storyFormat, story.storyFormatVersion);
 
 	return (
@@ -222,18 +231,30 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 					<p>{proposal.summary}</p>
 					<p>{proposal.operation.rationale}</p>
 					{proposal.newPassage && <p>{t('studio.ai.newPassage', {name: proposal.newPassage.name})}</p>}
-						{proposal.newPassages?.map(newPassage =>
-							<p key={newPassage.name}>{t('studio.ai.newPassage', {name: newPassage.name})}</p>
-						)}
+					{proposal.newPassages && <fieldset>
+						<legend>{t('studio.ai.selectBranchChoices')}</legend>
+						{proposal.newPassages.map(newPassage => <label key={newPassage.name}>
+							<input type="checkbox"
+								checked={selectedBranchNames.includes(newPassage.name)}
+								onChange={event => {
+									const checked = event.target.checked;
+									setSelectedBranchNames(current => checked
+										? [...current, newPassage.name]
+										: current.filter(name => name !== newPassage.name));
+								}} />
+							{newPassage.label} → {t('studio.ai.newPassageShort', {name: newPassage.name})}
+						</label>)}
+					</fieldset>}
 					{proposal.warnings.map((warning, index) => (
 						<p key={index}>{warning}</p>
 					))}
 					<div className="passage-ai-review-diff">
 						<div><h5>{t('studio.ai.before')}</h5><pre>{snapshot.text}</pre></div>
-						<div><h5>{t('studio.ai.after')}</h5><pre>{proposal.operation.proposedText}</pre></div>
+						<div><h5>{t('studio.ai.after')}</h5><pre>{reviewProposal?.operation.proposedText ?? snapshot.text}</pre></div>
 					</div>
+					{proposal.newPassages && !reviewProposal && <p role="status">{t('studio.ai.selectOneBranch')}</p>}
 					{stale && <p role="alert">{t('studio.ai.stale')}</p>}
-					<button disabled={stale} onClick={accept} type="button">
+					<button disabled={stale || !reviewProposal} onClick={accept} type="button">
 						{t('studio.ai.accept')}
 					</button>
 					<button onClick={() => setProposal(undefined)} type="button">

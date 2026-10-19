@@ -50,7 +50,10 @@ it('places two empty branches without overlapping the source, blockers or each o
 			proposedText: 'Original\n[[Investigate|Cabin]]\n[[Continue|Road]]',
 			rationale: 'Two destinations.'
 		},
-		warnings: [], newPassages: [{name: 'Cabin'}, {name: 'Road'}]
+		warnings: [], newPassages: [
+			{name: 'Cabin', label: 'Investigate'},
+			{name: 'Road', label: 'Continue'}
+		]
 	};
 	const passages = newBranchAction(story, source, proposal).props.passages!;
 	expect(passages).toHaveLength(4);

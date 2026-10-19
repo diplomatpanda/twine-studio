@@ -22,7 +22,7 @@ export interface PassageEditProposal {
 	warnings: string[];
 	destination?: {id: string; name: string};
 	newPassage?: {name: string};
-	newPassages?: Array<{name: string}>;
+	newPassages?: Array<{name: string; label: string}>;
 }
 
 export interface PassageEditSnapshot {
@@ -286,7 +286,31 @@ export function parseTwoWayBranchProposal(
 			rationale: value.operation.rationale as string
 		},
 		warnings: value.warnings as string[],
-		newPassages: choices.map(({name}) => ({name}))
+		newPassages: choices
+	};
+}
+
+/** Keep the preview and accepted source identical when the author omits a route. */
+export function selectTwoWayBranchChoices(
+	proposal: PassageEditProposal,
+	snapshot: PassageEditSnapshot,
+	selectedNames: string[]
+): PassageEditProposal | undefined {
+	if (!proposal.newPassages) return proposal;
+	if (selectedNames.length < 1 || selectedNames.length > proposal.newPassages.length ||
+		new Set(selectedNames).size !== selectedNames.length) return undefined;
+	const choices = proposal.newPassages.filter(({name}) => selectedNames.includes(name));
+	if (choices.length !== selectedNames.length) return undefined;
+	const source = choiceSetSource(snapshot.storyFormat, snapshot.storyFormatVersion,
+		choices.map(({name, label}) => ({label, destination: name})));
+	return {
+		...proposal,
+		operation: {
+			...proposal.operation,
+			proposedText: snapshot.text +
+				(snapshot.text && !snapshot.text.endsWith('\n') ? '\n' : '') + source
+		},
+		newPassages: choices
 	};
 }
 

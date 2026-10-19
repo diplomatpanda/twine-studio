@@ -22,6 +22,18 @@
 	margin: var(--grid-size) 0;
 }
 
+.passage-ai-review-proposal fieldset {
+	border: 1px solid var(--light-gray);
+	margin: var(--grid-size) 0;
+}
+
+.passage-ai-review-proposal fieldset label {
+	align-items: start;
+	display: flex;
+	gap: calc(var(--grid-size) / 2);
+	margin: calc(var(--grid-size) / 2) 0;
+}
+
 .passage-ai-review-diff {
 	display: grid;
 	gap: var(--grid-size);

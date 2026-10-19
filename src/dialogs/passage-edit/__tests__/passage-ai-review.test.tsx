@@ -1,4 +1,5 @@
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {axe} from 'jest-axe';
 import * as React from 'react';
 import {TwineElectronWindow} from '../../../electron/shared/electron-shared.types';
 import {updatePassage, useStoriesContext} from '../../../store/stories';
@@ -190,7 +191,7 @@ describe('<PassageAiReview>', () => {
 		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).not.toBeNull();
 	});
 
-	it('reviews two new destinations and undoes both links and passages together', async () => {
+	it('previews and accepts only the selected AI route, then undoes it together', async () => {
 		const story = fakeStory(1);
 		story.storyFormat = 'SugarCube';
 		story.storyFormatVersion = '2.36.1';
@@ -210,14 +211,28 @@ describe('<PassageAiReview>', () => {
 		});
 		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.requestTwoWayBranch'}));
 		await screen.findByText('Add two routes.');
+		expect(await axe(document.querySelector('.passage-ai-review') as HTMLElement))
+			.toHaveNoViolations();
 		expect(bridge.requestAiPassageEdit).toHaveBeenCalledWith(expect.objectContaining({
 			instruction: 'propose-two-way-branch', request: 'Offer a cabin and road choice.'
 		}));
-		expect(screen.getAllByText('studio.ai.newPassage')).toHaveLength(2);
+		const cabin = screen.getByRole('checkbox', {name: /Investigate the cabin/});
+		const road = screen.getByRole('checkbox', {name: /Continue down the road/});
+		expect(cabin).toBeChecked();
+		expect(road).toBeChecked();
+		fireEvent.click(road);
+		expect(document.querySelectorAll('.passage-ai-review-diff pre')[1].textContent).toBe(
+			'original macro code\n[[Investigate the cabin|Cabin]]'
+		);
+		expect(document.querySelectorAll('.passage-ai-review-diff pre')[1]).not.toHaveTextContent('Road');
+		fireEvent.click(cabin);
+		expect(screen.getByRole('button', {name: 'studio.ai.accept'})).toBeDisabled();
+		fireEvent.click(cabin);
 		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(1);
 		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('[[Investigate the cabin|Cabin]]');
-		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(3);
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).not.toHaveTextContent('[[Continue down the road|Road]]');
+		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(2);
 		fireEvent.click(screen.getByRole('button', {name: 'Undo proposal'}));
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
 		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(1);
