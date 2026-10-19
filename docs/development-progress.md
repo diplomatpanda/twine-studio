@@ -39,6 +39,13 @@ Status: active development; not release-ready. Baseline is Twine 2.12.1,
     and SugarCube and distinguish hidden from unlocked choices.
 12. A 240-passage HTML import now has search/rename/reference/edit/reload/export
     coverage. Enter with no Go To results no longer raises an exception.
+13. Story maps can focus on a selected passage's static ancestors and
+    descendants, then restore the full map. Focus keeps saved passages and
+    positions intact, limits selection and dragging to visible cards, restores
+    the full map for new passages, and does not mark links to hidden passages as
+    broken. A six-passage Chromium journey
+    checked focus, visible-only Select All, full-map restore and Go To outside
+    the branch. Dynamic links still need author playtesting.
 
 ## Baseline evidence
 

@@ -9,6 +9,7 @@ import {
 	passagesMatchingSearch,
 	passagesMatchingFuzzySearch,
 	passagesMatchingFuzzySearchWithKnowledge,
+	passagesInFocusedBranch,
 	passagesWithoutReferencePath,
 	passagesWithoutStandardLinkPath
 } from '../getters';
@@ -42,6 +43,22 @@ describe('brokenStoryLinks()', () => {
 });
 
 describe('passageConnections()', () => {
+	it('does not mark links to hidden passages as broken', () => {
+		const passage = fakePassage({name: 'Start', selected: false, text: '[[Hidden]] [[Missing]]'});
+		const connections = passageConnections(
+			[passage],
+			undefined,
+			new Set(['Start', 'Hidden'])
+		);
+
+		expect(connections.fixed.broken).toEqual(new Set([passage]));
+		passage.text = '[[Hidden]]';
+		expect(
+			passageConnections([passage], undefined, new Set(['Start', 'Hidden']))
+				.fixed.broken
+		).toEqual(new Set());
+	});
+
 	it('places links between two unselected passages in the fixed property', () => {
 		const passages = [
 			fakePassage({name: 'a', selected: false, text: '[[b]]'}),
@@ -248,6 +265,40 @@ describe('passagesWithoutStandardLinkPath', () => {
 		expect(passagesWithoutStandardLinkPath(story)).toEqual([story.passages[1]]);
 		story.startPassage = 'missing';
 		expect(passagesWithoutStandardLinkPath(story)).toEqual([]);
+	});
+});
+
+describe('passagesInFocusedBranch', () => {
+	it('keeps ancestors and descendants without sibling or disconnected routes', () => {
+		const story = fakeStory(7);
+		const [start, fork, target, ending, sibling, otherSource, disconnected] = story.passages;
+		[start, fork, target, ending, sibling, otherSource, disconnected].forEach((passage, index) => {
+			passage.name = `P${index}`;
+			passage.text = '';
+		});
+		start.text = '[[P1]]';
+		fork.text = '[[P2]] [[P4]]';
+		target.text = '[[P3]]';
+		ending.text = '[[P2]]';
+		otherSource.text = '[[P2]]';
+		expect(passagesInFocusedBranch(story, target.id)).toEqual([
+			start, fork, target, ending, otherSource
+		]);
+		expect(passagesInFocusedBranch(story, 'missing')).toEqual([]);
+	});
+
+	it('uses format references and falls back to ordinary links if its parser fails', () => {
+		const story = fakeStory(3);
+		const [start, target, ending] = story.passages;
+		start.name = 'Start';
+		target.name = 'Target';
+		ending.name = 'Ending';
+		start.text = '(go-to: "Target")';
+		target.text = '[[Ending]]';
+		expect(passagesInFocusedBranch(story, target.id,
+			text => text.includes('(go-to:') ? ['Target'] : [])).toEqual(story.passages);
+		expect(passagesInFocusedBranch(story, target.id,
+			() => {throw new Error('parser failed');})).toEqual([target, ending]);
 	});
 });
 

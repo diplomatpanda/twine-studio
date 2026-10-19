@@ -340,6 +340,11 @@
 	},
 	"routes": {
 		"storyEdit": {
+			"branchFocus": {
+				"focus": "Focus branch",
+				"showAll": "Show full map",
+				"summary": "Branch around {{name}} · {{visible}} of {{total}} passages"
+			},
 			"toolbar": {
 				"findAndReplace": "Find and Replace",
 				"goTo": "Go To",

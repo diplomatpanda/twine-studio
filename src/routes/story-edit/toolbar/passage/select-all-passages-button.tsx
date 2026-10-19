@@ -10,10 +10,11 @@ import {
 
 export interface SelectAllPassagesButtonProps {
 	story: Story;
+	visiblePassageIds?: Set<string>;
 }
 
 export const SelectAllPassagesButton: React.FC<SelectAllPassagesButtonProps> = props => {
-	const {story} = props;
+	const {story, visiblePassageIds} = props;
 	const {dispatch} = useStoriesContext();
 	const {t} = useTranslation();
 
@@ -21,7 +22,9 @@ export const SelectAllPassagesButton: React.FC<SelectAllPassagesButtonProps> = p
 		<IconButton
 			icon={<IconMarquee />}
 			label={t('common.selectAll')}
-			onClick={() => dispatch(selectAllPassages(story))}
+			onClick={() => dispatch(selectAllPassages(visiblePassageIds
+				? {...story, passages: story.passages.filter(passage => visiblePassageIds.has(passage.id))}
+				: story))}
 		/>
 	);
 };

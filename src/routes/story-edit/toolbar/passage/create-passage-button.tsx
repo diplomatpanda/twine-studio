@@ -8,17 +8,19 @@ import {Point} from '../../../../util/geometry';
 
 export interface CreatePassageButtonProps {
 	getCenter: () => Point;
+	onCreate?: () => void;
 	story: Story;
 }
 
 export const CreatePassageButton: React.FC<CreatePassageButtonProps> = props => {
-	const {getCenter, story} = props;
+	const {getCenter, onCreate, story} = props;
 	const {dispatch} = useUndoableStoriesContext();
 	const handleClick = React.useCallback(() => {
 		const {left, top} = getCenter();
 
 		dispatch(createUntitledPassage(story, left, top), 'undoChange.newPassage');
-	}, [dispatch, getCenter, story]);
+		onCreate?.();
+	}, [dispatch, getCenter, onCreate, story]);
 	const {t} = useTranslation();
 
 	return (

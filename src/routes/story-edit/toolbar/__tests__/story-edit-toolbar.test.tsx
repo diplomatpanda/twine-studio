@@ -14,7 +14,10 @@ const TestStoryEditToolbar = () => {
 		<StoryEditToolbar
 			getCenter={() => ({left: 0, top: 0})}
 			story={stories[0]}
+			onFocusBranch={jest.fn()}
 			onOpenFuzzyFinder={jest.fn()}
+			onShowFullMap={jest.fn()}
+			visiblePassageIds={new Set(stories[0].passages.map(passage => passage.id))}
 		/>
 	);
 };

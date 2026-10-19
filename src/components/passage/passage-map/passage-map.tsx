@@ -10,6 +10,7 @@ import classnames from 'classnames';
 export interface PassageMapProps {
 	formatName: string;
 	formatVersion: string;
+	knownPassageNames?: Set<string>;
 	onDeselect: (passage: Passage) => void;
 	onDrag: (change: Point) => void;
 	onEdit: (passage: Passage) => void;
@@ -74,6 +75,7 @@ export const PassageMap: React.FC<PassageMapProps> = props => {
 	const {
 		formatName,
 		formatVersion,
+		knownPassageNames,
 		onDeselect,
 		onDrag,
 		onEdit,
@@ -207,6 +209,7 @@ export const PassageMap: React.FC<PassageMapProps> = props => {
 			<PassageConnections
 				formatName={formatName}
 				formatVersion={formatVersion}
+				knownPassageNames={knownPassageNames}
 				offset={{
 					left: (state.dragX - state.startX) / zoom,
 					top: (state.dragY - state.startY) / zoom

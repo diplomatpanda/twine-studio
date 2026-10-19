@@ -47,7 +47,8 @@ export function passageWithName(
  */
 export function passageConnections(
 	passages: Passage[],
-	connectionParser?: (text: string) => string[]
+	connectionParser?: (text: string) => string[],
+	knownPassageNames?: Set<string>
 ) {
 	const parser = connectionParser ?? ((text: string) => parseLinks(text, true));
 	const passageMap = new Map(passages.map(p => [p.name, p]));
@@ -82,7 +83,7 @@ export function passageConnections(
 					} else {
 						target.connections.set(passage, new Set([targetPassage]));
 					}
-				} else {
+				} else if (!knownPassageNames?.has(targetName)) {
 					(passage.selected ? result.draggable : result.fixed).broken.add(
 						passage
 					);
@@ -120,6 +121,51 @@ export function passagesWithoutReferencePath(
 		}
 	}
 	return story.passages.filter(passage => !visited.has(passage.id));
+}
+
+/** Passages that lead to, or can be reached from, one passage through static links. */
+export function passagesInFocusedBranch(
+	story: Story,
+	anchorId: string,
+	formatReferences?: (text: string) => string[]
+): Passage[] {
+	const anchor = story.passages.find(passage => passage.id === anchorId);
+	if (!anchor) return [];
+
+	const byName = new Map(story.passages.map(passage => [passage.name, passage]));
+	const outgoing = new Map<string, string[]>();
+	const incoming = new Map<string, string[]>();
+	for (const source of story.passages) {
+		let names: string[];
+		try {
+			names = passageReferenceNames(source.text, formatReferences);
+		} catch {
+			// A faulty format extension cannot hide ordinary Twine connections.
+			names = passageReferenceNames(source.text);
+		}
+		for (const name of names) {
+			const target = byName.get(name);
+			if (!target) continue;
+			outgoing.set(source.id, [...(outgoing.get(source.id) ?? []), target.id]);
+			incoming.set(target.id, [...(incoming.get(target.id) ?? []), source.id]);
+		}
+	}
+
+	const visible = new Set([anchorId]);
+	for (const edges of [incoming, outgoing]) {
+		const visited = new Set([anchorId]);
+		const pending = [anchorId];
+		for (let index = 0; index < pending.length; index++) {
+			for (const id of edges.get(pending[index]) ?? []) {
+				if (!visited.has(id)) {
+					visited.add(id);
+					visible.add(id);
+					pending.push(id);
+				}
+			}
+		}
+	}
+	return story.passages.filter(passage => visible.has(passage.id));
 }
 
 /**

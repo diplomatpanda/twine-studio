@@ -18,8 +18,11 @@ const TestPassageActions: React.FC<Partial<PassageActionsProps>> = props => {
 	return (
 		<PassageActions
 			getCenter={() => ({left: 0, top: 0})}
+			onFocusBranch={jest.fn()}
 			onOpenFuzzyFinder={jest.fn()}
+			onShowFullMap={jest.fn()}
 			story={stories[0]}
+			visiblePassageIds={new Set(stories[0].passages.map(passage => passage.id))}
 			{...props}
 		/>
 	);
@@ -44,6 +47,17 @@ describe('<PassageActions>', () => {
 	it('displays a create passage button', async () => {
 		await renderComponent();
 		expect(screen.getByText('common.new')).toBeInTheDocument();
+	});
+
+	it('restores the full map when creating a passage while focused', async () => {
+		const story = fakeStory(1);
+		const onShowFullMap = jest.fn();
+		await renderComponent(
+			{focusPassage: story.passages[0], onShowFullMap},
+			{stories: [story]}
+		);
+		fireEvent.click(screen.getByRole('button', {name: 'common.new'}));
+		expect(onShowFullMap).toHaveBeenCalledTimes(1);
 	});
 
 	it('displays a passage edit button', async () => {

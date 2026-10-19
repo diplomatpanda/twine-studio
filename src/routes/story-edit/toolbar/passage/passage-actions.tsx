@@ -1,5 +1,8 @@
 import * as React from 'react';
+import {IconFilter, IconX} from '@tabler/icons';
+import {useTranslation} from 'react-i18next';
 import {ButtonBar} from '../../../../components/container/button-bar';
+import {IconButton} from '../../../../components/control/icon-button';
 import {RenamePassageButton} from '../../../../components/passage/rename-passage-button';
 import {
 	Passage,
@@ -18,17 +21,33 @@ import {StartAtPassageButton} from './start-at-passage-button';
 import {TestPassageButton} from './test-passage-button';
 
 export interface PassageActionsProps {
+	focusPassage?: Passage;
 	getCenter: () => Point;
+	onFocusBranch: (passage: Passage) => void;
 	onOpenFuzzyFinder: () => void;
+	onShowFullMap: () => void;
 	story: Story;
+	visiblePassageIds: Set<string>;
 }
 
 export const PassageActions: React.FC<PassageActionsProps> = props => {
-	const {getCenter, onOpenFuzzyFinder, story} = props;
+	const {
+		focusPassage,
+		getCenter,
+		onFocusBranch,
+		onOpenFuzzyFinder,
+		onShowFullMap,
+		story,
+		visiblePassageIds
+	} = props;
 	const {dispatch} = useStoriesContext();
+	const {t} = useTranslation();
 	const selectedPassages = React.useMemo(
-		() => story.passages.filter(passage => passage.selected),
-		[story.passages]
+		() =>
+			story.passages.filter(
+				passage => passage.selected && visiblePassageIds.has(passage.id)
+			),
+		[story.passages, visiblePassageIds]
 	);
 	const soloSelectedPassage = React.useMemo(
 		() => (selectedPassages.length === 1 ? selectedPassages[0] : undefined),
@@ -50,7 +69,11 @@ export const PassageActions: React.FC<PassageActionsProps> = props => {
 
 	return (
 		<ButtonBar>
-			<CreatePassageButton getCenter={getCenter} story={story} />
+			<CreatePassageButton
+				getCenter={getCenter}
+				onCreate={focusPassage ? onShowFullMap : undefined}
+				story={story}
+			/>
 			<EditPassagesButton passages={selectedPassages} story={story} />
 			<RenamePassageButton
 				onRename={name => handleRename(name, soloSelectedPassage)}
@@ -61,7 +84,24 @@ export const PassageActions: React.FC<PassageActionsProps> = props => {
 			<TestPassageButton passage={soloSelectedPassage} story={story} />
 			<StartAtPassageButton passage={soloSelectedPassage} story={story} />
 			<GoToPassageButton onOpenFuzzyFinder={onOpenFuzzyFinder} />
-			<SelectAllPassagesButton story={story} />
+			{focusPassage ? (
+				<IconButton
+					icon={<IconX />}
+					label={t('routes.storyEdit.branchFocus.showAll')}
+					onClick={onShowFullMap}
+				/>
+			) : (
+				<IconButton
+					disabled={!soloSelectedPassage}
+					icon={<IconFilter />}
+					label={t('routes.storyEdit.branchFocus.focus')}
+					onClick={() => soloSelectedPassage && onFocusBranch(soloSelectedPassage)}
+				/>
+			)}
+			<SelectAllPassagesButton
+				story={story}
+				visiblePassageIds={visiblePassageIds}
+			/>
 			<DeselectAllPassagesButton
 				story={story}
 				selectedPassages={selectedPassages}

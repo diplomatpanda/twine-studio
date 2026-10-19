@@ -9,6 +9,7 @@ import {useFormatReferenceParser} from '../../../store/use-format-reference-pars
 export interface PassageConnectionsProps {
 	formatName: string;
 	formatVersion: string;
+	knownPassageNames?: Set<string>;
 	offset: Point;
 	passages: Passage[];
 	startPassageId: string;
@@ -18,19 +19,26 @@ const emptySet = new Set<Passage>();
 const noOffset: Point = {left: 0, top: 0};
 
 export const PassageConnections: React.FC<PassageConnectionsProps> = props => {
-	const {formatName, formatVersion, offset, passages, startPassageId} = props;
+	const {
+		formatName,
+		formatVersion,
+		knownPassageNames,
+		offset,
+		passages,
+		startPassageId
+	} = props;
 	const referenceParser = useFormatReferenceParser(formatName, formatVersion);
 	const {draggable: draggableLinks, fixed: fixedLinks} = React.useMemo(
-		() => passageConnections(passages),
-		[passages]
+		() => passageConnections(passages, undefined, knownPassageNames),
+		[knownPassageNames, passages]
 	);
 	const {
 		draggable: draggableReferences,
 		fixed: fixedReferences
-	} = React.useMemo(() => passageConnections(passages, referenceParser), [
-		passages,
-		referenceParser
-	]);
+	} = React.useMemo(
+		() => passageConnections(passages, referenceParser, knownPassageNames),
+		[knownPassageNames, passages, referenceParser]
+	);
 
 	const startPassage = React.useMemo(
 		() => passages.find(passage => passage.id === startPassageId),

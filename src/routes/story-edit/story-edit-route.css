@@ -28,3 +28,19 @@ body.dragging-passages .drop {
 body.dragging-passages .story-edit-route * {
 	cursor: default !important;
 }
+
+.branch-focus-banner {
+	align-items: center;
+	background: var(--off-white);
+	border: 1px solid currentColor;
+	border-radius: 0.4rem;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	left: 0.75rem;
+	max-width: calc(100vw - 1.5rem);
+	padding: 0.5rem 0.75rem;
+	position: fixed;
+	top: calc(2 * var(--control-height) + 0.75rem);
+	z-index: 5;
+}
