@@ -224,6 +224,20 @@ describe('cross-tab browser commit lock', () => {
 		expect(first.getStorageStatus()).toMatchObject({dirty: true, durable: true});
 	});
 
+	it('offers raw recovery instead of replay when a fresh tab has no lock manager', async () => {
+		first.writeStorageItem(sharedKey, 'closed tab draft');
+		const journal = window.localStorage.getItem(first.journalKey);
+		window.sessionStorage.clear();
+		jest.resetModules();
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const fresh: typeof import('../transaction') = require('../transaction');
+		delete (navigator as any).locks;
+		await expect(fresh.recoverUnownedJournals()).rejects.toThrow('Export recovery data');
+		expect(window.localStorage.getItem(sharedKey)).toBe('original');
+		expect(window.localStorage.getItem(first.journalKey)).toBe(journal);
+		expect(JSON.parse(fresh.exportStorageRecovery()).records[first.journalKey]).toBe(journal);
+	});
+
 	it('replays a closed tab journal in a fresh tab', async () => {
 		first.writeStorageItem(sharedKey, 'closed tab draft');
 		const journal = window.localStorage.getItem(first.journalKey);

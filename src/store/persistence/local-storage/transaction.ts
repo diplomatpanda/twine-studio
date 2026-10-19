@@ -66,8 +66,9 @@ function inheritedJournalKeys() {
 }
 
 function unownedJournalKeys() {
-	if (!journalHistoryAvailable) return [];
-	const known = new Set([journalKey, ...previousJournalKeys]);
+	const known = new Set(journalHistoryAvailable
+		? [journalKey, ...previousJournalKeys]
+		: [journalKey]);
 	const keys: string[] = [];
 	for (let i = 0; i < window.localStorage.length; i++) {
 		const key = window.localStorage.key(i)!;
@@ -79,7 +80,6 @@ function unownedJournalKeys() {
 
 /** Adopt abandoned page journals only after earlier tab commits release the lock. */
 export async function recoverUnownedJournals() {
-	if (!journalHistoryAvailable) return;
 	if (!navigator.locks?.request) {
 		if (unownedJournalKeys().length)
 			throw new Error(
@@ -90,7 +90,8 @@ export async function recoverUnownedJournals() {
 	await requestCommitLock(() => {
 		const keys = unownedJournalKeys();
 		if (!keys.length) return;
-		if ([legacyJournalKey, journalKey, ...previousJournalKeys]
+		if ([legacyJournalKey, journalKey,
+			...(journalHistoryAvailable ? previousJournalKeys : [])]
 			.some(key => window.localStorage.getItem(key) !== null))
 			throw new Error(
 				'Multiple recovery journals need review. Export recovery data before changing browser storage.'
@@ -281,9 +282,19 @@ function savedJournal(
 	snapshots?: Map<string, string | null>,
 	inheritedKeys = inheritedJournalKeys()
 ): Changes {
+	const inherited: Changes = new Map();
+	for (const key of inheritedKeys)
+		for (const [changedKey, value] of readJournal(key, snapshots)) {
+			if (!journalHistoryAvailable && inherited.has(changedKey) &&
+				inherited.get(changedKey) !== value)
+				throw new Error(
+					'Conflicting recovery journals need review. Export recovery data before changing browser storage.'
+				);
+			inherited.set(changedKey, value);
+		}
 	return new Map([
 		...readJournal(legacyJournalKey, snapshots),
-		...inheritedKeys.flatMap(key => [...readJournal(key, snapshots)]),
+		...inherited,
 		...readJournal(journalKey, snapshots)
 	]);
 }
@@ -369,7 +380,7 @@ function flushStorageChangesUnderLock(
 ) {
 	checkStoryStorageGuard(pending);
 	const recoveredJournals = new Map<string, string | null>();
-	const inheritedKeys = [...inheritedJournalKeys(), ...extraInheritedKeys];
+	const inheritedKeys = [...new Set([...inheritedJournalKeys(), ...extraInheritedKeys])];
 	pending = new Map([...outstanding(recoveredJournals, inheritedKeys), ...pending]);
 	if (expectedJournalSnapshots)
 		for (const [key, expected] of expectedJournalSnapshots)

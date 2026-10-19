@@ -182,6 +182,64 @@ describe('recoverable local storage transactions', () => {
 		expect(window.localStorage.getItem(oldJournal)).toBeNull();
 	});
 
+	it('replays one abandoned journal under the lock when session storage is blocked', async () => {
+		const orphanKey = 'twine-studio-pending-transaction-blocked-owner';
+		window.localStorage.setItem(orphanKey, JSON.stringify({
+			version: 2,
+			changes: [[newKey, 'recovered draft']],
+			bases: [[newKey, null]]
+		}));
+		const originalGet = Storage.prototype.getItem;
+		const originalSet = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			return originalGet.call(this, key);
+		});
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			originalSet.call(this, key, value);
+		});
+		jest.resetModules();
+		tx = require('../transaction');
+		await expect(tx.recoverUnownedJournals()).resolves.toBeUndefined();
+		expect(window.localStorage.getItem(newKey)).toBe('recovered draft');
+		expect(window.localStorage.getItem(orphanKey)).toBeNull();
+	});
+
+	it('preserves conflicting journals when session storage is blocked', async () => {
+		const journalA = 'twine-studio-pending-transaction-blocked-a';
+		const journalB = 'twine-studio-pending-transaction-blocked-b';
+		const first = JSON.stringify({
+			version: 2,
+			changes: [[newKey, 'first draft']],
+			bases: [[newKey, null]]
+		});
+		const second = JSON.stringify({
+			version: 2,
+			changes: [[newKey, 'second draft']],
+			bases: [[newKey, null]]
+		});
+		window.localStorage.setItem(journalA, first);
+		window.localStorage.setItem(journalB, second);
+		const originalGet = Storage.prototype.getItem;
+		const originalSet = Storage.prototype.setItem;
+		jest.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			return originalGet.call(this, key);
+		});
+		jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+			if (this === window.sessionStorage) throw new DOMException('Blocked', 'SecurityError');
+			originalSet.call(this, key, value);
+		});
+		jest.resetModules();
+		tx = require('../transaction');
+		expect(() => tx.readStorageItem(newKey)).toThrow('Conflicting recovery journals');
+		await expect(tx.recoverUnownedJournals()).rejects.toThrow('Conflicting recovery journals');
+		expect(window.localStorage.getItem(newKey)).toBeNull();
+		expect(window.localStorage.getItem(journalA)).toBe(first);
+		expect(window.localStorage.getItem(journalB)).toBe(second);
+	});
+
 	it('clears a legacy journal when its record already matches', () => {
 		const oldJournal = 'twine-studio-pending-transaction';
 		window.localStorage.setItem(newKey, 'legacy recovered draft');

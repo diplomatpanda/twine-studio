@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **266 suites and 1,960 tests**, with 4
+- The latest full Jest checkpoint passed **266 suites and 1,963 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
   recovery, and duplicated-tab guard changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
@@ -103,7 +103,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   closed-tab journal with no session history now replays under that lock when
   its bases still match. Conflicting or unverifiable journals stop startup and
   offer raw export. A fresh tab waits for an active tab's queued commit before
-  classifying its journal. The two affected browser files pass **57 tests** across
+  classifying its journal. The two affected browser files pass **60 tests** across
   Chromium, Firefox and WebKit on this revision.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
@@ -154,6 +154,13 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   Session drafts cover the observed missing unload warning, but tab closure,
   blocked or exhausted session storage, and concurrent saves still need
   stronger failure testing before release.
+  In particular, a quota failure during the final journal write followed by
+  tab close without a `beforeunload` event can discard the session draft; this
+  remains a data-loss release blocker.
+  When session storage is blocked, startup now replays a single compatible
+  abandoned journal under the Web Lock and stops for raw export if two journals
+  contain different drafts of the same record. Without Web Locks, a pending
+  journal can be exported but cannot be retried until the lock manager works.
 - Browser keys are namespaced and legacy data is untouched. Explicit import is
   required; this is not automatic migration or protection from same-origin scripts.
 - 41 npm advisories remain after fixing the two critical entries; triage runtime

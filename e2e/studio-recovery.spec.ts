@@ -110,6 +110,43 @@ test('a fresh tab preserves a stale closed-tab journal for raw export', async ({
 	expect(recovery.records[journalKey]).toContain('closed tab draft');
 });
 
+test('blocked session storage preserves two conflicting drafts for raw export', async ({page}) => {
+	const passageKey = 'twine-studio-passages-blocked';
+	const journalA = 'twine-studio-pending-transaction-blocked-a';
+	const journalB = 'twine-studio-pending-transaction-blocked-b';
+	await page.addInitScript(({passageKey, journalA, journalB}) => {
+		if (!localStorage.getItem('twine-studio-blocked-journal-fixture')) {
+			localStorage.setItem('twine-studio-blocked-journal-fixture', 'seeded');
+			for (const [key, draft] of [[journalA, 'first draft'], [journalB, 'second draft']])
+				localStorage.setItem(key, JSON.stringify({
+					version: 2,
+					changes: [[passageKey, draft]],
+					bases: [[passageKey, null]]
+				}));
+		}
+		const blocked = sessionStorage;
+		const originalGet = Storage.prototype.getItem;
+		const originalSet = Storage.prototype.setItem;
+		Storage.prototype.getItem = function (key) {
+			if (this === blocked) throw new DOMException('Blocked', 'SecurityError');
+			return originalGet.call(this, key);
+		};
+		Storage.prototype.setItem = function (key, value) {
+			if (this === blocked) throw new DOMException('Blocked', 'SecurityError');
+			return originalSet.call(this, key, value);
+		};
+	}, {passageKey, journalA, journalB});
+	await page.goto('http://127.0.0.1:5189');
+	const warning = page.getByRole('alert').filter({hasText: 'Your saved work could not be opened'});
+	await expect(warning).toContainText('Conflicting recovery journals');
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.records[journalA]).toContain('first draft');
+	expect(recovery.records[journalB]).toContain('second draft');
+	expect(recovery.records[passageKey]).toBeUndefined();
+});
+
 test('warns and exports original bytes when an indexed story cannot be opened', async ({page}) => {
 	await page.addInitScript(() => {
 		if (localStorage.getItem('twine-studio-corrupt-fixture')) return;
