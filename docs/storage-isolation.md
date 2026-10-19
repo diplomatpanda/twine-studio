@@ -31,6 +31,11 @@ unload warning in a simulated full-storage reload; the session draft preserved
 that final text. A draft whose passage or story no longer loads raises a warning
 with a raw recovery export containing its bytes. An invalid
 journal stops loading and offers a raw JSON rescue export without deleting data.
+If an indexed story or passage record is missing, malformed or orphaned, Studio
+shows a recovery warning and offers the raw JSON export. Story writes stop so a
+partial Library view cannot replace the saved index. The HTML story backup only
+contains records that could be opened; the raw export retains the original
+storage bytes for investigation and repair.
 
 The journal requires extra browser storage while saving. This is not an atomic
 multi-tab transaction protocol or a substitute for

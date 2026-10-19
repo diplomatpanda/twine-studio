@@ -86,6 +86,9 @@ The draft restores automatically only if the saved passage still matches its
 starting text; otherwise the writer can export the recovered story without
 overwriting the newer saved passage. Tab closure, blocked or exhausted session
 storage, and truly simultaneous writes remain outside this evidence.
+Indexed story and passage records that cannot be opened now raise a visible raw
+recovery export and stop story saves; the malformed-story journey passes in all
+three browser engines.
 
 ## Next priorities
 

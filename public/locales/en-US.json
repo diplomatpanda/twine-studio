@@ -490,6 +490,8 @@
 			"discardRecoveredDraft": "Discard recovered draft and open saved version",
 			"orphanDraftTitle": "Recovered writing has no saved passage",
 			"orphanDraftHelp": "A passage or story was removed while this tab had unsaved writing. Export recovery data before discarding that draft; the story backup may not contain it.",
+			"unreadableStoryTitle": "Some saved writing could not be opened",
+			"unreadableStoryHelp": "Studio stopped saving stories because a listed story or passage is missing or unreadable. Keep this tab open and export recovery data before repairing storage. A story backup includes only the writing that could be opened; export one before reloading if you made more edits.",
 			"discardOrphanDrafts": "Discard orphaned drafts",
 			"keepOpen": "Your latest changes are still in this window. Keep it open, export a backup, then free browser storage and retry. Reloading may lose unsaved changes.",
 			"recovered": "Recovered changes are loaded from a saved journal. Retry saving to finish recovery, or export a backup first.",

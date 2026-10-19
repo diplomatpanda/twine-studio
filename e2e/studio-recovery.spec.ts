@@ -1,6 +1,49 @@
 import {expect, test, Page} from '@playwright/test';
 import {readFile} from 'fs/promises';
 
+test('warns and exports original bytes when an indexed story cannot be opened', async ({page}) => {
+	await page.addInitScript(() => {
+		if (localStorage.getItem('twine-studio-corrupt-fixture')) return;
+		localStorage.setItem('twine-studio-corrupt-fixture', 'seeded');
+		localStorage.setItem('twine-studio-stories', 'broken-story');
+		localStorage.setItem('twine-studio-stories-broken-story', '{broken');
+	});
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	const warning = page.getByRole('alert')
+		.filter({hasText: 'Some saved writing could not be opened'});
+	await expect(warning).toBeVisible();
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile(
+		(await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.records['twine-studio-stories-broken-story']).toBe('{broken');
+	expect(await page.evaluate(() =>
+		localStorage.getItem('twine-studio-stories'))).toBe('broken-story');
+});
+
+test('shows an indexed story whose ID is an object prototype property', async ({page}) => {
+	await page.addInitScript(() => {
+		if (localStorage.getItem('twine-studio-prototype-fixture')) return;
+		localStorage.setItem('twine-studio-prototype-fixture', 'seeded');
+		localStorage.setItem('twine-studio-stories', '__proto__');
+		localStorage.setItem('twine-studio-stories-__proto__', JSON.stringify({
+			id: '__proto__', name: 'Prototype Story', passages: [],
+			startPassage: 'start', storyFormat: 'Harlowe',
+			storyFormatVersion: '3.3.9'
+		}));
+		localStorage.setItem('twine-studio-passages', 'start');
+		localStorage.setItem('twine-studio-passages-start', JSON.stringify({
+			id: 'start', story: '__proto__', name: 'Start', text: 'Saved writing',
+			top: 100, left: 100, width: 100, height: 100, tags: []
+		}));
+	});
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	await expect(page.getByRole('button', {name: 'Prototype Story', exact: true}))
+		.toBeVisible();
+});
+
 test('recovers passage creation and map movement from an interrupted save', async ({
 	page
 }) => {
@@ -178,6 +221,7 @@ test('an orphaned editor draft remains available in raw recovery', async ({page}
 				passageId: passage.id, baseText: passage.text,
 				text: 'Writing from a deleted passage.'}));
 		localStorage.removeItem(key);
+		localStorage.setItem('twine-studio-passages', '');
 	});
 	await page.reload();
 	const warning = page.getByRole('alert')

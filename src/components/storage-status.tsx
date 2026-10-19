@@ -23,12 +23,16 @@ export const StorageStatus: React.FC = () => {
 		[]
 	);
 	if (!status.dirty) return null;
-	const titleKey = status.orphanDrafts
+	const titleKey = status.unreadableStoryRecords
+		? 'studio.storage.unreadableStoryTitle'
+		: status.orphanDrafts
 		? 'studio.storage.orphanDraftTitle'
 		: status.recoveredDraftConflict
 		? 'studio.storage.draftConflictTitle'
 		: status.conflict ? 'studio.storage.conflictTitle' : 'studio.storage.unsaved';
-	const helpKey = status.orphanDrafts
+	const helpKey = status.unreadableStoryRecords
+		? 'studio.storage.unreadableStoryHelp'
+		: status.orphanDrafts
 		? 'studio.storage.orphanDraftHelp'
 		: status.recoveredDraftConflict
 		? 'studio.storage.draftConflictHelp'
@@ -39,8 +43,8 @@ export const StorageStatus: React.FC = () => {
 		<aside className="storage-status" role="alert">
 			<strong>{t(titleKey)}</strong>
 			<p>{t(helpKey)}</p>
-			{!status.conflict && <p>{status.error}</p>}
-			{!status.conflict && !status.orphanDrafts && <button
+			{!status.conflict && status.error && <p>{status.error}</p>}
+			{!status.conflict && !status.orphanDrafts && !status.unreadableStoryRecords && <button
 				onClick={() => {
 					try {
 						retryStorageChanges();
@@ -63,16 +67,16 @@ export const StorageStatus: React.FC = () => {
 			>
 				{t('studio.storage.export')}
 			</button>
-			{status.orphanDrafts && <button onClick={() =>
+			{(status.orphanDrafts || status.unreadableStoryRecords) && <button onClick={() =>
 				saveAs(
 					new Blob([exportStorageRecovery()], {type: 'application/json'}),
 					'Twine Studio recovery.json'
 				)
 			}>{t('studio.storage.exportRaw')}</button>}
-			{status.orphanDrafts && <button onClick={discardOrphanEditorDrafts}>
+			{status.orphanDrafts && !status.unreadableStoryRecords && <button onClick={discardOrphanEditorDrafts}>
 				{t('studio.storage.discardOrphanDrafts')}
 			</button>}
-			{status.recoveredDraftConflict && <button onClick={() => {
+			{status.recoveredDraftConflict && !status.unreadableStoryRecords && <button onClick={() => {
 				discardConflictingEditorDrafts();
 				window.location.reload();
 			}}>{t('studio.storage.discardRecoveredDraft')}</button>}

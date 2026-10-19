@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **264 suites and 1,935 tests**, with 4
+- The latest full Jest checkpoint passed **265 suites and 1,941 tests**, with 4
   skipped and 41 TODOs. It includes the page-exit and editor-draft recovery
   changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
@@ -72,7 +72,10 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   Recovered drafts that differ from saved passages stay available for backup
   without overwriting saved work; the conflict journey passes in all three
   browser engines. Orphaned drafts surface a raw recovery export instead of
-  silently disappearing.
+  silently disappearing. Missing, malformed or orphaned indexed story/passage
+  records now raise a raw-export warning and stop story saves, so the partial
+  Library cannot silently replace their index. The warning/export journey passes
+  in Chromium, Firefox and WebKit.
 - Two-tab browser journeys pass in Chromium, Firefox and WebKit: a stale edit
   cannot replace a newer saved passage, its latest draft can be exported while
   the editor remains open, and edits to different stories both save. Recovery

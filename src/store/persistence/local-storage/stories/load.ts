@@ -2,7 +2,7 @@ import {passageDefaults, storyDefaults} from '../../../stories/defaults';
 import {Passage, Story} from '../../../stories/stories.types';
 import {storageKey} from '../keys';
 import {clearSavedEditorDraft, exportEditorDrafts, readEditorDraft} from '../editor-drafts';
-import {preserveConflictingEditorDraft, readStorageItem, reportOrphanEditorDraft, writeStorageItem} from '../transaction';
+import {preserveConflictingEditorDraft, readStorageItem, reportOrphanEditorDraft, reportUnreadableStoryRecord, writeStorageItem} from '../transaction';
 
 function reportUnmatchedEditorDrafts(handled: Set<string>) {
 	for (const key of Object.keys(exportEditorDrafts())) {
@@ -15,11 +15,13 @@ function reportUnmatchedEditorDrafts(handled: Set<string>) {
  * Parses initial state from local storage.
  */
 export async function load(): Promise<Story[]> {
-	const stories: Record<string, Story> = {};
+	const stories: Record<string, Story> = Object.create(null);
 	const handledDrafts = new Set<string>();
 	const serializedStories = readStorageItem(storageKey('stories'));
 
 	if (!serializedStories) {
+		if (readStorageItem(storageKey('passages')))
+			reportUnreadableStoryRecord(storageKey('stories'));
 		reportUnmatchedEditorDrafts(handledDrafts);
 		return [];
 	}
@@ -28,9 +30,14 @@ export async function load(): Promise<Story[]> {
 	// passages to them as they are deserialized.
 
 	serializedStories.split(',').forEach(id => {
+		if (!id) {
+			reportUnreadableStoryRecord(storageKey('stories'));
+			return;
+		}
 		const serializedStory = readStorageItem(storageKey('stories', id));
 
 		if (!serializedStory) {
+			reportUnreadableStoryRecord(storageKey('stories', id));
 			console.warn(
 				`Story list contained ID ${id}, but ${storageKey('stories', id)} does not exist, skipping`
 			);
@@ -40,8 +47,9 @@ export async function load(): Promise<Story[]> {
 		try {
 			const story: Story = JSON.parse(serializedStory);
 
-			if (!story.id) {
-				console.warn('Story in local storage had no ID, skipping', story);
+			if (!story || story.id !== id) {
+				reportUnreadableStoryRecord(storageKey('stories', id));
+				console.warn(`Story ${id} did not match its index ID, skipping`);
 				return;
 			}
 
@@ -59,9 +67,8 @@ export async function load(): Promise<Story[]> {
 				passages: []
 			};
 		} catch (e) {
-			console.warn(
-				`Could not parse story as JSON, skipping: ${serializedStory}`
-			);
+			reportUnreadableStoryRecord(storageKey('stories', id));
+			console.warn(`Could not parse story ${id} as JSON, skipping`);
 		}
 	});
 
@@ -71,9 +78,14 @@ export async function load(): Promise<Story[]> {
 
 	if (serializedPassages) {
 		serializedPassages.split(',').forEach(id => {
+			if (!id) {
+				reportUnreadableStoryRecord(storageKey('passages'));
+				return;
+			}
 			const serializedPassage = readStorageItem(storageKey('passages', id));
 
 			if (!serializedPassage) {
+				reportUnreadableStoryRecord(storageKey('passages', id));
 				console.warn(
 					`Passage list contained ID ${id}, but ${storageKey('passages', id)} does not exist, skipping`
 				);
@@ -83,15 +95,14 @@ export async function load(): Promise<Story[]> {
 			try {
 				const passage: Passage = JSON.parse(serializedPassage);
 
-				if (!passage || !passage.story) {
-					console.warn(
-						`Passage ${id} did not have parent story ID, skipping`,
-						passage
-					);
+				if (!passage || passage.id !== id || !passage.story) {
+					reportUnreadableStoryRecord(storageKey('passages', id));
+					console.warn(`Passage ${id} did not match its index or have a parent story ID, skipping`);
 					return;
 				}
 
 				if (!stories[passage.story]) {
+					reportUnreadableStoryRecord(storageKey('passages', id));
 					console.warn(
 						`Passage ${id} is orphaned (looking for story ID ${passage.story}), skipping`
 					);
@@ -129,9 +140,8 @@ export async function load(): Promise<Story[]> {
 				}
 				stories[passage.story].passages.push(loadedPassage);
 			} catch (e) {
-				console.warn(
-					`Could not parse passage as JSON, skipping: ${serializedPassage}`
-				);
+				reportUnreadableStoryRecord(storageKey('passages', id));
+				console.warn(`Could not parse passage ${id} as JSON, skipping`);
 			}
 		});
 	}

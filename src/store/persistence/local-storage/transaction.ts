@@ -56,10 +56,13 @@ let storyConflict = false;
 let recoveredDraftConflict = false;
 const conflictingDraftIds = new Set<string>();
 const orphanDraftIds = new Set<string>();
+const unreadableStoryRecords = new Set<string>();
 let observedJournal: string | null = null;
 const observedStories = new Map<string, string | null>();
 const conflictMessage =
 	'Another tab changed saved stories. This tab cannot safely save over that version.';
+const unreadableMessage =
+	'Some saved stories or passages could not be opened. Export recovery data before repairing storage.';
 
 function isStoryKey(key: string) {
 	return /^twine-studio-(stories|passages)(-|$)/.test(key);
@@ -89,6 +92,13 @@ export function startStoryStorageGuard() {
 
 function checkStoryStorageGuard(changes: Changes) {
 	if (!storyGuardActive) return;
+	if (unreadableStoryRecords.size && [...changes.keys()].some(isStoryKey)) {
+		pending = new Map([...pending, ...changes]);
+		durable = false;
+		error = unreadableMessage;
+		notify();
+		throw new Error(unreadableMessage);
+	}
 	const currentJournal = window.localStorage.getItem(journalKey);
 	if (currentJournal !== observedJournal)
 		markStoryConflict();
@@ -163,7 +173,14 @@ function notify() {
 }
 
 export function getStorageStatus() {
-	return {dirty: storyConflict || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0};
+	return {dirty: storyConflict || unreadableStoryRecords.size > 0 || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0, unreadableStoryRecords: unreadableStoryRecords.size > 0};
+}
+
+/** Stop story saves when indexed records could not be loaded without data loss. */
+export function reportUnreadableStoryRecord(key: string) {
+	if (!isStoryKey(key)) throw new Error('Invalid story recovery key.');
+	unreadableStoryRecords.add(key);
+	notify();
 }
 
 /** Keep a recovered editor draft in memory without replacing a changed saved passage. */
