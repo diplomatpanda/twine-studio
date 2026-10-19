@@ -117,3 +117,96 @@ for (const format of [
 		}
 	});
 }
+
+test('preserves an advanced SugarCube project through an unrelated edit', async ({
+	page, context
+}, testInfo) => {
+	const title = 'Advanced SugarCube Fixture';
+	const script = `Macro.add('badge', {handler() {
+		const span = document.createElement('span');
+		span.className = 'story-badge';
+		span.textContent = this.args[0];
+		this.output.appendChild(span);
+	}});`;
+	const css = '.story-badge { color: rgb(12, 34, 56); font-weight: bold; }';
+	const passages = [
+		{name: 'StoryInit', pid: 1, tags: '', text: '<<set $trust = 2>>'},
+		{name: 'Start', pid: 2, tags: 'chapter-one', text: '<<badge "Navigator">>\n[[Open archive|Archive]]\n[[Leave|Exit]]'},
+		{name: 'Archive', pid: 3, tags: 'secret', text: '<<if $trust >= 2>>Archive unlocked.<</if>>\n[[Finish|Exit]]'},
+		{name: 'Exit', pid: 4, tags: 'ending', text: 'Exit ending.'}
+	];
+	const passageMarkup = passages.map(passage =>
+		`<tw-passagedata pid="${passage.pid}" name="${passage.name}" ` +
+		`tags="${passage.tags}" position="${passage.pid * 100},100" size="100,100">` +
+		`${escape(passage.text)}</tw-passagedata>`
+	).join('');
+	const fixture = [
+		`<tw-storydata name="${title}" startnode="2" creator="Fixture" creator-version="1" ` +
+			'ifid="C7EAA4D7-F999-41C8-AB38-C535A6827D51" format="SugarCube" format-version="2.37.3">',
+		`<style role="stylesheet" type="text/twine-css">${css}</style>`,
+		`<script role="script" type="text/twine-javascript">${script}</script>`,
+		passageMarkup,
+		'</tw-storydata>'
+	].join('');
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	await page.getByRole('tab', {name: 'Library', exact: true}).click();
+	await page.getByRole('button', {name: 'Import', exact: true}).click();
+	await page.locator('input[type=file]').setInputFiles({
+		name: 'advanced-sugarcube.html', mimeType: 'text/html', buffer: Buffer.from(fixture)
+	});
+	await page.getByRole('button', {name: title, exact: true}).dblclick();
+	const exitCard = page.getByRole('button', {name: 'Exit', exact: true});
+	await exitCard.click();
+	await exitCard.dblclick();
+	const editor = page.getByLabel('Passage Text', {exact: true});
+	await editor.press('Control+End');
+	await editor.type('\nAn unrelated edit.');
+	await page.getByRole('button', {name: 'Close', exact: true}).click();
+	await page.getByRole('tab', {name: 'Build', exact: true}).click();
+	const downloadPromise = page.waitForEvent('download');
+	await page.getByRole('button', {name: 'Publish to File', exact: true}).click();
+	const download = await downloadPromise;
+	const path = testInfo.outputPath('advanced-roundtrip.html');
+	await download.saveAs(path);
+	const html = await readFile(path, 'utf8');
+	const preserved = await page.evaluate(html => {
+		const doc = new DOMParser().parseFromString(html, 'text/html');
+		return {
+			passages: Array.from(doc.querySelectorAll('tw-passagedata')).map(passage => ({
+				name: passage.getAttribute('name'),
+				tags: passage.getAttribute('tags'),
+				text: passage.textContent
+			})),
+			script: doc.querySelector('script[role=script]')?.textContent,
+			css: doc.querySelector('style[role=stylesheet]')?.textContent
+		};
+	}, html);
+	expect(preserved).toEqual({
+		passages: passages.map(passage => ({
+			name: passage.name,
+			tags: passage.tags,
+			text: passage.text + (passage.name === 'Exit' ? '\nAn unrelated edit.' : '')
+		})),
+		script, css
+	});
+	const server = createServer((_req, res) => {
+		res.setHeader('Content-Type', 'text/html; charset=utf-8');
+		res.end(html);
+	});
+	await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+	const player = await context.newPage();
+	try {
+		await player.goto(`http://127.0.0.1:${(server.address() as {port: number}).port}`);
+		await expect(player.locator('.story-badge')).toHaveText('Navigator');
+		await expect(player.locator('.story-badge')).toHaveCSS('color', 'rgb(12, 34, 56)');
+		await player.getByRole('link', {name: 'Open archive', exact: true}).click();
+		await expect(player.locator('.passage')).toContainText('Archive unlocked.');
+		await player.getByRole('link', {name: 'Finish', exact: true}).click();
+		await expect(player.locator('.passage')).toContainText('An unrelated edit.');
+		await expect(player.locator('.error')).toHaveCount(0);
+	} finally {
+		await player.close();
+		await new Promise<void>(resolve => server.close(() => resolve()));
+	}
+});

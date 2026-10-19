@@ -63,20 +63,27 @@ story-format passages may appear in the list.
 ## Remembering clues and relationships
 
 For Harlowe 3 and SugarCube 2, **Story logic** can remember a yes/no fact or a
-number, then show a choice when that value matches. For example:
+number, change a number, and show a choice or short line of text when a condition
+matches. For example:
 
 1. In your first passage, remember `clue` as **No** and `trust` as **Number → 0**.
-2. In a discovery passage, remember `clue` as **Yes** and `trust` as **Number → 3**.
+2. In a discovery passage, remember `clue` as **Yes** and choose **Change a number**
+   for `trust` with **Amount to add → 3**. Use a negative amount to reduce trust.
 3. In a later passage, choose **Show a choice when**, use `clue` with **Yes**,
    and supply the choice text and destination. For a relationship threshold,
    use `trust`, **Number → 3**, and **At least**.
+4. To show one short line of dialogue only on the high-trust route, choose
+   **Show text when** with `trust`, **Number → 3**, and **At least**.
 
 Insertions append to the source and run in order. Remembering a value runs every
-time the reader visits that passage, so place initial values before choices.
+time the reader visits that passage, and a numeric change repeats on each
+visit. Initialize a number before changing or checking it, then place conditions
+after the changes they depend on.
 Keep each fact's name and value type consistent. Use the enhanced editor's undo,
 or the basic editor's main **Undo Add story logic** action. The helper does not
-infer or rewrite existing variables or macros. It does not yet offer arithmetic
-changes, a fact registry, or automatic initialization.
+infer or rewrite existing variables or macros. It does not yet offer a fact
+registry or automatic initialization. Longer or formatted dialogue stays in the
+ordinary source editor.
 
 ## Previewing saved games
 
