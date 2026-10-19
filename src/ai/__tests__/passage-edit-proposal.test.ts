@@ -4,6 +4,7 @@ import {
 	parseConditionalChoiceProposal,
 	parseNewBranchProposal,
 	parsePassageEditProposal,
+	parseTwoWayBranchProposal,
 	PassageEditSnapshot
 } from '../passage-edit-proposal';
 
@@ -80,6 +81,66 @@ describe('AI passage edit proposal boundary', () => {
 			canApplyPassageEdit(snapshot, {...story, storyFormat: 'Harlowe'}, passage)
 		).toBe(false);
 		expect(canApplyPassageEdit(snapshot, story, {...passage, id: 'other'})).toBe(false);
+	});
+});
+
+describe('AI two-way branch proposal boundary', () => {
+	function fixture(format = 'SugarCube') {
+		const story = fakeStory(1);
+		story.storyFormat = format;
+		story.storyFormatVersion = format === 'SugarCube' ? '2.36.1' : '3.3.9';
+		story.passages[0].text = 'A fork in the road.';
+		const snapshot: PassageEditSnapshot = {
+			storyId: story.id, passageId: story.passages[0].id,
+			storyFormat: story.storyFormat, storyFormatVersion: story.storyFormatVersion,
+			text: story.passages[0].text, storyPassages: story.passages
+		};
+		const operation = {
+			type: 'appendTwoWayBranch', passageId: snapshot.passageId,
+			choices: [
+				{name: 'Cabin', label: 'Investigate the cabin'},
+				{name: 'Road', label: 'Continue down the road'}
+			], rationale: 'Provide two directions.'
+		};
+		const response = (changes: Record<string, unknown> = {}) => JSON.stringify({
+			schemaVersion: 1, summary: 'Add two routes.',
+			operation: {...operation, ...changes}, warnings: []
+		});
+		return {story, snapshot, response};
+	}
+
+	it.each([
+		['SugarCube', '[[Investigate the cabin|Cabin]]\n[[Continue down the road|Road]]'],
+		['Harlowe', '[[Investigate the cabin->Cabin]]\n[[Continue down the road->Road]]']
+	])('generates two %s links and validates both destinations', (format, links) => {
+		const {story, snapshot, response} = fixture(format);
+		const proposal = parseTwoWayBranchProposal(response(), snapshot, story);
+		expect(proposal.operation.proposedText).toBe(`A fork in the road.\n${links}`);
+		expect(proposal.newPassages).toEqual([{name: 'Cabin'}, {name: 'Road'}]);
+		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(true);
+		expect(canApplyPassageEdit(snapshot, {...story, passages: [...story.passages]}, story.passages[0], proposal)).toBe(false);
+		story.passages.push({...story.passages[0], id: 'other', name: 'Road'});
+		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(false);
+	});
+
+	it('rejects duplicate, reserved, unsafe and unreviewed operations', () => {
+		const {story, snapshot, response} = fixture();
+		expect(() => parseTwoWayBranchProposal(response({choices: [
+			{name: 'Cabin', label: 'Investigate'}, {name: 'Cabin', label: 'Continue'}
+		]}), snapshot, story)).toThrow(/distinct/);
+		expect(() => parseTwoWayBranchProposal(response({choices: [
+			{name: 'Cabin', label: 'Go'}, {name: 'Road', label: 'Go'}
+		]}), snapshot, story)).toThrow(/distinct/);
+		expect(() => parseTwoWayBranchProposal(response({choices: [
+			{name: 'Cabin', label: 'Go'}, {name: 'StoryInit', label: 'Continue'}
+		]}), snapshot, story)).toThrow(/reserved/);
+		expect(() => parseTwoWayBranchProposal(response({choices: [
+			{name: 'Cabin]]', label: 'Go'}, {name: 'Road', label: 'Continue'}
+		]}), snapshot, story)).toThrow();
+		expect(() => parseTwoWayBranchProposal(response({choices: [
+			{name: 'Cabin', label: 'Go'}, {name: 'Road', label: 'Continue', script: 'evil'}
+		]}), snapshot, story)).toThrow();
+		expect(() => parseTwoWayBranchProposal(response({proposedText: 'unreviewed'}), snapshot, story)).toThrow();
 	});
 });
 

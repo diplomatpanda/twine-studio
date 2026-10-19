@@ -33,3 +33,33 @@ it('builds one story update with the new passage clear of existing map cards', (
 	expect(rectsIntersect(passages[2], blocker)).toBe(false);
 	expect(rectsIntersect(passages[2], source)).toBe(false);
 });
+
+it('places two empty branches without overlapping the source, blockers or each other', () => {
+	const story = fakeStory(2);
+	const source = story.passages[0];
+	const blocker = story.passages[1];
+	source.left = source.top = 0;
+	source.width = source.height = 100;
+	blocker.left = 0;
+	blocker.top = 125;
+	blocker.width = blocker.height = 100;
+	const proposal: PassageEditProposal = {
+		schemaVersion: 1, summary: 'Add two routes',
+		operation: {
+			type: 'updatePassageText', passageId: source.id,
+			proposedText: 'Original\n[[Investigate|Cabin]]\n[[Continue|Road]]',
+			rationale: 'Two destinations.'
+		},
+		warnings: [], newPassages: [{name: 'Cabin'}, {name: 'Road'}]
+	};
+	const passages = newBranchAction(story, source, proposal).props.passages!;
+	expect(passages).toHaveLength(4);
+	expect(passages[0].text).toContain('[[Continue|Road]]');
+	expect(passages.slice(2).map(passage => passage.name)).toEqual(['Cabin', 'Road']);
+	for (const passage of passages.slice(2)) {
+		expect(passage.text).toBe('');
+		expect(rectsIntersect(passage, source)).toBe(false);
+		expect(rectsIntersect(passage, blocker)).toBe(false);
+	}
+	expect(rectsIntersect(passages[2], passages[3])).toBe(false);
+});

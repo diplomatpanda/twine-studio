@@ -182,6 +182,22 @@ describe('OpenCode Go desktop adapter', () => {
 		expect(body.messages[1].content).not.toContain('destinations');
 	});
 
+	it('sends a two-way graph-edit task with no other passage bodies', async () => {
+		fetchMock
+			.mockResolvedValueOnce(response({data: [{id: 'deepseek-v4.1-flash'}]}))
+			.mockResolvedValueOnce(response({choices: [{message: {content: '{"schemaVersion":1}'}}]}));
+		await requestAiPassageEdit({
+			...payload, passageText: 'A fork in the road.',
+			instruction: 'propose-two-way-branch',
+			request: 'Offer a cabin or road route.'
+		}, async () => true);
+		const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+		expect(body.messages[0].content).toContain('appendTwoWayBranch');
+		expect(body.messages[0].content).toContain('Do not write passage prose');
+		expect(body.messages[1].content).toContain('Offer a cabin or road route.');
+		expect(body.messages[1].content).not.toContain('destinations');
+	});
+
 	it('rejects conditional requests without safe destination context', async () => {
 		await expect(requestAiPassageEdit({
 			...payload, instruction: 'propose-conditional-choice',

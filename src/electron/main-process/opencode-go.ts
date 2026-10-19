@@ -21,7 +21,8 @@ const MAX_FIELD_LENGTH = 512;
 const SYSTEM_PROMPTS: Record<AiPassageEditPayload['instruction'], string> = {
 	'repair-format-syntax': 'You are a Twine Studio coding assistant. Repair only story-format syntax or code in the selected passage. Preserve prose, facts, and all link targets. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must be updatePassageText with the given passageId, proposedText, and rationale. Do not use Markdown fences. Do not add, remove, or rename passages or links. Do not answer general fiction-writing requests.',
 	'propose-conditional-choice': 'You are a Twine Studio coding assistant. Propose one Harlowe or SugarCube conditional choice, based on the author request and selected passage code. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendConditionalChoice, the given passageId, factName, comparison (eq, gte, or lte), boolean or numeric value, plain-text label, destinationId from the supplied list, and rationale. The app generates source locally. Do not write proposed source, create passages, alter existing code, or answer general fiction-writing requests. Warn if the fact may need initialization. Do not use Markdown fences.',
-	'propose-new-branch': 'You are a Twine Studio coding assistant. Propose one new branch from the selected passage. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendNewBranch, the given passageId, a plain-text name for one new destination passage, a plain-text choice label, and rationale. The app generates the link and an empty passage locally. Do not write passage prose or source code, edit existing text, create multiple passages, or answer general fiction-writing requests. Do not use Markdown fences.'
+	'propose-new-branch': 'You are a Twine Studio coding assistant. Propose one new branch from the selected passage. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendNewBranch, the given passageId, a plain-text name for one new destination passage, a plain-text choice label, and rationale. The app generates the link and an empty passage locally. Do not write passage prose or source code, edit existing text, create multiple passages, or answer general fiction-writing requests. Do not use Markdown fences.',
+	'propose-two-way-branch': 'You are a Twine Studio coding assistant. Propose two distinct choices from the selected passage. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendTwoWayBranch, the given passageId, choices (an array of exactly two objects, each containing only a plain-text name for a new destination passage and a plain-text choice label), and rationale. The app generates both links and both empty passages locally. Do not write passage prose or source code, edit existing text, or answer general fiction-writing requests. Do not use Markdown fences.'
 };
 
 let activeRequest: {controller: AbortController; sessionId: string} | undefined;
@@ -53,7 +54,7 @@ function validatePayload(payload: unknown): asserts payload is AiPassageEditPayl
 	validateString(value.passageId, 'passage ID', MAX_FIELD_LENGTH);
 	validateString(value.passageName, 'passage name', MAX_FIELD_LENGTH);
 	validateString(value.passageText, 'passage text', MAX_TEXT_LENGTH, true);
-	if (value.instruction !== 'repair-format-syntax' && value.instruction !== 'propose-conditional-choice' && value.instruction !== 'propose-new-branch') {
+	if (value.instruction !== 'repair-format-syntax' && value.instruction !== 'propose-conditional-choice' && value.instruction !== 'propose-new-branch' && value.instruction !== 'propose-two-way-branch') {
 		throw new Error('OpenCode Go is limited to structured story code editing.');
 	}
 	if (value.instruction === 'repair-format-syntax' && (
@@ -62,7 +63,7 @@ function validatePayload(payload: unknown): asserts payload is AiPassageEditPayl
 	)) {
 		throw new Error('This action needs Harlowe or SugarCube code in the selected passage.');
 	}
-	if (value.instruction === 'propose-conditional-choice' || value.instruction === 'propose-new-branch') {
+	if (value.instruction === 'propose-conditional-choice' || value.instruction === 'propose-new-branch' || value.instruction === 'propose-two-way-branch') {
 		if (!supportsChoiceBuilder(value.storyFormat as string, value.storyFormatVersion as string)) {
 			throw new Error('This story format is not supported by the structured choice assistant.');
 		}

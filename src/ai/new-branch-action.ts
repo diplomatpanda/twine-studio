@@ -10,37 +10,45 @@ export function newBranchAction(
 	source: Passage,
 	proposal: PassageEditProposal
 ): UpdateStoryAction {
-	if (!proposal.newPassage ||
+	const newPassages = proposal.newPassages ??
+		(proposal.newPassage ? [proposal.newPassage] : []);
+	if (newPassages.length < 1 || newPassages.length > 2 ||
+		new Set(newPassages.map(passage => passage.name)).size !== newPassages.length ||
 		proposal.operation.passageId !== source.id ||
 		source.story !== story.id ||
 		!story.passages.some(passage => passage.id === source.id) ||
-		story.passages.some(passage => passage.name === proposal.newPassage?.name)) {
+		newPassages.some(newPassage => story.passages.some(passage =>
+			passage.name === newPassage.name))) {
 		throw new Error('The proposed branch is no longer available.');
 	}
 	const defaults = passageDefaults();
 	const gap = 25;
 	const top = source.top + source.height + gap;
-	let left = source.left + (source.width - defaults.width) / 2;
-	let clear = false;
-	for (let attempt = 0; attempt <= story.passages.length; attempt++) {
-		const blockedBy = story.passages.find(passage => rectsIntersect(passage, {
-			left, top, width: defaults.width, height: defaults.height
-		}));
-		if (!blockedBy) {
-			clear = true;
-			break;
+	const destinations: Passage[] = [];
+	for (const newPassage of newPassages) {
+		let left = source.left + (source.width - defaults.width) / 2;
+		let clear = false;
+		for (let attempt = 0; attempt <= story.passages.length + destinations.length; attempt++) {
+			const blockedBy = [...story.passages, ...destinations].find(passage =>
+				rectsIntersect(passage, {
+					left, top, width: defaults.width, height: defaults.height
+				}));
+			if (!blockedBy) {
+				clear = true;
+				break;
+			}
+			left = blockedBy.left + blockedBy.width + gap;
 		}
-		left = blockedBy.left + blockedBy.width + gap;
+		if (!clear) throw new Error('Could not place the proposed branch on the map.');
+		destinations.push({
+			...defaults,
+			id: uuid(),
+			story: story.id,
+			name: newPassage.name,
+			left,
+			top
+		});
 	}
-	if (!clear) throw new Error('Could not place the proposed branch on the map.');
-	const destination: Passage = {
-		...defaults,
-		id: uuid(),
-		story: story.id,
-		name: proposal.newPassage.name,
-		left,
-		top
-	};
 	return {
 		type: 'updateStory',
 		storyId: story.id,
@@ -49,7 +57,7 @@ export function newBranchAction(
 				...story.passages.map(passage => passage.id === source.id
 					? {...passage, text: proposal.operation.proposedText}
 					: passage),
-				destination
+				...destinations
 			]
 		}
 	};

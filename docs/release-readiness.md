@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **273 suites and 2,033 tests**, with 4
+- The latest full Jest checkpoint passed **273 suites and 2,040 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
   recovery, duplicated-tab guard, story knowledge, the idea starter and
   filename-collision checks.
@@ -198,8 +198,8 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Optional desktop AI code editing now has a main-process provider adapter, an
   isolated credential window and OS-backed encrypted key storage (with no Linux
   `basic_text` fallback), native send confirmation, validated repair proposals, locally generated conditional
-  choices to existing passages, and reviewed links that create one empty branch
-  passage. The credential window's save/remove flow passed a Windows Electron
+  choices to existing passages, and reviewed links that create one or two empty
+  branch passages. The credential window's save/remove flow passed a Windows Electron
   smoke check with a fake key in isolated user data. A real paid round trip,
   native review/undo acceptance, macOS/Linux credential-window validation, and
   a broader AI story-modification journey
@@ -219,7 +219,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | --- | --- | --- |
 | A: first story | Choice creation, writing, undo, publish and original two-route sample verified | Human beginner study pending |
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
-| C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and a new empty branch passage; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
+| C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and one- or two-way forks with empty destinations; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
 | D: relationship state | Browser authoring and published playthrough pass in Chromium, Firefox and WebKit for Harlowe/SugarCube: initialize trust, add 3, show conditional dialogue and unlock a separate ending | Native journey, registry and continuity tools pending |
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic four-passage SugarCube fixture preserves StoryInit, custom macro, CSS, tags and passage sources through import/edit/export; published route works in Chromium, Firefox and WebKit | Representative existing third-party projects, external assets and older format versions still required |

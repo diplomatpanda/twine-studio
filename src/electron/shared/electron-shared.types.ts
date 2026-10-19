@@ -7,7 +7,7 @@ export interface AiPassageEditPayload {
 	passageId: string;
 	passageName: string;
 	passageText: string;
-	instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch';
+	instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch' | 'propose-two-way-branch';
 	request?: string;
 	destinations?: Array<{id: string; name: string}>;
 }

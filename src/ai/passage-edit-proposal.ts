@@ -1,5 +1,5 @@
 import {parseLinks} from '../util/parse-links';
-import {choiceSource} from '../util/choice-source';
+import {choiceSetSource, choiceSource} from '../util/choice-source';
 import {conditionalChoiceSource, FactComparison, StoryFactValue} from '../util/story-fact-source';
 import {Passage, Story} from '../store/stories/stories.types';
 
@@ -22,6 +22,7 @@ export interface PassageEditProposal {
 	warnings: string[];
 	destination?: {id: string; name: string};
 	newPassage?: {name: string};
+	newPassages?: Array<{name: string}>;
 }
 
 export interface PassageEditSnapshot {
@@ -223,6 +224,72 @@ export function parseNewBranchProposal(
 	};
 }
 
+/** A two-way fork is generated locally from two bounded model-selected labels. */
+export function parseTwoWayBranchProposal(
+	raw: string,
+	snapshot: PassageEditSnapshot,
+	story: Story
+): PassageEditProposal {
+	if (raw.length > 131072) throw new Error('The proposal is too large to review safely.');
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new Error('The assistant did not return a valid edit proposal.');
+	}
+	if (!isRecord(value) ||
+		!hasOnlyKeys(value, ['schemaVersion', 'summary', 'operation', 'warnings']) ||
+		value.schemaVersion !== 1 || !hasBoundedText(value.summary, 500) ||
+		!Array.isArray(value.warnings) || value.warnings.length > 10 ||
+		!value.warnings.every(warning => hasBoundedText(warning, 500)) ||
+		!isRecord(value.operation) ||
+		!hasOnlyKeys(value.operation, ['type', 'passageId', 'choices', 'rationale']) ||
+		value.operation.type !== 'appendTwoWayBranch' ||
+		value.operation.passageId !== snapshot.passageId ||
+		!hasBoundedText(value.operation.rationale, 1000) ||
+		!Array.isArray(value.operation.choices) ||
+		value.operation.choices.length !== 2 ||
+		!value.operation.choices.every(choice =>
+			isRecord(choice) && hasOnlyKeys(choice, ['name', 'label']) &&
+			hasBoundedText(choice.name, 120) && hasBoundedText(choice.label, 120)
+		) ||
+		story.id !== snapshot.storyId ||
+		story.storyFormat !== snapshot.storyFormat ||
+		story.storyFormatVersion !== snapshot.storyFormatVersion) {
+		throw new Error('The assistant returned an unsupported edit proposal.');
+	}
+	const choices = (value.operation.choices as Array<{name: string; label: string}>)
+		.map(choice => ({name: choice.name.trim(), label: choice.label.trim()}));
+	if (choices[0].name === choices[1].name || choices[0].label === choices[1].label) {
+		throw new Error('The two branch choices must be distinct.');
+	}
+	for (const choice of choices) {
+		if (story.passages.some(passage => passage.name === choice.name) ||
+			parseLinks(snapshot.text).includes(choice.name)) {
+			throw new Error('A proposed branch passage name is already in use.');
+		}
+		if (twineMetadataNames.has(choice.name) ||
+			(snapshot.storyFormat === 'SugarCube' && sugarCubeSpecialNames.has(choice.name))) {
+			throw new Error('A proposed branch passage name is reserved.');
+		}
+	}
+	const source = choiceSetSource(snapshot.storyFormat, snapshot.storyFormatVersion,
+		choices.map(choice => ({label: choice.label, destination: choice.name})));
+	const proposedText = snapshot.text +
+		(snapshot.text && !snapshot.text.endsWith('\n') ? '\n' : '') + source;
+	if (proposedText.length > 65536) throw new Error('The proposal is too large to review safely.');
+	return {
+		schemaVersion: 1,
+		summary: value.summary as string,
+		operation: {
+			type: 'updatePassageText', passageId: snapshot.passageId, proposedText,
+			rationale: value.operation.rationale as string
+		},
+		warnings: value.warnings as string[],
+		newPassages: choices.map(({name}) => ({name}))
+	};
+}
+
 /** An accepted edit must still target the same passage and exact source revision. */
 export function canApplyPassageEdit(
 	snapshot: PassageEditSnapshot,
@@ -237,13 +304,14 @@ export function canApplyPassageEdit(
 		story.storyFormat === snapshot.storyFormat &&
 		story.storyFormatVersion === snapshot.storyFormatVersion &&
 		passage.text === snapshot.text &&
-		(!proposal?.newPassage || story.passages === snapshot.storyPassages) &&
+		(!proposal?.newPassage && !proposal?.newPassages ||
+			story.passages === snapshot.storyPassages) &&
 		(!proposal?.destination || story.passages.some(candidate =>
 			candidate.id === proposal.destination?.id && candidate.name === proposal.destination.name
 		)) &&
-		(!proposal?.newPassage || (
-			!story.passages.some(candidate => candidate.name === proposal.newPassage?.name) &&
-			!parseLinks(snapshot.text).includes(proposal.newPassage.name)
-		))
+		[...(proposal?.newPassage ? [proposal.newPassage] : []),
+			...(proposal?.newPassages ?? [])].every(newPassage =>
+			!story.passages.some(candidate => candidate.name === newPassage.name) &&
+			!parseLinks(snapshot.text).includes(newPassage.name))
 	);
 }

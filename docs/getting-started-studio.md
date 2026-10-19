@@ -138,9 +138,10 @@ and user-added remote formats are not covered by that offline guarantee.
 Clearing site data removes browser work and the offline cache; keep exported
 backups.
 
-An optional desktop-only AI action can propose code repair for a selected
-Harlowe or SugarCube passage; it requires your own OpenCode Go key, explicit
-send confirmation and approval of the proposed edit. See
+Optional desktop-only AI actions can propose code repair, conditional choices,
+or one- and two-way branches with empty destinations for a selected Harlowe or
+SugarCube passage. They require your own OpenCode Go key, explicit send
+confirmation and approval of the proposed edit. See
 [AI boundary and limits](ai-evaluation.md). Broader AI story modification and
 workflow modernization are not yet available. The
 inherited app has remaining dependency and release-readiness work; see

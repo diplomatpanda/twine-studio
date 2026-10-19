@@ -6,6 +6,7 @@ import {
 	parseConditionalChoiceProposal,
 	parseNewBranchProposal,
 	parsePassageEditProposal,
+	parseTwoWayBranchProposal,
 	PassageEditProposal,
 	PassageEditSnapshot
 } from '../../ai/passage-edit-proposal';
@@ -74,7 +75,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		};
 	}, [bridge]);
 
-	async function request(instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch') {
+	async function request(instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch' | 'propose-two-way-branch') {
 		if (
 			busy ||
 			!bridge?.requestAiPassageEdit ||
@@ -95,7 +96,8 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			storyFormat: story.storyFormat,
 			storyFormatVersion: story.storyFormatVersion,
 			text: passage.text,
-			...(instruction === 'propose-new-branch' ? {storyPassages: story.passages} : {})
+			...(instruction === 'propose-new-branch' || instruction === 'propose-two-way-branch'
+				? {storyPassages: story.passages} : {})
 		};
 		setSnapshot(source);
 		setProposal(undefined);
@@ -122,7 +124,9 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 					? parsePassageEditProposal(raw, source)
 					: instruction === 'propose-conditional-choice'
 						? parseConditionalChoiceProposal(raw, source, story)
-						: parseNewBranchProposal(raw, source, story));
+						: instruction === 'propose-new-branch'
+							? parseNewBranchProposal(raw, source, story)
+							: parseTwoWayBranchProposal(raw, source, story));
 			}
 		} catch (cause) {
 			if (generation === requestGeneration.current) {
@@ -141,7 +145,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			return;
 		}
 		try {
-			dispatch(proposal.newPassage
+			dispatch(proposal.newPassage || proposal.newPassages
 				? newBranchAction(story, passage, proposal)
 				: updatePassage(story, passage, {text: proposal.operation.proposedText}, {dontUpdateOthers: true}),
 			'studio.ai.undo');
@@ -204,6 +208,10 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 						onClick={() => void request('propose-new-branch')} type="button">
 						{t('studio.ai.requestBranch')}
 					</button>
+					<button disabled={!availability?.configured || !consent || busy || !conditionalRequest.trim() || !structuredSupported}
+						onClick={() => void request('propose-two-way-branch')} type="button">
+						{t('studio.ai.requestTwoWayBranch')}
+					</button>
 					{!structuredSupported && <p>{t('studio.ai.conditionalUnsupported')}</p>}
 				</>
 			)}
@@ -214,6 +222,9 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 					<p>{proposal.summary}</p>
 					<p>{proposal.operation.rationale}</p>
 					{proposal.newPassage && <p>{t('studio.ai.newPassage', {name: proposal.newPassage.name})}</p>}
+						{proposal.newPassages?.map(newPassage =>
+							<p key={newPassage.name}>{t('studio.ai.newPassage', {name: newPassage.name})}</p>
+						)}
 					{proposal.warnings.map((warning, index) => (
 						<p key={index}>{warning}</p>
 					))}

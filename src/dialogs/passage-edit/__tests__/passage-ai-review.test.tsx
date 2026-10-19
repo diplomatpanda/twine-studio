@@ -190,6 +190,39 @@ describe('<PassageAiReview>', () => {
 		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).not.toBeNull();
 	});
 
+	it('reviews two new destinations and undoes both links and passages together', async () => {
+		const story = fakeStory(1);
+		story.storyFormat = 'SugarCube';
+		story.storyFormatVersion = '2.36.1';
+		bridge.requestAiPassageEdit.mockResolvedValue(JSON.stringify({
+			schemaVersion: 1, summary: 'Add two routes.',
+			operation: {
+				type: 'appendTwoWayBranch', passageId: story.passages[0].id,
+				choices: [
+					{name: 'Cabin', label: 'Investigate the cabin'},
+					{name: 'Road', label: 'Continue down the road'}
+				], rationale: 'Offer two directions.'
+			}, warnings: []
+		}));
+		await ready(story);
+		fireEvent.change(screen.getByRole('textbox'), {
+			target: {value: 'Offer a cabin and road choice.'}
+		});
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.requestTwoWayBranch'}));
+		await screen.findByText('Add two routes.');
+		expect(bridge.requestAiPassageEdit).toHaveBeenCalledWith(expect.objectContaining({
+			instruction: 'propose-two-way-branch', request: 'Offer a cabin and road choice.'
+		}));
+		expect(screen.getAllByText('studio.ai.newPassage')).toHaveLength(2);
+		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(1);
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('[[Investigate the cabin|Cabin]]');
+		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(3);
+		fireEvent.click(screen.getByRole('button', {name: 'Undo proposal'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
+		expect(screen.getByTestId('story-inspector-default').querySelectorAll('[data-name]')).toHaveLength(1);
+	});
+
 	it('blocks acceptance after a writer edits the passage', async () => {
 		const story = fakeStory(1);
 		bridge.requestAiPassageEdit.mockResolvedValue(proposal(story.passages[0].id));

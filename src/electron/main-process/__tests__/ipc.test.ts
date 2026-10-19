@@ -67,6 +67,30 @@ describe('initIpc()', () => {
 		expect(await handler({}, request)).toBe(true);
 	});
 
+	it('names the two-way branch task and request in native confirmation', async () => {
+		const request = {
+			instruction: 'propose-two-way-branch',
+			storyFormat: 'SugarCube', storyFormatVersion: '2.36.1',
+			passageName: 'Start', passageText: 'Choose a route.',
+			request: 'Offer a cabin or road route.'
+		};
+		(requestAiPassageEdit as jest.Mock).mockImplementation(
+			async (_payload, approve) => approve(request, 'glm-5.3-flash')
+		);
+		const handler = handleMock.mock.calls.find(
+			call => call[0] === 'request-ai-passage-edit'
+		)![1];
+		(dialog.showMessageBox as jest.Mock).mockResolvedValueOnce({response: 0});
+		expect(await handler({}, request)).toBe(false);
+		expect(dialog.showMessageBox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				message: expect.stringContaining('two-way branch proposal'),
+				detail: expect.stringContaining('It also sends your branch request.'),
+				defaultId: 0
+			})
+		);
+	});
+
 	it('waits for main-only preference writes before shutdown', async () => {
 		let release!: () => void;
 		(flushAppPrefs as jest.Mock).mockImplementation(
