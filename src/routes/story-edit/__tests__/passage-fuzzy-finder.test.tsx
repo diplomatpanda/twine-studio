@@ -55,6 +55,25 @@ describe('PassageFuzzyFinder', () => {
 			).toBeInTheDocument();
 		});
 
+		it('finds and opens a passage by an attached Story Knowledge note', () => {
+			const story = fakeStory(2);
+			story.passages[0].name = 'Cellar';
+			story.passages[1].name = 'Garden';
+			story.passages[0].text = 'A quiet room.';
+			story.passages[1].text = 'Flowers grow here.';
+			story.knowledge = [
+				{id: 'clue', kind: 'plot-thread', status: 'planned', title: 'Silver compass', note: 'Points toward the clue.', scope: 'passage', passageName: 'Cellar'},
+				{id: 'world', kind: 'world-rule', status: 'established', title: 'Celestial axiom', note: 'Sky is dark.', scope: 'story'}
+			];
+			const setCenter = jest.fn();
+			renderComponent({setCenter}, story);
+			fireEvent.change(screen.getByRole('textbox'), {target: {value: 'silver compass'}});
+			const result = screen.getByRole('button', {name: 'Cellar components.passageFuzzyFinder.knowledgeMatch'});
+			expect(screen.queryByRole('button', {name: /Garden/})).not.toBeInTheDocument();
+			fireEvent.click(result);
+			expect(setCenter).toHaveBeenCalledWith(story.passages[0]);
+		});
+
 		it('shows all passages alphabetically before searching', () => {
 			const story = fakeStory(3);
 			story.passages[0].name = 'C passage';

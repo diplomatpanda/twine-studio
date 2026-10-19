@@ -61,7 +61,10 @@ public domain under CC0; Harlowe's runtime retains its own license.
 ## Finding a passage
 
 Choose **Go To** to browse all passage names in alphabetical order. Type part of
-a name, passage text, or tag to find a match. Use the arrow keys and Enter, or
+a name, passage text, tag, or a note attached to a specific passage to find a
+match. Matching Story Knowledge notes appear in the result preview. Story-wide
+and named-branch notes do not identify one passage, so they are not used here.
+Use the arrow keys and Enter, or
 click a result, to select that passage and center it on the map. Choose **Edit**
 to continue writing. Escape closes the list; reopening it starts with all passages.
 For a larger story, check **Show passages with no link path from Start** to find

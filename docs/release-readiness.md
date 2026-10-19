@@ -7,10 +7,10 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **273 suites and 2,041 tests**, with 4
+- The latest full Jest checkpoint passed **274 suites and 2,054 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
-  recovery, duplicated-tab guard, story knowledge, the idea starter and
-  filename-collision checks.
+  recovery, duplicated-tab guard, story knowledge and attached-note search,
+  the idea starter and filename-collision checks.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -37,6 +37,11 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   import/search/select/reset journey in Chromium, Firefox and WebKit. The narrow
   screenshot was inspected. It follows ordinary `[[...]]` links; dynamic format
   navigation and special passages can affect actual playability.
+- Go To now searches notes attached to an individual passage. A Chromium browser
+  journey created a private note, reloaded the story, found its passage by the
+  note title, displayed the note preview, and selected that passage. Unit checks
+  exclude story-wide and named-branch notes from passage matches. The refreshed
+  browser bundle also removed a weak unrelated result for that query.
 - AI code-repair boundary checks: 48 Electron main/IPC tests and seven proposal/
   review component tests pass; the Chromium browser journey confirms opening the
   desktop-only panel preserves passage text through reload. Web/Electron builds
@@ -221,7 +226,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
 | C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and one- or two-way forks with empty destinations; either or both routes of a two-way fork can be accepted; opt-in established Story Knowledge context is previewed and bounded; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
 | D: relationship state | Browser authoring and published playthrough pass in Chromium, Firefox and WebKit for Harlowe/SugarCube: initialize trust, add 3, show conditional dialogue and unlock a separate ending | Native journey, registry and continuity tools pending |
-| E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
+| E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit; attached-note search and selection pass Chromium | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic four-passage SugarCube fixture preserves StoryInit, custom macro, CSS, tags and passage sources through import/edit/export; published route works in Chromium, Firefox and WebKit | Representative existing third-party projects, external assets and older format versions still required |
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Four bundled formats reload/edit/save/preview/export in Chromium, Firefox and WebKit; Harlowe linked ending passes | Remote formats, cache eviction and native offline-mode UI pending |

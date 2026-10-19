@@ -98,12 +98,13 @@
 			"placeholderTouch": "Tap this passage, then choose Edit from the Passage tab to edit it."
 		},
 		"passageFuzzyFinder": {
+			"knowledgeMatch": "Story note: {{title}} — {{note}}",
 			"missingStart": "Set a start passage to check link paths.",
 			"noResults": "No matches.",
 			"noUnlinked": "Every passage has a standard-link path from Start.",
 			"onlyWithoutPath": "Show passages with no link path from Start",
 			"pathLimit": "Checks [[...]] links only, including conditional links. Dynamic links and special passages may also appear here.",
-			"prompt": "Search by passage name, text, or tag"
+			"prompt": "Search by passage name, text, tag, or attached story note"
 		},
 		"renamePassageButton": {
 			"emptyName": "Please enter a name.",

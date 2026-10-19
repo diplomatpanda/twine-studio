@@ -5,7 +5,7 @@ import {useTranslation} from 'react-i18next';
 import {CSSTransition} from 'react-transition-group';
 import {FuzzyFinder} from '../../components/fuzzy-finder';
 import {
-	passagesMatchingFuzzySearch,
+	passagesMatchingFuzzySearchWithKnowledge,
 	passagesWithoutStandardLinkPath,
 	selectPassage,
 	Story,
@@ -24,6 +24,7 @@ export interface PassageFuzzyFinderProps {
 export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 	const {onClose, onOpen, open, setCenter, story} = props;
 	const {dispatch} = useStoriesContext();
+	const {t} = useTranslation();
 	const [search, setSearch] = React.useState('');
 	const [onlyWithoutPath, setOnlyWithoutPath] = React.useState(false);
 	const hasStart = story.passages.some(passage => passage.id === story.startPassage);
@@ -38,23 +39,27 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 		[onlyWithoutPath, story]
 	);
 	const matches = React.useMemo(
-		() => passagesMatchingFuzzySearch(candidatePassages, search),
-		[candidatePassages, search]
+		() => passagesMatchingFuzzySearchWithKnowledge(candidatePassages, story.knowledge, search),
+		[candidatePassages, story.knowledge, search]
 	);
 	const results = React.useMemo(
 		() =>
-			matches.map(({name, tags, text}) => ({
+			matches.map(({passage: {name, tags, text}, knowledge}) => ({
 				heading: name,
 				detail:
 					search.trim() === ''
 						? tags.slice(0, 3).join(', ') ||
 							text.replace(/\s+/g, ' ').slice(0, 80)
-						: text.slice(0, 200)
+						: knowledge
+							? t('components.passageFuzzyFinder.knowledgeMatch', {
+								title: knowledge.title,
+								note: knowledge.note.replace(/\s+/g, ' ').slice(0, 120)
+							})
+							: text.slice(0, 200)
 			})),
-		[matches, search]
+		[matches, search, t]
 	);
 	useHotkeys('p', onOpen);
-	const {t} = useTranslation();
 	const noResultsKey = onlyWithoutPath && !hasStart
 		? 'components.passageFuzzyFinder.missingStart'
 		: onlyWithoutPath && !search.trim()
@@ -67,8 +72,8 @@ export const PassageFuzzyFinder: React.FC<PassageFuzzyFinderProps> = props => {
 
 	function handleSelectResult(index: number) {
 		if (!matches[index]) return;
-		setCenter(matches[index]);
-		dispatch(selectPassage(story, matches[index], true));
+		setCenter(matches[index].passage);
+		dispatch(selectPassage(story, matches[index].passage, true));
 		setSearch('');
 		onClose();
 	}

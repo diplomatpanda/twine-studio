@@ -3,6 +3,7 @@ import uniq from 'lodash/uniq';
 import {Passage, StorySearchFlags, Story} from './stories.types';
 import {createRegExp} from '../../util/regexp';
 import {parseLinks} from '../../util/parse-links';
+import {StoryKnowledgeEntry} from './story-knowledge';
 
 export function passageWithId(
 	stories: Story[],
@@ -140,6 +141,61 @@ export function passagesMatchingFuzzySearch(
 	});
 
 	return fuse.search(search, {limit: count}).map(({item}) => item);
+}
+
+/** Find passage-scoped knowledge alongside passage names, text, and tags. */
+export function passagesMatchingFuzzySearchWithKnowledge(
+	passages: Passage[],
+	knowledge: StoryKnowledgeEntry[],
+	search: string,
+	count = 5
+): Array<{passage: Passage; knowledge?: StoryKnowledgeEntry}> {
+	if (!search.trim()) {
+		return passagesMatchingFuzzySearch(passages, search).map(passage => ({passage}));
+	}
+
+	const notesByPassage = new Map<string, StoryKnowledgeEntry[]>();
+	for (const entry of knowledge) {
+		if (entry.scope !== 'passage' || !entry.passageName) continue;
+		const notes = notesByPassage.get(entry.passageName) ?? [];
+		notes.push(entry);
+		notesByPassage.set(entry.passageName, notes);
+	}
+	const records = passages.map(passage => ({
+		passage,
+		notes: notesByPassage.get(passage.name) ?? []
+	}));
+	const fuse = new Fuse(records, {
+		ignoreLocation: true,
+		includeMatches: true,
+		includeScore: true,
+		keys: [
+			{name: 'passage.name', weight: 0.55},
+			{name: 'passage.text', weight: 0.22},
+			{name: 'passage.tags', weight: 0.13},
+			{name: 'notes.title', weight: 0.06},
+			{name: 'notes.note', weight: 0.04}
+		]
+	});
+
+	const found = fuse.search(search);
+	const hasNoteMatch = found.some(({matches}) => matches?.some(match =>
+		match.key === 'notes.title' || match.key === 'notes.note'
+	));
+	return found.filter(({score, matches}) =>
+		!hasNoteMatch || (score ?? 1) < 0.6 || matches?.some(match =>
+			match.key === 'notes.title' || match.key === 'notes.note'
+		)
+	).slice(0, count).map(({item, matches}) => {
+		const noteMatch = matches?.find(match =>
+			(match.key === 'notes.title' || match.key === 'notes.note') &&
+			match.refIndex !== undefined
+		);
+		return {
+			passage: item.passage,
+			...(noteMatch ? {knowledge: item.notes[noteMatch.refIndex!]} : {})
+		};
+	});
 }
 
 /**

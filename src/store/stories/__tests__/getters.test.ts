@@ -8,6 +8,7 @@ import {
 	storyTags,
 	passagesMatchingSearch,
 	passagesMatchingFuzzySearch,
+	passagesMatchingFuzzySearchWithKnowledge,
 	passagesWithoutStandardLinkPath
 } from '../getters';
 import {Passage, Story} from '../stories.types';
@@ -285,6 +286,54 @@ describe('passagesMatchingFuzzySearch', () => {
 
 	it('returns an empty array if no passages match', () => {
 		expect(passagesMatchingFuzzySearch(passages, 'nonexistent', 1)).toEqual([]);
+	});
+});
+
+describe('passagesMatchingFuzzySearchWithKnowledge', () => {
+	it('finds a passage through its attached note and identifies the matching note', () => {
+		const story = fakeStory(2);
+		story.passages[0].name = 'Cellar';
+		story.passages[1].name = 'Garden';
+		story.passages[0].text = 'A quiet room.';
+		story.passages[1].text = 'Flowers grow here.';
+		story.knowledge = [
+			{id: 'clue', kind: 'plot-thread', status: 'planned', title: 'Silver compass', note: 'The needle points north.', scope: 'passage', passageName: 'Cellar'},
+			{id: 'world', kind: 'world-rule', status: 'established', title: 'Celestial axiom', note: 'The sky is dark.', scope: 'story'},
+			{id: 'route', kind: 'ending', status: 'established', title: 'Lunar consequence', note: 'Only on route B.', scope: 'branch', branchName: 'B'}
+		];
+		expect(passagesMatchingFuzzySearchWithKnowledge(story.passages, story.knowledge, 'silver compass'))
+			.toEqual([{passage: story.passages[0], knowledge: story.knowledge[0]}]);
+		expect(passagesMatchingFuzzySearchWithKnowledge(story.passages, story.knowledge, 'celestial axiom'))
+			.toEqual([]);
+		expect(passagesMatchingFuzzySearchWithKnowledge(story.passages, story.knowledge, 'lunar consequence'))
+			.toEqual([]);
+	});
+
+	it('honors the candidate passage filter and keeps alphabetical empty-search results', () => {
+		const story = fakeStory(2);
+		story.passages[0].name = 'Zebra';
+		story.passages[1].name = 'Apple';
+		story.passages[0].text = 'A quiet room.';
+		story.passages[1].text = 'Flowers grow here.';
+		story.knowledge = [{id: 'clue', kind: 'plot-thread', status: 'planned', title: 'Clue', note: 'A brass key.', scope: 'passage', passageName: 'Zebra'}];
+		expect(passagesMatchingFuzzySearchWithKnowledge([story.passages[1]], story.knowledge, 'brass key'))
+			.toEqual([]);
+		expect(passagesMatchingFuzzySearchWithKnowledge(story.passages, story.knowledge, ''))
+			.toEqual([{passage: story.passages[1]}, {passage: story.passages[0]}]);
+	});
+
+	it('suppresses weak passage hits when a note matches but retains fuzzy passage search', () => {
+		const first = fakePassage({name: 'Untitled Passage', text: ''});
+		const second = fakePassage({name: 'Untitled Passage 1', text: 'A text'});
+		const knowledge = [{
+			id: 'compass', kind: 'plot-thread' as const, status: 'planned' as const,
+			title: 'Silver compass', note: 'Points north.', scope: 'passage' as const,
+			passageName: first.name
+		}];
+		expect(passagesMatchingFuzzySearchWithKnowledge([first, second], knowledge, 'silver compass'))
+			.toEqual([{passage: first, knowledge: knowledge[0]}]);
+		expect(passagesMatchingFuzzySearchWithKnowledge([first, second], knowledge, 'txet')[0])
+			.toEqual({passage: second});
 	});
 });
 
