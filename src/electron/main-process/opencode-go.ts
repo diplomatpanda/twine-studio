@@ -1,10 +1,10 @@
 import {AiAvailability, AiPassageEditPayload} from '../shared';
 import {supportsChoiceBuilder} from '../../util/choice-source';
+import {getAiKey} from './ai-credentials';
 
 const MODELS_URL = 'https://opencode.ai/inference/go/v1/models';
 const COMPLETIONS_URL =
 	'https://opencode.ai/inference/go/openai/v1/chat/completions';
-const API_KEY_ENV = 'TWINE_STUDIO_OPENCODE_GO_KEY';
 // These Go models are documented for the same OpenAI-compatible chat endpoint.
 // Prefer DeepSeek, but use another listed coding model if it is unavailable.
 const SUPPORTED_MODELS = [
@@ -25,11 +25,6 @@ const SYSTEM_PROMPTS: Record<AiPassageEditPayload['instruction'], string> = {
 };
 
 let activeRequest: {controller: AbortController; sessionId: string} | undefined;
-
-function configuredKey() {
-	const key = process.env[API_KEY_ENV];
-	return typeof key === 'string' && key.trim() ? key.trim() : undefined;
-}
 
 function validateString(
 	value: unknown,
@@ -203,7 +198,12 @@ async function discoverModel(sessionId: string, signal: AbortSignal) {
 }
 
 export async function aiAvailability(): Promise<AiAvailability> {
-	const key = configuredKey();
+	let key: string | undefined;
+	try {
+		key = await getAiKey();
+	} catch (error) {
+		return {configured: false, reason: (error as Error).message};
+	}
 	if (!key) {
 		return {configured: false, reason: 'OpenCode Go is not configured.'};
 	}
@@ -234,7 +234,7 @@ export async function requestAiPassageEdit(
 ): Promise<string> {
 	validatePayload(payload);
 	if (activeRequest) throw new Error('An OpenCode Go request is already running.');
-	const key = configuredKey();
+	const key = await getAiKey();
 	if (!key) throw new Error('OpenCode Go is not configured.');
 
 	const controller = new AbortController();

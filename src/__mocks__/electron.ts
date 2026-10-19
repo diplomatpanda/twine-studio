@@ -20,6 +20,9 @@ export class BrowserWindow {
 	public readonly on = jest.fn();
 	public readonly once = jest.fn();
 	public readonly setEnabled = jest.fn();
+	public readonly focus = jest.fn();
+	public readonly show = jest.fn();
+	public readonly close = jest.fn();
 
 	constructor(options: any = {}) {
 		BrowserWindow.instances.push(this);
@@ -31,9 +34,10 @@ export class BrowserWindow {
 		};
 	}
 
-	loadURL() {}
+	loadURL = jest.fn().mockResolvedValue(undefined);
 
 	static getFocusedWindow = jest.fn();
+	static fromWebContents = jest.fn();
 }
 
 export const dialog = {
@@ -45,6 +49,16 @@ export const dialog = {
 export const ipcMain = {
 	handle: jest.fn(),
 	on: jest.fn()
+};
+
+export const safeStorage = {
+	isAsyncEncryptionAvailable: jest.fn().mockResolvedValue(true),
+	getSelectedStorageBackend: jest.fn().mockReturnValue('gnome_libsecret'),
+	encryptStringAsync: jest.fn(async (value: string) => Buffer.from(`encrypted:${Buffer.from(value).toString('base64')}`)),
+	decryptStringAsync: jest.fn(async (value: Buffer) => ({
+		result: Buffer.from(value.toString().replace(/^encrypted:/, ''), 'base64').toString(),
+		shouldReEncrypt: false
+	}))
 };
 
 export const screen = {

@@ -7,6 +7,7 @@ import {FakeStateProvider, fakeStory, StoryInspector} from '../../../test-util';
 import {PassageAiReview} from '../passage-ai-review';
 
 const bridge = {
+	openAiCredentials: jest.fn(),
 	aiAvailability: jest.fn(),
 	requestAiPassageEdit: jest.fn(),
 	cancelAiPassageEdit: jest.fn()
@@ -56,6 +57,7 @@ describe('<PassageAiReview>', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		bridge.openAiCredentials.mockResolvedValue(undefined);
 		bridge.aiAvailability.mockResolvedValue({configured: true, model: 'deepseek-v4.1-flash'});
 		(window as TwineElectronWindow).twineElectron = bridge as any;
 	});
@@ -77,6 +79,22 @@ describe('<PassageAiReview>', () => {
 		fireEvent.click(screen.getByRole('checkbox'));
 		return story;
 	}
+
+	it('opens isolated key management and refreshes availability after it closes', async () => {
+		bridge.aiAvailability
+			.mockResolvedValueOnce({configured: false, reason: 'OpenCode Go is not configured.'})
+			.mockResolvedValueOnce({configured: true, model: 'glm-5.3-flash'});
+		render(
+			<FakeStateProvider stories={[fakeStory(1)]}>
+				<Fixture onClose={onClose} />
+			</FakeStateProvider>
+		);
+		await screen.findByText('OpenCode Go is not configured.');
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.manageKey'}));
+		await waitFor(() => expect(bridge.openAiCredentials).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(screen.getByText('studio.ai.model')).toBeInTheDocument());
+		expect(bridge.aiAvailability).toHaveBeenCalledTimes(2);
+	});
 
 	it('sends only selected passage context and never changes source before acceptance', async () => {
 		const story = fakeStory(1);

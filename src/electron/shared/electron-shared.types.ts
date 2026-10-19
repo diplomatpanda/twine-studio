@@ -20,6 +20,7 @@ export interface AiAvailability {
 
 export interface TwineElectronWindow extends Window {
 	twineElectron?: {
+		openAiCredentials(): Promise<void>;
 		aiAvailability(): Promise<AiAvailability>;
 		requestAiPassageEdit(payload: AiPassageEditPayload): Promise<string>;
 		cancelAiPassageEdit(sessionId: string): void;

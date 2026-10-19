@@ -174,12 +174,15 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - 41 npm advisories remain after fixing the two critical entries; triage runtime
   exposure and upgrade safely. Do not interpret zero critical as secure overall.
 - Complete Paperthin historical license notice and bundled/transitive attribution.
-- Optional desktop AI code editing now has a main-process provider adapter, native
-  send confirmation, validated repair proposals, locally generated conditional
+- Optional desktop AI code editing now has a main-process provider adapter, an
+  isolated credential window and OS-backed encrypted key storage (with no Linux
+  `basic_text` fallback), native send confirmation, validated repair proposals, locally generated conditional
   choices to existing passages, and reviewed links that create one empty branch
-  passage. A real
-  paid round trip, native review/undo acceptance, credential-management UI and
-  broader AI story-modification journey remain pending. See ai-evaluation.md.
+  passage. The credential window's save/remove flow passed a Windows Electron
+  smoke check with a fake key in isolated user data. A real paid round trip,
+  native review/undo acceptance, macOS/Linux credential-window validation, and
+  a broader AI story-modification journey
+  remain pending. See ai-evaluation.md.
 - Story logic has bounded yes/no/numeric assignments, signed numeric changes,
   conditional choices and short conditional text in Harlowe and SugarCube.
   Authors must initialize numeric facts before changing or checking them;

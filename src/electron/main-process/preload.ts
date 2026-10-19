@@ -7,6 +7,9 @@ import {AiPassageEditPayload} from '../shared';
 
 if (process.isMainFrame) {
 	contextBridge.exposeInMainWorld('twineElectron', {
+		openAiCredentials() {
+			return ipcRenderer.invoke('open-ai-credentials');
+		},
 		aiAvailability() {
 			return ipcRenderer.invoke('ai-availability');
 		},

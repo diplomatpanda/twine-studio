@@ -1,4 +1,4 @@
-import {dialog, ipcMain} from 'electron';
+import {BrowserWindow, dialog, ipcMain} from 'electron';
 import debounce from 'lodash/debounce';
 import type {DebouncedFunc} from 'lodash';
 import {i18n} from './locales';
@@ -20,6 +20,7 @@ import {
 	cancelAiPassageEdit,
 	requestAiPassageEdit
 } from './opencode-go';
+import {openAiCredentialWindow, registerAiCredentialWindowIpc} from './ai-credentials-window';
 
 const allowedJsonFilenames = new Set(['prefs.json', 'story-formats.json']);
 
@@ -30,6 +31,11 @@ function validateJsonFilename(filename: unknown): asserts filename is string {
 }
 
 export function initIpc() {
+	registerAiCredentialWindowIpc();
+	ipcMain.handle('open-ai-credentials', async event => {
+		const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+		await openAiCredentialWindow(parent);
+	});
 	ipcMain.handle('ai-availability', aiAvailability);
 	ipcMain.handle('request-ai-passage-edit', (_event, payload) =>
 		requestAiPassageEdit(payload, async (request, model) => {

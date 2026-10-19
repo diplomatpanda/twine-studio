@@ -42,6 +42,16 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 	const [snapshot, setSnapshot] = React.useState<PassageEditSnapshot>();
 	const sessionId = React.useRef(uuid());
 	const requestGeneration = React.useRef(0);
+	const openCredentialWindow = async () => {
+		if (!bridge?.openAiCredentials) return;
+		setError('');
+		try {
+			await bridge.openAiCredentials();
+			setAvailability(await bridge.aiAvailability());
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : t('studio.ai.unavailable'));
+		}
+	};
 
 	React.useEffect(() => {
 		let current = true;
@@ -152,10 +162,14 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			{!bridge?.requestAiPassageEdit ? (
 				<p>{t('studio.ai.desktopOnly')}</p>
 			) : availability && !availability.configured ? (
-				<p>{availability.reason || t('studio.ai.setup')}</p>
+				<>
+					<p>{availability.reason || t('studio.ai.setup')}</p>
+					<button type="button" onClick={() => void openCredentialWindow()}>{t('studio.ai.manageKey')}</button>
+				</>
 			) : (
 				<>
 					<p>{t('studio.ai.model', {model: availability?.model ?? '…'})}</p>
+					<button type="button" onClick={() => void openCredentialWindow()}>{t('studio.ai.manageKey')}</button>
 					<p>
 						{t('studio.ai.privacy')}{' '}
 						<a href="https://dev.opencode.ai/v2/docs/console/go/#privacy" target="_blank" rel="noopener noreferrer">
