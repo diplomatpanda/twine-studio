@@ -37,6 +37,24 @@ describe('browser editor draft recovery', () => {
 		expect(Object.keys(drafts.exportEditorDrafts())).toHaveLength(0);
 	});
 
+	it('keeps normal recovery available when IndexedDB access is denied', async () => {
+		const prior = Object.getOwnPropertyDescriptor(window, 'indexedDB');
+		Object.defineProperty(window, 'indexedDB', {
+			configurable: true,
+			get: () => {throw new DOMException('Blocked', 'SecurityError');}
+		});
+		try {
+			drafts.saveEditorDraft(story.passages[0], 'session draft');
+			const loaded = await load();
+			expect(loaded[0].passages[0].text).toBe('session draft');
+			expect(JSON.parse(window.localStorage.getItem(passageKey)!).text)
+				.toBe('session draft');
+		} finally {
+			if (prior) Object.defineProperty(window, 'indexedDB', prior);
+			else delete (window as any).indexedDB;
+		}
+	});
+
 	it('preserves a divergent draft for backup without overwriting saved work', async () => {
 		drafts.saveEditorDraft(story.passages[0], 'local last keystrokes');
 		window.localStorage.setItem(passageKey, JSON.stringify({

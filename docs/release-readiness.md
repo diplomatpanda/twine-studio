@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **266 suites and 1,963 tests**, with 4
+- The latest full Jest checkpoint passed **266 suites and 1,965 tests**, with 4
   skipped and 41 TODOs. It includes the browser lock, closed-tab journal
   recovery, and duplicated-tab guard changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
@@ -67,6 +67,8 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Browser recovery now covers simulated quota failure before journaling,
   backup export and import into a clean profile, partial-write journal recovery,
   unreadable-journal raw export, and failure during the final reload flush.
+  Raw export on an early journal failure includes IndexedDB drafts; that startup
+  path passes Chromium, Firefox and WebKit.
   The latter reproduced silent loss before the post-flush navigation guard.
   The recovery panel was inspected at a desktop viewport. Forced process
   termination, actual full-disk behavior and power failure remain unverified.
@@ -103,8 +105,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   closed-tab journal with no session history now replays under that lock when
   its bases still match. Conflicting or unverifiable journals stop startup and
   offer raw export. A fresh tab waits for an active tab's queued commit before
-  classifying its journal. The two affected browser files pass **60 tests** across
-  Chromium, Firefox and WebKit on this revision.
+  classifying its journal. The two affected browser files pass **69 tests** across
+  Chromium, Firefox and WebKit; an additional early-startup IndexedDB export
+  journey passes in all three engines.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
   restart runs retained final typing after resolving a reproduced asynchronous
@@ -151,12 +154,16 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   replayed only when their recorded bases are compatible; ambiguous journals
   require raw export.
   Firefox's normal reload-before-debounce journey passed ten focused repeats.
-  Session drafts cover the observed missing unload warning, but tab closure,
-  blocked or exhausted session storage, and concurrent saves still need
-  stronger failure testing before release.
-  In particular, a quota failure during the final journal write followed by
-  tab close without a `beforeunload` event can discard the session draft; this
-  remains a data-loss release blocker.
+  A separate IndexedDB checkpoint now preserves a passage edit after simulated
+  journal quota failure and actual tab close without `beforeunload`; the journey
+  passes Chromium, Firefox and WebKit. Competing tab checkpoints remain distinct
+  in raw recovery export and block later story writes; ordinary successful saves
+  clear matching checkpoints. IndexedDB can also be denied, exhausted or
+  interrupted before its asynchronous commit, so abrupt close at that boundary,
+  real storage exhaustion and simultaneous saves still need stronger failure
+  testing before release. Durable orphan or conflicting drafts currently offer
+  raw export but no in-app resolution after review; clearing them requires
+  manual storage repair.
   When session storage is blocked, startup now replays a single compatible
   abandoned journal under the Web Lock and stops for raw export if two journals
   contain different drafts of the same record. Without Web Locks, a pending

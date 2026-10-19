@@ -46,7 +46,16 @@ the debounced save. On reload, a draft is restored and saved only when the saved
 passage still matches the draft's starting text. If it changed, Studio shows the
 recovered draft for backup and blocks an overwrite. Firefox did not present an
 unload warning in a simulated full-storage reload; the session draft preserved
-that final text. A draft whose passage or story no longer loads raises a warning
+that final text. Each edit also queues an IndexedDB checkpoint under a separate
+page owner, so a committed checkpoint can survive tab closure when the
+localStorage journal is full or session storage is unavailable. Startup reads
+these checkpoints before journal recovery or showing passages, so raw export on
+an early startup error can include them. Distinct drafts from different tabs
+remain separate in the raw recovery export; ambiguous drafts stop story writes
+until reviewed. A successfully saved passage removes only checkpoints whose
+text matches the saved version. IndexedDB writes are asynchronous and can also
+be denied, exhausted or interrupted before commit, so this does not replace an
+external backup. A draft whose passage or story no longer loads raises a warning
 with a raw recovery export containing its bytes. An invalid
 journal stops loading and offers a raw JSON rescue export without deleting data.
 If an indexed story or passage record is missing, malformed or orphaned, Studio
@@ -60,5 +69,5 @@ Studio tabs using the same browser storage origin; they do not protect against
 other same-origin scripts or replace external backups. Browser eviction,
 cleared site data, forced process kills
 before a typing flush, and hardware/power failures remain outside this guarantee.
-Raw rescue JSON includes session drafts for recovery investigation; ordinary Library Import
+Raw rescue JSON includes session and IndexedDB drafts for recovery investigation; ordinary Library Import
 accepts the HTML story backup, not that diagnostic JSON.

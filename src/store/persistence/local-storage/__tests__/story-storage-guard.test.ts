@@ -30,6 +30,18 @@ describe('browser story storage guard', () => {
 		expect(() => tx.retryStorageChanges()).toThrow('Another tab changed saved stories');
 	});
 
+	it('holds story writes while competing recovered drafts need review', () => {
+		tx.reportAmbiguousEditorDrafts();
+		expect(() => tx.writeStorageItem(passageKey, 'new edit')).toThrow(
+			'Several recovered drafts need review'
+		);
+		expect(window.localStorage.getItem(passageKey)).toBe('original passage');
+		expect(window.localStorage.getItem(tx.journalKey)).toBeNull();
+		expect(tx.getStorageStatus()).toMatchObject({dirty: true, ambiguousDrafts: true});
+		expect(JSON.parse(tx.exportStorageRecovery()).unsavedChanges)
+			.toContainEqual([passageKey, 'new edit']);
+	});
+
 	it('blocks a transaction that would replace another tab’s story record', () => {
 		window.localStorage.setItem(storyKey, 'other tab story');
 		expect(() => tx.withStorageTransaction(() => {

@@ -7,6 +7,7 @@ import {useStoryFormatsContext} from './story-formats';
 import {useStoriesRepair} from './use-stories-repair';
 import {saveAs} from 'file-saver';
 import {recoverUnownedJournals, exportStorageRecovery, startStoryStorageGuard} from './persistence/local-storage/transaction';
+import {loadDurableEditorDrafts} from './persistence/local-storage/durable-editor-drafts';
 import {isElectronRenderer} from '../util/is-electron';
 import {useTranslation} from 'react-i18next';
 
@@ -37,7 +38,10 @@ export const StateLoader: React.FC = ({children}) => {
 	React.useEffect(() => {
 		async function run() {
 			if (!initing) {
-				if (!isElectronRenderer()) await recoverUnownedJournals();
+				if (!isElectronRenderer()) {
+					await loadDurableEditorDrafts();
+					await recoverUnownedJournals();
+				}
 				const formatsState = await storyFormats.load();
 				const prefsState = await prefs.load();
 				const storiesState = await stories.load();

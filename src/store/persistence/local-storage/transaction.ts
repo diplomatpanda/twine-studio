@@ -4,6 +4,7 @@
  */
 import {v4 as uuid} from '@lukeed/uuid';
 import {clearEditorDraft, exportEditorDrafts} from './editor-drafts';
+import {clearSavedDurableEditorDrafts, exportDurableEditorDrafts} from './durable-editor-drafts';
 
 const legacyJournalKey = 'twine-studio-pending-transaction';
 const journalSessionKey = 'twine-studio-journal-owner';
@@ -134,6 +135,7 @@ let notificationPending = false;
 let storyGuardActive = false;
 let storyConflict = false;
 let recoveredDraftConflict = false;
+let ambiguousDrafts = false;
 const conflictingDraftIds = new Set<string>();
 const orphanDraftIds = new Set<string>();
 const unreadableStoryRecords = new Set<string>();
@@ -145,6 +147,8 @@ const conflictMessage =
 	'Another tab changed saved stories. This tab cannot safely save over that version.';
 const unreadableMessage =
 	'Some saved stories or passages could not be opened. Export recovery data before repairing storage.';
+const ambiguousDraftMessage =
+	'Several recovered drafts need review. Export recovery data before editing this story.';
 
 function isStoryKey(key: string) {
 	return /^twine-studio-(stories|passages)(-|$)/.test(key);
@@ -177,6 +181,13 @@ export function startStoryStorageGuard() {
 
 function checkStoryStorageGuard(changes: Changes) {
 	if (!storyGuardActive) return;
+	if (ambiguousDrafts && [...changes.keys()].some(isStoryKey)) {
+		pending = new Map([...pending, ...changes]);
+		durable = false;
+		error = ambiguousDraftMessage;
+		notify();
+		throw new Error(ambiguousDraftMessage);
+	}
 	if (unreadableStoryRecords.size && [...changes.keys()].some(isStoryKey)) {
 		pending = new Map([...pending, ...changes]);
 		durable = false;
@@ -311,7 +322,12 @@ function notify() {
 }
 
 export function getStorageStatus() {
-	return {dirty: storyConflict || unreadableStoryRecords.size > 0 || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, saving: lockRequestPending && !storyConflict, conflict: storyConflict, recoveredDraftConflict, orphanDrafts: orphanDraftIds.size > 0, unreadableStoryRecords: unreadableStoryRecords.size > 0};
+	return {dirty: storyConflict || ambiguousDrafts || unreadableStoryRecords.size > 0 || orphanDraftIds.size > 0 || pending.size > 0 || Boolean(error), error, durable, saving: lockRequestPending && !storyConflict, conflict: storyConflict, recoveredDraftConflict, ambiguousDrafts, hasDurableDrafts: Object.keys(exportDurableEditorDrafts()).length > 0, orphanDrafts: orphanDraftIds.size > 0, unreadableStoryRecords: unreadableStoryRecords.size > 0};
+}
+
+export function reportAmbiguousEditorDrafts() {
+	ambiguousDrafts = true;
+	notify();
 }
 
 /** Stop story saves when indexed records could not be loaded without data loss. */
@@ -438,6 +454,18 @@ function flushStorageChangesUnderLock(
 				// The committed records do not depend on session storage cleanup.
 			}
 		}
+		for (const [key, value] of pending)
+			if (value && key.startsWith('twine-studio-passages-')) {
+				try {
+					const saved = JSON.parse(value);
+					if (typeof saved.text === 'string')
+						clearSavedDurableEditorDrafts(
+							key.slice('twine-studio-passages-'.length), saved.text
+						);
+				} catch {
+					// A saved record must not be hidden by a draft cleanup failure.
+				}
+			}
 		pending.clear();
 		if (!storyConflict) error = '';
 		durable = false;
@@ -541,7 +569,7 @@ export function exportStorageRecovery() {
 			records[key] = window.localStorage.getItem(key);
 	}
 	return JSON.stringify(
-		{version: 1, records, sessionDrafts: exportEditorDrafts(), unsavedChanges: [...pending]},
+		{version: 1, records, sessionDrafts: exportEditorDrafts(), durableDrafts: exportDurableEditorDrafts(), unsavedChanges: [...pending]},
 		null,
 		2
 	);

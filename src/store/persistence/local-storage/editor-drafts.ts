@@ -1,5 +1,6 @@
 import {Passage} from '../../stories';
 import {storageKey} from './keys';
+import {clearSavedDurableEditorDrafts, currentDurableEditorDraft, saveDurableEditorDraft} from './durable-editor-drafts';
 
 const draftPrefix = 'twine-studio-editor-draft-';
 
@@ -18,7 +19,7 @@ function draftKey(passageId: string) {
 /** Keep the latest keystrokes in this tab before the debounced story save runs. */
 export function saveEditorDraft(passage: Passage, text: string) {
 	clearSavedEditorDraft(passage);
-	const previous = readEditorDraft(passage);
+	const previous = readEditorDraft(passage) ?? currentDurableEditorDraft(passage.id);
 	const draft: EditorDraft = {
 		version: 1,
 		storyId: passage.story,
@@ -26,6 +27,7 @@ export function saveEditorDraft(passage: Passage, text: string) {
 		baseText: previous?.baseText ?? passage.text,
 		text
 	};
+	saveDurableEditorDraft(draft);
 	window.sessionStorage.setItem(draftKey(passage.id), JSON.stringify(draft));
 }
 
@@ -53,25 +55,28 @@ export function readEditorDraft(passage: Passage): EditorDraft | undefined {
 
 export function clearSavedEditorDraft(passage: Passage) {
 	const draft = readEditorDraft(passage);
-	if (!draft) return;
 	const saved = window.localStorage.getItem(storageKey('passages', passage.id));
 	if (!saved) return;
 	try {
-		if (JSON.parse(saved).text === draft.text)
+		const savedText = JSON.parse(saved).text;
+		if (typeof savedText !== 'string') return;
+		if (draft && savedText === draft.text)
 			window.sessionStorage.removeItem(draftKey(passage.id));
+		clearSavedDurableEditorDrafts(passage.id, savedText);
 	} catch {
 		// Keep the draft if the saved record cannot be read.
 	}
 }
 
 export function clearEditorDraft(passageId: string) {
+	let sessionCleared = true;
 	try {
 		window.sessionStorage.removeItem(draftKey(passageId));
-		return true;
 	} catch {
 		// A profile may stop allowing session storage after recovery was shown.
-		return false;
+		sessionCleared = false;
 	}
+	return sessionCleared;
 }
 
 export function exportEditorDrafts() {

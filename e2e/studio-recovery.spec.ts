@@ -265,6 +265,104 @@ test('preserves final typing when the first save fails during reload', async ({
 	).toContainText('Do not lose this final sentence.');
 });
 
+test('recovers a quota-failed passage draft after the tab closes', async ({page, context}) => {
+	const sentence = 'Keep this sentence after closing the tab.';
+	await createDraft(page);
+	await failWrites(page, 'journal');
+	await page.getByLabel('Passage Text', {exact: true}).fill(sentence);
+	await expect.poll(() => page.evaluate(async expected => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		return new Promise<boolean>(resolve => {
+			request.onerror = () => resolve(false);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readonly');
+				const read = transaction.objectStore('drafts').getAll();
+				read.onsuccess = () => resolve(read.result.some(draft => draft.text === expected));
+				read.onerror = () => resolve(false);
+				transaction.oncomplete = () => db.close();
+			};
+		});
+	}, sentence)).toBe(true);
+	expect(await page.evaluate(() => JSON.stringify({...localStorage}))).not.toContain(sentence);
+	await page.close({runBeforeUnload: false});
+	const fresh = await context.newPage();
+	await fresh.goto('http://127.0.0.1:5189');
+	await expect(fresh.getByRole('button', {name: 'Recovery draft', exact: true}))
+		.toBeVisible();
+	await fresh.getByRole('button', {name: 'Recovery draft', exact: true}).dblclick();
+	await expect(fresh.getByRole('button', {name: 'Untitled Passage', exact: true}))
+		.toContainText(sentence);
+});
+
+test('keeps competing durable drafts separate for recovery export', async ({page}) => {
+	await createDraft(page);
+	const passageKey = await page.evaluate(() => Object.keys(localStorage)
+		.find(key => key.startsWith('twine-studio-passages-'))!);
+	await page.evaluate(async key => {
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		await new Promise<void>((resolve, reject) => {
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readwrite');
+				for (const [owner, text] of [['first-tab', 'First tab draft'],
+					['second-tab', 'Second tab draft']])
+					transaction.objectStore('drafts').put({
+						id: `${owner}:${passage.id}`,
+						owner,
+						version: 1,
+						storyId: passage.story,
+						passageId: passage.id,
+						baseText: passage.text,
+						text
+					});
+				transaction.oncomplete = () => {db.close(); resolve();};
+				transaction.onerror = () => reject(transaction.error);
+			};
+		});
+	}, passageKey);
+	await page.reload();
+	const warning = page.getByRole('alert').filter({hasText: 'Several recovered drafts need review'});
+	await expect(warning).toBeVisible();
+	const downloadPromise = page.waitForEvent('download');
+	await warning.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(Object.values(recovery.durableDrafts).map((draft: any) => draft.text))
+		.toEqual(expect.arrayContaining(['First tab draft', 'Second tab draft']));
+	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
+		.not.toContain('First tab draft');
+	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
+		.not.toContain('Second tab draft');
+	await page.getByRole('button', {name: 'Untitled Passage', exact: true}).dblclick();
+	await page.getByLabel('Passage Text', {exact: true}).fill('Another edit after recovery');
+	await expect(warning).toBeVisible();
+	expect(await page.evaluate(key => localStorage.getItem(key), passageKey))
+		.not.toContain('Another edit after recovery');
+});
+
+test('clears an emergency draft after an ordinary successful save', async ({page}) => {
+	await createDraft(page);
+	await page.getByLabel('Passage Text', {exact: true}).type('Saved normally.');
+	await expect.poll(() => page.evaluate(() => JSON.stringify({...localStorage})))
+		.toContain('Saved normally.');
+	await expect.poll(() => page.evaluate(async () => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		return new Promise<number>(resolve => {
+			request.onerror = () => resolve(-1);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readonly');
+				const count = transaction.objectStore('drafts').count();
+				count.onsuccess = () => resolve(count.result);
+				count.onerror = () => resolve(-1);
+				transaction.oncomplete = () => db.close();
+			};
+		});
+	})).toBe(0);
+});
+
 async function createDraft(page: Page) {
 	await page.goto('http://127.0.0.1:5189');
 	await page.getByRole('button', {name: 'Skip', exact: true}).click();
@@ -494,4 +592,36 @@ test('unreadable recovery journal offers raw export without deleting saved bytes
 			localStorage.getItem('twine-studio-stories-precious')
 		)
 	).toBe('precious existing bytes');
+});
+
+test('startup failure export includes IndexedDB drafts', async ({page}) => {
+	await page.goto('http://127.0.0.1:5189');
+	await page.evaluate(async () => {
+		const request = indexedDB.open('twine-studio-editor-drafts', 1);
+		await new Promise<void>((resolve, reject) => {
+			request.onupgradeneeded = () =>
+				request.result.createObjectStore('drafts', {keyPath: 'id'});
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('drafts', 'readwrite');
+				transaction.objectStore('drafts').put({
+					id: 'closed-page:lost-passage', owner: 'closed-page', version: 1,
+					storyId: 'lost-story', passageId: 'lost-passage',
+					baseText: 'Earlier text', text: 'Writing from the closed page'
+				});
+				transaction.oncomplete = () => {db.close(); resolve();};
+				transaction.onerror = () => reject(transaction.error);
+			};
+		});
+		localStorage.setItem('twine-studio-pending-transaction', '{broken journal');
+	});
+	await page.reload();
+	await expect(page.getByRole('heading', {name: 'Your saved work could not be opened'}))
+		.toBeVisible();
+	const downloadPromise = page.waitForEvent('download');
+	await page.getByRole('button', {name: 'Export recovery data'}).click();
+	const recovery = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'));
+	expect(recovery.durableDrafts['closed-page:lost-passage'].text)
+		.toBe('Writing from the closed page');
 });

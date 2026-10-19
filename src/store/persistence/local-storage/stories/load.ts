@@ -2,13 +2,16 @@ import {passageDefaults, storyDefaults} from '../../../stories/defaults';
 import {Passage, Story} from '../../../stories/stories.types';
 import {storageKey} from '../keys';
 import {clearSavedEditorDraft, exportEditorDrafts, readEditorDraft} from '../editor-drafts';
-import {preserveConflictingEditorDraft, readStorageItem, reportOrphanEditorDraft, reportUnreadableStoryRecord, writeStorageItem} from '../transaction';
+import {hasUnreadableDurableEditorDrafts, loadDurableEditorDrafts} from '../durable-editor-drafts';
+import {preserveConflictingEditorDraft, readStorageItem, reportAmbiguousEditorDrafts, reportOrphanEditorDraft, reportUnreadableStoryRecord, writeStorageItem} from '../transaction';
 
-function reportUnmatchedEditorDrafts(handled: Set<string>) {
+function reportUnmatchedEditorDrafts(handled: Set<string>, durablePassageIds: string[]) {
 	for (const key of Object.keys(exportEditorDrafts())) {
 		const passageId = key.slice('twine-studio-editor-draft-'.length);
 		if (!handled.has(passageId)) reportOrphanEditorDraft(passageId);
 	}
+	for (const passageId of durablePassageIds)
+		if (!handled.has(passageId)) reportOrphanEditorDraft(passageId);
 }
 
 /**
@@ -17,12 +20,15 @@ function reportUnmatchedEditorDrafts(handled: Set<string>) {
 export async function load(): Promise<Story[]> {
 	const stories: Record<string, Story> = Object.create(null);
 	const handledDrafts = new Set<string>();
+	const durableDrafts = await loadDurableEditorDrafts();
+	if (hasUnreadableDurableEditorDrafts()) reportAmbiguousEditorDrafts();
+	const durablePassageIds = durableDrafts.map(draft => draft.passageId);
 	const serializedStories = readStorageItem(storageKey('stories'));
 
 	if (!serializedStories) {
 		if (readStorageItem(storageKey('passages')))
 			reportUnreadableStoryRecord(storageKey('stories'));
-		reportUnmatchedEditorDrafts(handledDrafts);
+		reportUnmatchedEditorDrafts(handledDrafts, durablePassageIds);
 		return [];
 	}
 
@@ -116,26 +122,33 @@ export async function load(): Promise<Story[]> {
 					// Remove empty tags.
 					tags: passage.tags ? passage.tags.filter(t => t.trim() !== '') : []
 				};
-				const draft = readEditorDraft(loadedPassage);
-				if (draft) {
-					handledDrafts.add(draft.passageId);
-					if (loadedPassage.text === draft.text) {
-						clearSavedEditorDraft(loadedPassage);
-					} else {
-						const savedText = loadedPassage.text;
-						loadedPassage = {...loadedPassage, text: draft.text};
-						const key = storageKey('passages', passage.id);
-						const serialized = JSON.stringify(loadedPassage);
-						if (savedText === draft.baseText) {
-							try {
-								writeStorageItem(key, serialized);
-								clearSavedEditorDraft(loadedPassage);
-							} catch {
-								// The pending transaction and tab draft remain available.
-							}
-						} else {
-							preserveConflictingEditorDraft(key, serialized);
+				const candidates = [
+					...durableDrafts.filter(draft =>
+						draft.passageId === passage.id && draft.storyId === passage.story),
+					readEditorDraft(loadedPassage)
+				].filter((draft): draft is NonNullable<typeof draft> => Boolean(draft));
+				const distinctDrafts = [...new Map(candidates.map(draft =>
+					[JSON.stringify([draft.baseText, draft.text]), draft])).values()];
+				if (distinctDrafts.length) handledDrafts.add(passage.id);
+				clearSavedEditorDraft(loadedPassage);
+				const pendingDrafts = distinctDrafts.filter(draft => draft.text !== loadedPassage.text);
+				if (pendingDrafts.length > 1) {
+					reportAmbiguousEditorDrafts();
+				} else if (pendingDrafts.length === 1) {
+					const draft = pendingDrafts[0];
+					const savedText = loadedPassage.text;
+					loadedPassage = {...loadedPassage, text: draft.text};
+					const key = storageKey('passages', passage.id);
+					const serialized = JSON.stringify(loadedPassage);
+					if (savedText === draft.baseText) {
+						try {
+							writeStorageItem(key, serialized);
+							clearSavedEditorDraft(loadedPassage);
+						} catch {
+							// The pending transaction and tab draft remain available.
 						}
+					} else {
+						preserveConflictingEditorDraft(key, serialized);
 					}
 				}
 				stories[passage.story].passages.push(loadedPassage);
@@ -147,6 +160,6 @@ export async function load(): Promise<Story[]> {
 	}
 
 	// Flatten the stories object.
-	reportUnmatchedEditorDrafts(handledDrafts);
+	reportUnmatchedEditorDrafts(handledDrafts, durablePassageIds);
 	return Object.values(stories);
 }

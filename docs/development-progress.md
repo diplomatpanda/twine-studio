@@ -103,7 +103,12 @@ full-storage failure prevents the normal save and Firefox shows no unload warnin
 The draft restores automatically only if the saved passage still matches its
 starting text; otherwise the writer can export the recovered story without
 overwriting the newer saved passage. Tab closure, blocked or exhausted session
-storage, and truly simultaneous writes remain outside this evidence.
+storage, and truly simultaneous writes remained outside that evidence. A separate
+IndexedDB checkpoint now survives simulated journal quota failure and actual tab
+close without an unload event in Chromium, Firefox and WebKit. Distinct drafts
+from competing tabs remain in raw export and block story writes. A normal save
+clears matching checkpoints. Abrupt close before IndexedDB commits, denied or
+full IndexedDB, and real concurrent failures remain unverified.
 Indexed story and passage records that cannot be opened now raise a visible raw
 recovery export and stop story saves; the malformed-story journey passes in all
 three browser engines.
