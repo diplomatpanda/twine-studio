@@ -7,7 +7,7 @@
 	"private": true,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/klembot/twinejs"
+		"url": "https://github.com/diplomatpanda/twine-studio"
 	},
 	"engines": {
 		"node": ">=20",
