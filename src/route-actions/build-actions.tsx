@@ -1,4 +1,5 @@
 import {
+	IconEdit,
 	IconEyeglass,
 	IconFileText,
 	IconPlayerPlay,
@@ -12,12 +13,14 @@ import {CardContent} from '../components/container/card';
 import {CardButton} from '../components/control/card-button';
 import {IconButton} from '../components/control/icon-button';
 import {IconFileTwee} from '../components/image/icon';
+import {addPassageEditors, useDialogsContext} from '../dialogs';
 import {storyFileName} from '../electron/shared';
-import {Story} from '../store/stories';
+import {brokenStoryLinks, Story} from '../store/stories';
 import {usePublishing} from '../store/use-publishing';
 import {useStoryLaunch} from '../store/use-story-launch';
 import {saveHtml, saveTwee} from '../util/save-file';
 import {storyToTwee} from '../util/twee';
+import './build-actions.css';
 
 export interface BuildActionsProps {
 	story?: Story;
@@ -28,14 +31,19 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 	const [playError, setPlayError] = React.useState<Error>();
 	const [proofError, setProofError] = React.useState<Error>();
 	const [publishError, setPublishError] = React.useState<Error>();
+	const [warningStoryId, setWarningStoryId] = React.useState<string>();
 	const [testError, setTestError] = React.useState<Error>();
+	const {dispatch: dialogsDispatch} = useDialogsContext();
 	const {playStory, proofStory, testStory} = useStoryLaunch();
 	const {t} = useTranslation();
+	const brokenLinks = story ? brokenStoryLinks(story) : [];
+	const publishWarning = warningStoryId === story?.id && brokenLinks.length > 0;
 
 	function resetErrors() {
 		setPlayError(undefined);
 		setProofError(undefined);
 		setPublishError(undefined);
+		setWarningStoryId(undefined);
 		setTestError(undefined);
 	}
 
@@ -67,18 +75,31 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 		}
 	}
 
-	async function handlePublishFile() {
+	async function publishToFile() {
 		if (!story) {
 			throw new Error('No story provided to publish');
 		}
-
-		resetErrors();
 
 		try {
 			saveHtml(await publishStory(story.id), storyFileName(story));
 		} catch (error) {
 			setPublishError(error as Error);
 		}
+	}
+
+	function handlePublishFile() {
+		resetErrors();
+		if (brokenLinks.length) {
+			setWarningStoryId(story?.id);
+			return;
+		}
+		void publishToFile();
+	}
+
+	function handleEditBrokenLink(sourceId: string) {
+		if (!story) return;
+		setWarningStoryId(undefined);
+		dialogsDispatch(addPassageEditors(story.id, [sourceId]));
 	}
 
 	async function handleTest() {
@@ -163,22 +184,63 @@ export const BuildActions: React.FC<BuildActionsProps> = ({story}) => {
 				</CardContent>
 			</CardButton>
 			<CardButton
-				ariaLabel={publishError?.message ?? ''}
+				ariaLabel={publishError?.message ?? (publishWarning ? t('routeActions.build.linkWarningTitle') : '')}
 				disabled={!story}
 				icon={<IconFileText />}
 				label={t('routeActions.build.publishToFile')}
-				onChangeOpen={() => setPublishError(undefined)}
+				onChangeOpen={() => {
+					setPublishError(undefined);
+					setWarningStoryId(undefined);
+				}}
 				onClick={handlePublishFile}
-				open={!!publishError}
+				open={!!publishError || publishWarning}
 			>
 				<CardContent>
-					<p>{publishError?.message}</p>
-					<IconButton
-						icon={<IconX />}
-						label={t('common.close')}
-						onClick={() => setPublishError(undefined)}
-						variant="primary"
-					/>
+					{publishWarning ? (
+						<div className="publish-link-warning">
+							<h2>{t('routeActions.build.linkWarningTitle')}</h2>
+							<p>{t('routeActions.build.linkWarningHelp', {count: brokenLinks.length})}</p>
+							<ul>
+								{brokenLinks.map(({sourceId, sourceName, target}) => (
+									<li key={`${sourceId}-${target}`}>
+										<span>{sourceName} → {target}</span>
+										<IconButton
+											icon={<IconEdit />}
+											label={t('routeActions.build.editLinkedPassage', {name: sourceName})}
+											onClick={() => handleEditBrokenLink(sourceId)}
+										/>
+									</li>
+								))}
+							</ul>
+							<p>{t('routeActions.build.linkWarningLimit')}</p>
+							<div className="publish-link-warning-actions">
+								<IconButton
+									icon={<IconFileText />}
+									label={t('routeActions.build.publishAnyway')}
+									onClick={() => {
+										setWarningStoryId(undefined);
+										void publishToFile();
+									}}
+									variant="primary"
+								/>
+								<IconButton
+									icon={<IconX />}
+									label={t('common.cancel')}
+									onClick={() => setWarningStoryId(undefined)}
+								/>
+							</div>
+						</div>
+					) : (
+						<>
+							<p>{publishError?.message}</p>
+							<IconButton
+								icon={<IconX />}
+								label={t('common.close')}
+								onClick={() => setPublishError(undefined)}
+								variant="primary"
+							/>
+						</>
+					)}
 				</CardContent>
 			</CardButton>
 			<IconButton

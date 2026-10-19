@@ -1,4 +1,5 @@
 import {
+	brokenStoryLinks,
 	passageWithId,
 	passageWithName,
 	storyPassageTags,
@@ -12,6 +13,21 @@ import {
 import {Passage, Story} from '../stories.types';
 import {fakePassage, fakeStory} from '../../../test-util';
 import {passageConnections} from '..';
+
+describe('brokenStoryLinks()', () => {
+	it('identifies the source and missing destination of ordinary internal links', () => {
+		const story = fakeStory(2);
+		const [start, ending] = story.passages;
+		start.name = 'Start';
+		start.text = '[[End->Ending]] [[Missing]] [[https://example.com]]';
+		ending.name = 'Ending';
+		ending.text = '[[Start]]';
+
+		expect(brokenStoryLinks(story)).toEqual([
+			{sourceId: start.id, sourceName: 'Start', target: 'Missing'}
+		]);
+	});
+});
 
 describe('passageConnections()', () => {
 	it('places links between two unselected passages in the fixed property', () => {

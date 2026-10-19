@@ -1,0 +1,25 @@
+.publish-link-warning {
+	max-height: min(65vh, 28rem);
+	overflow-y: auto;
+	width: min(28rem, 80vw);
+}
+
+.publish-link-warning ul {
+	max-height: 12rem;
+	overflow-y: auto;
+	padding-left: 1.5rem;
+}
+
+.publish-link-warning li {
+	margin-bottom: 0.5rem;
+}
+
+.publish-link-warning li .icon-button {
+	margin-left: 0.5rem;
+}
+
+.publish-link-warning-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}

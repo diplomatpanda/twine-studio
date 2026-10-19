@@ -78,6 +78,11 @@ in-memory work; separate stories can still be edited in two tabs. Page-specific
 recovery journals prevent ordinary tabs from replacing one another's journal,
 and the prior single-key journal remains recoverable. The two-tab journeys pass
 Chromium, Firefox and WebKit. Truly simultaneous writes remain unproven.
+
+Build → Publish to File now checks ordinary internal links for missing passage
+names and shows each source and target. Authors can edit a source, cancel or
+explicitly publish anyway. The repair-to-publication journey passes Chromium,
+Firefox and WebKit. Dynamic destinations and story-format code need playtesting.
 The editor now writes pending text directly before page exit; ten consecutive
 Firefox reloads inside the debounce interval passed, as did Chromium and WebKit.
 An edit-time session draft now survives a Firefox reload even when a simulated

@@ -16,9 +16,13 @@ write and publish without an AI account or a cloud service.
    add an alternative route. Use **Go To** to find a passage in a larger story.
 6. Open **Build → Play** to play from the beginning. **Test From Here** starts at
    a selected passage; it does not reconstruct all earlier player decisions.
-7. Use **Build → Publish to File** to save a playable HTML file. Open the exported
-   file independently and test every intended ending. Use Library archive/export
-   and the existing source export options for backups.
+7. Use **Build → Publish to File** to save a playable HTML file. If an ordinary
+   passage link points to a missing destination, Studio lists its source and
+   target. Choose **Edit** to repair the source, **Cancel** to stop, or **Publish
+   anyway** if the missing destination is intentional. This check cannot follow
+   story-format code or dynamic destinations. Open the exported file independently
+   and test every intended ending. Use Library archive/export and the existing
+   source export options for backups.
 
 To make a fork in one step, choose **Add another choice** before inserting. Fill
 each choice text and destination, then choose **Insert choices**. Studio adds all

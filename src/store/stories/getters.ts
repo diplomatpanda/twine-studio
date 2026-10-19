@@ -186,6 +186,16 @@ export function storyPassageTags(story: Story) {
 	).sort();
 }
 
+/** Static internal links whose named destination has not been created. */
+export function brokenStoryLinks(story: Story) {
+	const names = new Set(story.passages.map(passage => passage.name));
+	return story.passages.flatMap(source =>
+		parseLinks(source.text, true)
+			.filter(target => !names.has(target))
+			.map(target => ({sourceId: source.id, sourceName: source.name, target}))
+	);
+}
+
 export function storyStats(story: Story) {
 	const links = story.passages.reduce<string[]>(
 		(links, passage) => [

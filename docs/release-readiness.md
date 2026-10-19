@@ -7,7 +7,7 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **265 suites and 1,941 tests**, with 4
+- The latest full Jest checkpoint passed **265 suites and 1,945 tests**, with 4
   skipped and 41 TODOs. It includes the page-exit and editor-draft recovery
   changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
@@ -48,6 +48,12 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   enhanced editor). Includes recent typing, explicit insertion, focus return,
   enhanced editor undo/redo, basic editor story undo/redo, reload, HTML publication
   and navigation to an ending on a separate origin serving only the export.
+- Publish preflight identifies missing static internal destinations with their
+  source passages. Focused unit tests cover the warning, cancel and explicit
+  override. The delete-destination, override download, edit-source and
+  publish-after-repair journey passes Chromium, Firefox and WebKit, including
+  rapid reopen after the first download. Dynamic story-format navigation is not
+  checked.
 - Choice-set journeys: **3 Chromium and 4 Firefox/WebKit passes**. Each inserts
   two links and creates both destinations in one action, verifies undo, reload,
   HTML export and both endings in a standalone player. The original four
@@ -159,7 +165,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | G: formats | Current Harlowe, SugarCube, Chapbook and Snowman round trips pass in Chromium/Firefox/WebKit; synthetic custom format publishes without editor authority | Historical/community wrappers and full language coverage pending |
 | H: offline | Four bundled formats reload/edit/save/preview/export in Chromium, Firefox and WebKit; Harlowe linked ending passes | Remote formats, cache eviction and native offline-mode UI pending |
 | I: recovery | Browser journal failure, partial writes, backup restoration, corrupt-journal export, guarded reload, passage creation/map drag recovery and native immediate close pass | Abrupt kills, real full disks and cross-browser behavior pending |
-| J: publication | Original complete three-passage story plays both endings independently | No public release performed |
+| J: publication | Original complete three-passage story plays both endings independently; missing static links surface source/target before export, and repair-to-publish passes three browser engines | Dynamic navigation and human review remain; no public release performed |
 
 Independent review found no source-injection path in the bounded helper inputs.
 Submit-focus concerns were checked against the parent insertion handler and live

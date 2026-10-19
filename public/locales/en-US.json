@@ -420,8 +420,14 @@
 		},
 		"build": {
 			"exportAsTwee": "Export As Twee",
+			"editLinkedPassage": "Edit {{name}}",
+			"linkWarningHelp": "1 link points to a passage that does not exist yet.",
+			"linkWarningHelp_plural": "{{count}} links point to passages that do not exist yet.",
+			"linkWarningLimit": "This checks ordinary passage links. Story-format code and dynamic destinations may need a playtest.",
+			"linkWarningTitle": "Check links before publishing",
 			"play": "Play",
 			"proof": "Proof",
+			"publishAnyway": "Publish anyway",
 			"publishToFile": "Publish to File",
 			"test": "Test"
 		}

@@ -1,4 +1,4 @@
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {axe} from 'jest-axe';
 import * as React from 'react';
 import {storyFileName} from '../../electron/shared';
@@ -6,7 +6,7 @@ import {Story} from '../../store/stories';
 import {usePublishing} from '../../store/use-publishing';
 import {useStoryLaunch} from '../../store/use-story-launch';
 import {fakeStory} from '../../test-util';
-import {saveTwee} from '../../util/save-file';
+import {saveHtml, saveTwee} from '../../util/save-file';
 import {storyToTwee} from '../../util/twee';
 import {BuildActions, BuildActionsProps} from '../build-actions';
 
@@ -16,6 +16,7 @@ jest.mock('../../util/save-file');
 
 describe('<BuildActions>', () => {
 	const saveTweeMock = saveTwee as jest.Mock;
+	const saveHtmlMock = saveHtml as jest.Mock;
 	const usePublishingMock = usePublishing as jest.Mock;
 	const useStoryLaunchMock = useStoryLaunch as jest.Mock;
 
@@ -122,6 +123,40 @@ describe('<BuildActions>', () => {
 			expect(saveTweeMock.mock.calls).toEqual([
 				[storyToTwee(story), storyFileName(story, '.twee')]
 			]);
+		});
+	});
+
+	describe('when an ordinary link has no destination', () => {
+		let publishStory: jest.Mock;
+		let story: Story;
+
+		beforeEach(() => {
+			publishStory = jest.fn().mockResolvedValue('<html>published</html>');
+			usePublishingMock.mockReturnValue({publishStory});
+			useStoryLaunchMock.mockReturnValue({});
+			story = fakeStory();
+			story.passages[0].name = 'Start';
+			story.passages[0].text = '[[Missing Door]]';
+			renderComponent({story});
+			fireEvent.click(screen.getByText('routeActions.build.publishToFile'));
+		});
+
+		it('shows the source and missing destination before publishing', () => {
+			expect(publishStory).not.toHaveBeenCalled();
+			expect(screen.getByText('Start → Missing Door')).toBeInTheDocument();
+			expect(screen.getByText('routeActions.build.linkWarningTitle')).toBeInTheDocument();
+		});
+
+		it('allows the author to publish anyway', async () => {
+			fireEvent.click(screen.getByText('routeActions.build.publishAnyway'));
+			await waitFor(() => expect(saveHtmlMock).toHaveBeenCalledWith(
+				'<html>published</html>', storyFileName(story)
+			));
+		});
+
+		it('cancels without publishing', () => {
+			fireEvent.click(screen.getByText('common.cancel'));
+			expect(publishStory).not.toHaveBeenCalled();
 		});
 	});
 

@@ -23,6 +23,9 @@ export interface CardButtonProps extends IconButtonProps {
 
 export const CardButton: React.FC<CardButtonProps> = props => {
 	const {ariaLabel, children, onChangeOpen, open, ...other} = props;
+	// The exit animation keeps the trap mounted after the card closes.
+	const openRef = React.useRef(open);
+	openRef.current = open;
 	const [buttonEl, setButtonEl] = React.useState<HTMLButtonElement | null>(
 		null
 	);
@@ -61,9 +64,12 @@ export const CardButton: React.FC<CardButtonProps> = props => {
 				unmountOnExit
 			>
 				<FocusTrap
+					active={open}
 					focusTrapOptions={{
 						clickOutsideDeactivates: filterEventsOutsideFocusTrap,
-						onDeactivate: () => onChangeOpen(false)
+						onDeactivate: () => {
+							if (openRef.current) onChangeOpen(false);
+						}
 					}}
 				>
 					<div
