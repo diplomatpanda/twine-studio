@@ -16,7 +16,9 @@ export interface ChoiceComposerProps {
 	formatVersion: string;
 	id: string;
 	passageNames: string[];
-	onAdd: (source: string) => void;
+	onAdd: (source: string) => boolean | void;
+	onOpen?: () => {label?: string; selected?: boolean; blocked?: boolean};
+	onCancel?: () => void;
 }
 
 interface ChoiceRow {
@@ -27,6 +29,9 @@ interface ChoiceRow {
 
 export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 	const [open, setOpen] = React.useState(false);
+	const [selected, setSelected] = React.useState(false);
+	const [blocked, setBlocked] = React.useState(false);
+	const [selectionChanged, setSelectionChanged] = React.useState(false);
 	const [rows, setRows] = React.useState<ChoiceRow[]>([
 		{id: 0, label: '', destination: ''}
 	]);
@@ -74,8 +79,21 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 
 	function close() {
 		setRows([{id: nextRowId.current++, label: '', destination: ''}]);
+		setSelected(false);
+		setBlocked(false);
+		setSelectionChanged(false);
 		setOpen(false);
+		props.onCancel?.();
 		buttonRef.current?.focus();
+	}
+
+	function openComposer() {
+		const selection = props.onOpen?.();
+		setRows([{id: nextRowId.current++, label: selection?.label ?? '', destination: ''}]);
+		setSelected(!!selection?.selected);
+		setBlocked(!!selection?.blocked);
+		setSelectionChanged(false);
+		setOpen(true);
 	}
 
 	return (
@@ -86,21 +104,24 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 				disabled={props.disabled}
 				icon={<IconArrowFork />}
 				label={t('studio.choice.add')}
-				onClick={() => open ? close() : setOpen(true)}
+				onClick={() => open ? close() : openComposer()}
 			/>
 			{open && (
 				<form
 					aria-label={t('studio.choice.add')}
 					onSubmit={event => {
 						event.preventDefault();
-						if (!supported || !valid || props.disabled) return;
-						props.onAdd(
+						if (!supported || !valid || blocked || props.disabled) return;
+						if (props.onAdd(
 							choiceSetSource(
 								props.formatName,
 								props.formatVersion,
 								rows
 							)
-						);
+						) === false) {
+							setSelectionChanged(true);
+							return;
+						}
 						setRows([{id: nextRowId.current++, label: '', destination: ''}]);
 						setOpen(false);
 					}}
@@ -113,11 +134,14 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 				>
 					{supported ? (
 						<>
-							<p>{t('studio.choice.help')}</p>
+							<p>{t(selected ? 'studio.choice.selectedHelp' : 'studio.choice.help')}</p>
+							{blocked && <p role="alert">{t('studio.choice.oneSelection')}</p>}
+							{selectionChanged && <p role="alert">{t('studio.choice.selectionChanged')}</p>}
 							<div className="choice-composer-rows">
 								{rows.map((row, index) => {
-									const rowValid = isPlainChoiceText(row.label) &&
-										isPlainChoiceText(row.destination);
+									const invalidPlainText =
+										(row.label !== '' && !isPlainChoiceText(row.label)) ||
+										(row.destination !== '' && !isPlainChoiceText(row.destination));
 									const existing = props.passageNames.includes(row.destination.trim());
 									return (
 										<div
@@ -146,7 +170,7 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 											<p role="status">
 												{row.destination && t(existing ? 'studio.choice.existing' : 'studio.choice.new')}
 											</p>
-											{(row.label || row.destination) && !rowValid && (
+											{invalidPlainText && (
 												<p>{t('studio.choice.plainText')}</p>
 											)}
 											{rows.length > 1 && <IconButton
@@ -173,7 +197,7 @@ export const ChoiceComposer: React.FC<ChoiceComposerProps> = props => {
 							/>
 							<IconButton
 								buttonType="submit"
-								disabled={!valid || props.disabled}
+								disabled={!valid || blocked || props.disabled}
 								icon={<IconCheck />}
 								label={t(rows.length === 1 ? 'studio.choice.insert' : 'studio.choice.insertSet')}
 							/>

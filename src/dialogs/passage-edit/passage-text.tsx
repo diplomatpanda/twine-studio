@@ -43,6 +43,11 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 		useFormatCodeMirrorMode(storyFormat.name, storyFormat.version) ?? 'text';
 	const codeAreaContainerRef = React.useRef<HTMLDivElement>(null);
 	const editorRef = React.useRef<CodeMirror.Editor>();
+	const choiceSelectionRef = React.useRef<{
+		text: string;
+		start: number;
+		end: number;
+	} | null>(null);
 	const {t} = useTranslation();
 
 	// These are refs so that changing them doesn't trigger a rerender, and more
@@ -251,6 +256,57 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 		}
 	}
 
+	function prepareChoice() {
+		choiceSelectionRef.current = null;
+		const editor = prefs.useCodeMirror ? editorRef.current : undefined;
+		const area = editor ? undefined : codeAreaContainerRef.current?.querySelector('textarea');
+		if (editor) {
+			if (editor.listSelections().length !== 1) return {blocked: true};
+			const start = editor.indexFromPos(editor.getCursor('from'));
+			const end = editor.indexFromPos(editor.getCursor('to'));
+			if (start === end) return {};
+			const text = editor.getValue();
+			choiceSelectionRef.current = {text, start, end};
+			return {label: text.slice(start, end), selected: true};
+		}
+		if (!area || area.selectionStart === area.selectionEnd) return {};
+		const {selectionStart: start, selectionEnd: end, value: text} = area;
+		choiceSelectionRef.current = {text, start, end};
+		return {label: text.slice(start, end), selected: true};
+	}
+
+	function insertChoice(source: string): boolean {
+		const selection = choiceSelectionRef.current;
+		if (!selection) {
+			addSource(source, t('studio.choice.undo'));
+			return true;
+		}
+		const editor = prefs.useCodeMirror ? editorRef.current : undefined;
+		const area = editor ? undefined : codeAreaContainerRef.current?.querySelector('textarea');
+		const text = editor ? editor.getValue() : area?.value;
+		if (text !== selection.text) return false;
+		choiceSelectionRef.current = null;
+		if (editor) {
+			editor.replaceRange(
+				source,
+				editor.posFromIndex(selection.start),
+				editor.posFromIndex(selection.end)
+			);
+			editor.focus();
+		} else {
+			const result = text!.slice(0, selection.start) + source + text!.slice(selection.end);
+			window.clearTimeout(onChangeTimeout.current);
+			onChangeTimeout.current = undefined;
+			setLocalText(result);
+			onChange(result, t('studio.choice.undo'));
+			window.requestAnimationFrame(() => {
+				area?.focus();
+				area?.setSelectionRange(selection.start + source.length, selection.start + source.length);
+			});
+		}
+		return true;
+	}
+
 	return (
 		<>
 			<ChoiceComposer
@@ -259,7 +315,9 @@ export const PassageText: React.FC<PassageTextProps> = props => {
 				formatVersion={storyFormat.version}
 				id={passage.id}
 				passageNames={story.passages.map(p => p.name)}
-				onAdd={source => addSource(source, t('studio.choice.undo'))}
+				onAdd={insertChoice}
+				onOpen={prepareChoice}
+				onCancel={() => {choiceSelectionRef.current = null;}}
 			/>
 			<FactComposer
 				disabled={disabled}

@@ -65,6 +65,40 @@ describe('<PassageText>', () => {
 			screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel')
 		).toHaveValue('mock-text');
 	});
+	it('replaces selected basic-editor text with one choice update', () => {
+		const onChange = jest.fn();
+		renderComponent({onChange, passage: fakePassage({text: 'Read the letter now.'}),
+			storyFormat: fakeLoadedStoryFormat({name: 'Harlowe', version: '3.3.9'})},
+			{prefs: {useCodeMirror: false}});
+		const editor = screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel') as HTMLTextAreaElement;
+		editor.setSelectionRange(0, 15);
+		fireEvent.click(screen.getByRole('button', {name: 'studio.choice.add'}));
+		expect(screen.getByLabelText('studio.choice.label')).toHaveValue('Read the letter');
+		fireEvent.change(screen.getByLabelText('studio.choice.destination'), {
+			target: {value: 'Library'}
+		});
+		fireEvent.submit(screen.getByRole('form'));
+		expect(onChange).toHaveBeenCalledWith('[[Read the letter->Library]] now.', 'studio.choice.undo');
+		jest.advanceTimersByTime(1000);
+		expect(onChange).toHaveBeenCalledTimes(1);
+	});
+	it('does not replace a stale basic-editor selection', () => {
+		const onChange = jest.fn();
+		renderComponent({onChange, passage: fakePassage({text: 'Read the letter'}),
+			storyFormat: fakeLoadedStoryFormat({name: 'Harlowe', version: '3.3.9'})},
+			{prefs: {useCodeMirror: false}});
+		const editor = screen.getByLabelText('dialogs.passageEdit.passageTextEditorLabel') as HTMLTextAreaElement;
+		editor.setSelectionRange(0, editor.value.length);
+		fireEvent.click(screen.getByRole('button', {name: 'studio.choice.add'}));
+		fireEvent.change(editor, {target: {value: 'Read the newer letter'}});
+		fireEvent.change(screen.getByLabelText('studio.choice.destination'), {
+			target: {value: 'Library'}
+		});
+		fireEvent.submit(screen.getByRole('form'));
+		expect(screen.getByRole('alert')).toHaveTextContent('studio.choice.selectionChanged');
+		expect(editor).toHaveValue('Read the newer letter');
+		expect(onChange).not.toHaveBeenCalled();
+	});
 
 	it('writes pending text synchronously when the page exits', () => {
 		const story = fakeStory();

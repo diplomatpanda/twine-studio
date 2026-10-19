@@ -658,6 +658,9 @@
 		"choice": {
 			"add": "Add choice",
 			"help": "Add one or more choices at the end of this passage. Your reader will see the choice text.",
+			"selectedHelp": "The selected text will become a choice here. Choose where it leads, then insert the link.",
+			"oneSelection": "Select one continuous piece of text, then reopen Add choice.",
+			"selectionChanged": "The passage changed while this choice was open. Close it, select the text again, and retry.",
 			"addAnother": "Add another choice",
 			"label": "Choice text",
 			"destination": "Destination passage",

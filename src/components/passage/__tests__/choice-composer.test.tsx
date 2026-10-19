@@ -35,6 +35,34 @@ describe('ChoiceComposer', () => {
 		expect(onAdd).toHaveBeenCalledWith('[[Follow the signal->Radio room]]');
 		expect(screen.queryByRole('form')).not.toBeInTheDocument();
 	});
+	it('prefills a selected phrase and keeps it in place until submitted', () => {
+		const onAdd = jest.fn();
+		const onOpen = jest.fn(() => ({label: 'Open the door', selected: true}));
+		render(<ChoiceComposer id="test" formatName="Harlowe" formatVersion="3.3.9"
+			passageNames={[]} onAdd={onAdd} onOpen={onOpen} />);
+		fireEvent.click(screen.getByRole('button', {name: 'studio.choice.add'}));
+		expect(screen.getByLabelText('studio.choice.label')).toHaveValue('Open the door');
+		expect(screen.getByText('studio.choice.selectedHelp')).toBeInTheDocument();
+		expect(screen.queryByText('studio.choice.plainText')).not.toBeInTheDocument();
+		expect(onAdd).not.toHaveBeenCalled();
+		fireEvent.change(screen.getByLabelText('studio.choice.destination'), {
+			target: {value: 'Hallway'}
+		});
+		fireEvent.submit(screen.getByRole('form'));
+		expect(onAdd).toHaveBeenCalledWith('[[Open the door->Hallway]]');
+	});
+	it('keeps the form open if the selected passage changed', () => {
+		const onAdd = jest.fn(() => false);
+		render(<ChoiceComposer id="test" formatName="Harlowe" formatVersion="3.3.9"
+			passageNames={[]} onAdd={onAdd} onOpen={() => ({label: 'Look', selected: true})} />);
+		fireEvent.click(screen.getByRole('button', {name: 'studio.choice.add'}));
+		fireEvent.change(screen.getByLabelText('studio.choice.destination'), {
+			target: {value: 'Window'}
+		});
+		fireEvent.submit(screen.getByRole('form'));
+		expect(screen.getByRole('alert')).toHaveTextContent('studio.choice.selectionChanged');
+		expect(screen.getByRole('form')).toBeInTheDocument();
+	});
 	it('does not submit invalid source and can cancel without editing', () => {
 		const {onAdd} = setup();
 		fireEvent.change(screen.getByLabelText('studio.choice.label'), {
