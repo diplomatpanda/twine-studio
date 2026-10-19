@@ -10,6 +10,11 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 128 * 1024;
 const MAX_TEXT_LENGTH = 64 * 1024;
 const MAX_FIELD_LENGTH = 512;
+const SYSTEM_PROMPTS: Record<AiPassageEditPayload['instruction'], string> = {
+	'repair-format-syntax': 'You are a Twine Studio coding assistant. Repair only story-format syntax or code in the selected passage. Preserve prose, facts, and all link targets. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must be updatePassageText with the given passageId, proposedText, and rationale. Do not use Markdown fences. Do not add, remove, or rename passages or links. Do not answer general fiction-writing requests.',
+	'propose-conditional-choice': 'You are a Twine Studio coding assistant. Propose one Harlowe or SugarCube conditional choice, based on the author request and selected passage code. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendConditionalChoice, the given passageId, factName, comparison (eq, gte, or lte), boolean or numeric value, plain-text label, destinationId from the supplied list, and rationale. The app generates source locally. Do not write proposed source, create passages, alter existing code, or answer general fiction-writing requests. Warn if the fact may need initialization. Do not use Markdown fences.',
+	'propose-new-branch': 'You are a Twine Studio coding assistant. Propose one new branch from the selected passage. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendNewBranch, the given passageId, a plain-text name for one new destination passage, a plain-text choice label, and rationale. The app generates the link and an empty passage locally. Do not write passage prose or source code, edit existing text, create multiple passages, or answer general fiction-writing requests. Do not use Markdown fences.'
+};
 
 let activeRequest: {controller: AbortController; sessionId: string} | undefined;
 
@@ -45,7 +50,7 @@ function validatePayload(payload: unknown): asserts payload is AiPassageEditPayl
 	validateString(value.passageId, 'passage ID', MAX_FIELD_LENGTH);
 	validateString(value.passageName, 'passage name', MAX_FIELD_LENGTH);
 	validateString(value.passageText, 'passage text', MAX_TEXT_LENGTH, true);
-	if (value.instruction !== 'repair-format-syntax' && value.instruction !== 'propose-conditional-choice') {
+	if (value.instruction !== 'repair-format-syntax' && value.instruction !== 'propose-conditional-choice' && value.instruction !== 'propose-new-branch') {
 		throw new Error('OpenCode Go is limited to structured story code editing.');
 	}
 	if (value.instruction === 'repair-format-syntax' && (
@@ -54,11 +59,13 @@ function validatePayload(payload: unknown): asserts payload is AiPassageEditPayl
 	)) {
 		throw new Error('This action needs Harlowe or SugarCube code in the selected passage.');
 	}
-	if (value.instruction === 'propose-conditional-choice') {
+	if (value.instruction === 'propose-conditional-choice' || value.instruction === 'propose-new-branch') {
 		if (!supportsChoiceBuilder(value.storyFormat as string, value.storyFormatVersion as string)) {
-			throw new Error('This story format is not supported by the conditional choice assistant.');
+			throw new Error('This story format is not supported by the structured choice assistant.');
 		}
-		validateString(value.request, 'conditional choice request', 500);
+		validateString(value.request, 'story code request', 500);
+	}
+	if (value.instruction === 'propose-conditional-choice') {
 		if (!Array.isArray(value.destinations) || value.destinations.length === 0 || value.destinations.length > 100 ||
 			!value.destinations.every(destination => destination && typeof destination === 'object' &&
 				typeof destination.id === 'string' && destination.id.length > 0 && destination.id.length <= 512 &&
@@ -244,23 +251,21 @@ export async function requestAiPassageEdit(
 					messages: [
 						{
 							role: 'system',
-							content: payload.instruction === 'repair-format-syntax'
-								? 'You are a Twine Studio coding assistant. Repair only story-format syntax or code in the selected passage. Preserve prose, facts, and all link targets. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must be updatePassageText with the given passageId, proposedText, and rationale. Do not use Markdown fences. Do not add, remove, or rename passages or links. Do not answer general fiction-writing requests.'
-								: 'You are a Twine Studio coding assistant. Propose one Harlowe or SugarCube conditional choice, based on the author request and selected passage code. Return exactly one JSON object with schemaVersion 1, summary, operation, and warnings. operation must contain only type appendConditionalChoice, the given passageId, factName, comparison (eq, gte, or lte), boolean or numeric value, plain-text label, destinationId from the supplied list, and rationale. The app generates source locally. Do not write proposed source, create passages, alter existing code, or answer general fiction-writing requests. Warn if the fact may need initialization. Do not use Markdown fences.'
+							content: SYSTEM_PROMPTS[payload.instruction]
 						},
 						{
 							role: 'user',
 							content: JSON.stringify({
-								task: payload.instruction === 'repair-format-syntax' ? 'repair-selected-passage-code' : 'propose-conditional-choice',
+								task: payload.instruction === 'repair-format-syntax' ? 'repair-selected-passage-code' : payload.instruction,
 								storyFormat: payload.storyFormat,
 								storyFormatVersion: payload.storyFormatVersion,
 								passageId: payload.passageId,
 								passageName: payload.passageName,
 								passageText: payload.passageText,
 								instruction: payload.instruction,
-								...(payload.instruction === 'propose-conditional-choice' ? {
+								...(payload.instruction !== 'repair-format-syntax' ? {
 									request: payload.request,
-									destinations: payload.destinations
+									...(payload.instruction === 'propose-conditional-choice' ? {destinations: payload.destinations} : {})
 								} : {})
 							})
 						}

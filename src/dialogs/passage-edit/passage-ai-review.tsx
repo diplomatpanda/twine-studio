@@ -4,11 +4,13 @@ import {useTranslation} from 'react-i18next';
 import {
 	canApplyPassageEdit,
 	parseConditionalChoiceProposal,
+	parseNewBranchProposal,
 	parsePassageEditProposal,
 	PassageEditProposal,
 	PassageEditSnapshot
 } from '../../ai/passage-edit-proposal';
 import {TwineElectronWindow} from '../../electron/shared/electron-shared.types';
+import {newBranchAction} from '../../ai/new-branch-action';
 import {Passage, Story, updatePassage} from '../../store/stories';
 import {useUndoableStoriesContext} from '../../store/undoable-stories';
 import {supportsChoiceBuilder} from '../../util/choice-source';
@@ -62,7 +64,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 		};
 	}, [bridge]);
 
-	async function request(instruction: 'repair-format-syntax' | 'propose-conditional-choice') {
+	async function request(instruction: 'repair-format-syntax' | 'propose-conditional-choice' | 'propose-new-branch') {
 		if (
 			busy ||
 			!bridge?.requestAiPassageEdit ||
@@ -75,14 +77,15 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			setError(t('studio.ai.tooLong'));
 			return;
 		}
-		if (instruction === 'propose-conditional-choice' && !conditionalRequest.trim()) return;
+		if (instruction !== 'repair-format-syntax' && !conditionalRequest.trim()) return;
 		const generation = ++requestGeneration.current;
 		const source: PassageEditSnapshot = {
 			storyId: story.id,
 			passageId: passage.id,
 			storyFormat: story.storyFormat,
 			storyFormatVersion: story.storyFormatVersion,
-			text: passage.text
+			text: passage.text,
+			...(instruction === 'propose-new-branch' ? {storyPassages: story.passages} : {})
 		};
 		setSnapshot(source);
 		setProposal(undefined);
@@ -97,15 +100,19 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 				passageName: passage.name,
 				passageText: passage.text,
 				instruction,
-				...(instruction === 'propose-conditional-choice' ? {
+				...(instruction !== 'repair-format-syntax' ? {
 					request: conditionalRequest.trim(),
-					destinations: story.passages.slice(0, 100).map(({id, name}) => ({id, name}))
+					...(instruction === 'propose-conditional-choice' ? {
+						destinations: story.passages.slice(0, 100).map(({id, name}) => ({id, name}))
+					} : {})
 				} : {})
 			});
 			if (generation === requestGeneration.current) {
 				setProposal(instruction === 'repair-format-syntax'
 					? parsePassageEditProposal(raw, source)
-					: parseConditionalChoiceProposal(raw, source, story));
+					: instruction === 'propose-conditional-choice'
+						? parseConditionalChoiceProposal(raw, source, story)
+						: parseNewBranchProposal(raw, source, story));
 			}
 		} catch (cause) {
 			if (generation === requestGeneration.current) {
@@ -123,20 +130,20 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 			setProposal(undefined);
 			return;
 		}
-		dispatch(
-			updatePassage(
-				story,
-				passage,
-				{text: proposal.operation.proposedText},
-				{dontUpdateOthers: true}
-			),
-			'studio.ai.undo'
-		);
+		try {
+			dispatch(proposal.newPassage
+				? newBranchAction(story, passage, proposal)
+				: updatePassage(story, passage, {text: proposal.operation.proposedText}, {dontUpdateOthers: true}),
+			'studio.ai.undo');
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : t('studio.ai.failed'));
+			return;
+		}
 		onClose();
 	}
 
 	const stale = !!snapshot && !canApplyPassageEdit(snapshot, story, passage, proposal);
-	const conditionalSupported = supportsChoiceBuilder(story.storyFormat, story.storyFormatVersion);
+	const structuredSupported = supportsChoiceBuilder(story.storyFormat, story.storyFormatVersion);
 
 	return (
 		<section className="passage-ai-review" aria-label={t('studio.ai.title')}>
@@ -175,11 +182,15 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 						<textarea maxLength={500} value={conditionalRequest}
 							onChange={event => setConditionalRequest(event.target.value)} />
 					</label>
-					<button disabled={!availability?.configured || !consent || busy || !conditionalRequest.trim() || !conditionalSupported}
+					<button disabled={!availability?.configured || !consent || busy || !conditionalRequest.trim() || !structuredSupported}
 						onClick={() => void request('propose-conditional-choice')} type="button">
 						{t('studio.ai.requestConditional')}
 					</button>
-					{!conditionalSupported && <p>{t('studio.ai.conditionalUnsupported')}</p>}
+					<button disabled={!availability?.configured || !consent || busy || !conditionalRequest.trim() || !structuredSupported}
+						onClick={() => void request('propose-new-branch')} type="button">
+						{t('studio.ai.requestBranch')}
+					</button>
+					{!structuredSupported && <p>{t('studio.ai.conditionalUnsupported')}</p>}
 				</>
 			)}
 			{error && <p role="alert">{error}</p>}
@@ -188,6 +199,7 @@ export const PassageAiReview: React.FC<PassageAiReviewProps> = props => {
 					<h4>{t('studio.ai.proposal')}</h4>
 					<p>{proposal.summary}</p>
 					<p>{proposal.operation.rationale}</p>
+					{proposal.newPassage && <p>{t('studio.ai.newPassage', {name: proposal.newPassage.name})}</p>}
 					{proposal.warnings.map((warning, index) => (
 						<p key={index}>{warning}</p>
 					))}

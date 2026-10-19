@@ -134,6 +134,22 @@ describe('OpenCode Go desktop adapter', () => {
 		expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer test-key-that-must-not-leak');
 	});
 
+	it('sends a branch graph-edit task without asking for prose generation', async () => {
+		fetchMock
+			.mockResolvedValueOnce(response({data: [{id: 'deepseek-v4.1-flash'}]}))
+			.mockResolvedValueOnce(response({choices: [{message: {content: '{"schemaVersion":1}'}}]}));
+		await requestAiPassageEdit({
+			...payload, passageText: 'A fork in the road.',
+			instruction: 'propose-new-branch',
+			request: 'Add a choice to investigate a new cabin passage.'
+		}, async () => true);
+		const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+		expect(body.messages[0].content).toContain('appendNewBranch');
+		expect(body.messages[0].content).toContain('Do not write passage prose');
+		expect(body.messages[1].content).toContain('new cabin passage');
+		expect(body.messages[1].content).not.toContain('destinations');
+	});
+
 	it('rejects conditional requests without safe destination context', async () => {
 		await expect(requestAiPassageEdit({
 			...payload, instruction: 'propose-conditional-choice',

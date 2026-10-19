@@ -1,6 +1,14 @@
 import {parseLinks} from '../util/parse-links';
+import {choiceSource} from '../util/choice-source';
 import {conditionalChoiceSource, FactComparison, StoryFactValue} from '../util/story-fact-source';
 import {Passage, Story} from '../store/stories/stories.types';
+
+const twineMetadataNames = new Set(['StoryTitle', 'StoryData']);
+const sugarCubeSpecialNames = new Set([
+	'PassageDone', 'PassageFooter', 'PassageHeader', 'PassageReady',
+	'StoryAuthor', 'StoryBanner', 'StoryCaption', 'StoryDisplayTitle',
+	'StoryInit', 'StoryInterface', 'StoryMenu', 'StoryShare', 'StorySubtitle'
+]);
 
 export interface PassageEditProposal {
 	schemaVersion: 1;
@@ -13,6 +21,7 @@ export interface PassageEditProposal {
 	};
 	warnings: string[];
 	destination?: {id: string; name: string};
+	newPassage?: {name: string};
 }
 
 export interface PassageEditSnapshot {
@@ -21,6 +30,7 @@ export interface PassageEditSnapshot {
 	storyFormat: string;
 	storyFormatVersion: string;
 	text: string;
+	storyPassages?: Passage[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -156,6 +166,63 @@ export function parseConditionalChoiceProposal(
 	};
 }
 
+/** A branch proposal appends one local link; the store creates its empty destination. */
+export function parseNewBranchProposal(
+	raw: string,
+	snapshot: PassageEditSnapshot,
+	story: Story
+): PassageEditProposal {
+	if (raw.length > 131072) throw new Error('The proposal is too large to review safely.');
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new Error('The assistant did not return a valid edit proposal.');
+	}
+	if (!isRecord(value) ||
+		!hasOnlyKeys(value, ['schemaVersion', 'summary', 'operation', 'warnings']) ||
+		value.schemaVersion !== 1 || !hasBoundedText(value.summary, 500) ||
+		!Array.isArray(value.warnings) || value.warnings.length > 10 ||
+		!value.warnings.every(warning => hasBoundedText(warning, 500)) ||
+		!isRecord(value.operation) ||
+		!hasOnlyKeys(value.operation, ['type', 'passageId', 'name', 'label', 'rationale']) ||
+		value.operation.type !== 'appendNewBranch' ||
+		value.operation.passageId !== snapshot.passageId ||
+		!hasBoundedText(value.operation.name, 120) ||
+		!hasBoundedText(value.operation.label, 120) ||
+		!hasBoundedText(value.operation.rationale, 1000) ||
+		story.id !== snapshot.storyId ||
+		story.storyFormat !== snapshot.storyFormat ||
+		story.storyFormatVersion !== snapshot.storyFormatVersion) {
+		throw new Error('The assistant returned an unsupported edit proposal.');
+	}
+	const operation = value.operation;
+	const name = (operation.name as string).trim();
+	if (story.passages.some(passage => passage.name === name) || parseLinks(snapshot.text).includes(name)) {
+		throw new Error('The proposed branch passage name is already in use.');
+	}
+	if (twineMetadataNames.has(name) ||
+		(snapshot.storyFormat === 'SugarCube' && sugarCubeSpecialNames.has(name))) {
+		throw new Error('The proposed branch passage name is reserved.');
+	}
+	const source = choiceSource(
+		snapshot.storyFormat, snapshot.storyFormatVersion,
+		operation.label as string, name
+	);
+	const proposedText = snapshot.text + (snapshot.text && !snapshot.text.endsWith('\n') ? '\n' : '') + source;
+	if (proposedText.length > 65536) throw new Error('The proposal is too large to review safely.');
+	return {
+		schemaVersion: 1,
+		summary: value.summary as string,
+		operation: {
+			type: 'updatePassageText', passageId: snapshot.passageId, proposedText,
+			rationale: operation.rationale as string
+		},
+		warnings: value.warnings as string[],
+		newPassage: {name}
+	};
+}
+
 /** An accepted edit must still target the same passage and exact source revision. */
 export function canApplyPassageEdit(
 	snapshot: PassageEditSnapshot,
@@ -170,8 +237,13 @@ export function canApplyPassageEdit(
 		story.storyFormat === snapshot.storyFormat &&
 		story.storyFormatVersion === snapshot.storyFormatVersion &&
 		passage.text === snapshot.text &&
+		(!proposal?.newPassage || story.passages === snapshot.storyPassages) &&
 		(!proposal?.destination || story.passages.some(candidate =>
 			candidate.id === proposal.destination?.id && candidate.name === proposal.destination.name
+		)) &&
+		(!proposal?.newPassage || (
+			!story.passages.some(candidate => candidate.name === proposal.newPassage?.name) &&
+			!parseLinks(snapshot.text).includes(proposal.newPassage.name)
 		))
 	);
 }

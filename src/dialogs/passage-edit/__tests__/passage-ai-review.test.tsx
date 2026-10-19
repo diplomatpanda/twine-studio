@@ -2,6 +2,7 @@ import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as React from 'react';
 import {TwineElectronWindow} from '../../../electron/shared/electron-shared.types';
 import {updatePassage, useStoriesContext} from '../../../store/stories';
+import {useUndoableStoriesContext} from '../../../store/undoable-stories';
 import {FakeStateProvider, fakeStory, StoryInspector} from '../../../test-util';
 import {PassageAiReview} from '../passage-ai-review';
 
@@ -13,6 +14,7 @@ const bridge = {
 
 const Fixture: React.FC<{onClose: () => void}> = ({onClose}) => {
 	const {dispatch, stories} = useStoriesContext();
+	const {undo, redo} = useUndoableStoriesContext();
 	const story = stories[0];
 	const passage = story.passages[0];
 	return (
@@ -29,6 +31,8 @@ const Fixture: React.FC<{onClose: () => void}> = ({onClose}) => {
 				Writer edit
 			</button>
 			<StoryInspector />
+			<button onClick={() => undo?.()} type="button">Undo proposal</button>
+			<button onClick={() => redo?.()} type="button">Redo proposal</button>
 		</>
 	);
 };
@@ -133,6 +137,39 @@ describe('<PassageAiReview>', () => {
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
 		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
 		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('Go to garden');
+	});
+
+	it('creates one new branch passage and undoes source and destination together', async () => {
+		const story = fakeStory(1);
+		story.storyFormat = 'SugarCube';
+		story.storyFormatVersion = '2.36.1';
+		bridge.requestAiPassageEdit.mockResolvedValue(JSON.stringify({
+			schemaVersion: 1, summary: 'Add a cabin route.',
+			operation: {
+				type: 'appendNewBranch', passageId: story.passages[0].id,
+				name: 'Cabin', label: 'Investigate the cabin',
+				rationale: 'Create a new route.'
+			}, warnings: []
+		}));
+		await ready(story);
+		fireEvent.change(screen.getByRole('textbox'), {
+			target: {value: 'Add a choice to investigate the cabin.'}
+		});
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.requestBranch'}));
+		await screen.findByText('Add a cabin route.');
+		expect(bridge.requestAiPassageEdit).toHaveBeenCalledWith(expect.objectContaining({
+			instruction: 'propose-new-branch', request: 'Add a choice to investigate the cabin.'
+		}));
+		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).toBeNull();
+		fireEvent.click(screen.getByRole('button', {name: 'studio.ai.accept'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('[[Investigate the cabin|Cabin]]');
+		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).not.toBeNull();
+		fireEvent.click(screen.getByRole('button', {name: 'Undo proposal'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('original macro code');
+		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).toBeNull();
+		fireEvent.click(screen.getByRole('button', {name: 'Redo proposal'}));
+		expect(screen.getByTestId(`passage-${story.passages[0].id}`)).toHaveTextContent('[[Investigate the cabin|Cabin]]');
+		expect(screen.getByTestId('story-inspector-default').querySelector('[data-name="Cabin"]')).not.toBeNull();
 	});
 
 	it('blocks acceptance after a writer edits the passage', async () => {

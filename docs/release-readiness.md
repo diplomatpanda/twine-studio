@@ -175,8 +175,9 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   exposure and upgrade safely. Do not interpret zero critical as secure overall.
 - Complete Paperthin historical license notice and bundled/transitive attribution.
 - Optional desktop AI code editing now has a main-process provider adapter, native
-  send confirmation, validated repair proposals, and locally generated conditional
-  choices to existing passages. A real
+  send confirmation, validated repair proposals, locally generated conditional
+  choices to existing passages, and reviewed links that create one empty branch
+  passage. A real
   paid round trip, native review/undo acceptance, credential-management UI and
   broader AI story-modification journey remain pending. See ai-evaluation.md.
 - Story logic has bounded yes/no/numeric assignments and conditional choices;
@@ -192,7 +193,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 | --- | --- | --- |
 | A: first story | Choice creation, writing, undo, publish and original two-route sample verified | Human beginner study pending |
 | B: branching mystery | Clue discovery hides/unlocks choices in five-passage Harlowe/SugarCube fixtures | Broader author experience pending |
-| C: AI modification | Desktop Harlowe/SugarCube code repair and conditional choice proposals to existing passages; mock contract/review tests and browser boundary pass | Live paid request, native accept/undo and multi-passage story-modification experience pending |
+| C: AI modification | Desktop Harlowe/SugarCube code repair, conditional choices to existing passages, and a new empty branch passage; mock contract/review/undo tests and browser boundary pass | Live paid request, native accept/undo, passage drafting and broader multi-passage story edits pending |
 | D: relationship state | Numeric trust threshold unlocks a separate ending in both supported adapters | Arithmetic, registry and continuity tools pending |
 | E: large story | 240-passage HTML import, list/search by name/text/tag, keyboard selection, rename, incoming-link update, edit, reload and publish pass; a static link-path filter and navigation pass Chromium/Firefox/WebKit | Irregular/long-text projects, dynamic navigation analysis and repeated performance runs pending |
 | F: advanced project | Synthetic native source, script and CSS preserved through edit/export | Representative existing custom-macro projects still required |

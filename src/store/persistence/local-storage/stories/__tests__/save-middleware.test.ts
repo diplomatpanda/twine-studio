@@ -8,6 +8,9 @@ import {
 } from '../save';
 import {StoriesState} from '../../../../stories/stories.types';
 import {fakeStory} from '../../../../../test-util';
+import {newBranchAction} from '../../../../../ai/new-branch-action';
+import {PassageEditProposal} from '../../../../../ai/passage-edit-proposal';
+import {reducer as storiesReducer} from '../../../../stories/reducer';
 
 jest.mock('../save');
 
@@ -384,6 +387,29 @@ describe('stories local storage save middleware', () => {
 	});
 
 	describe('when an updateStory action is received', () => {
+		it('saves an AI branch link and new passage in one transaction', () => {
+			const story = fakeStory(1);
+			const source = story.passages[0];
+			const proposal: PassageEditProposal = {
+				schemaVersion: 1, summary: 'New branch', warnings: [],
+				operation: {
+					type: 'updatePassageText', passageId: source.id,
+					proposedText: `${source.text}\n[[Go|Cabin]]`, rationale: 'New route'
+				},
+				newPassage: {name: 'Cabin'}
+			};
+			const action = newBranchAction(story, source, proposal);
+			const updated = storiesReducer([story], action);
+			const transaction = {passageIds: '', storyIds: ''};
+			saveMiddleware([story], {type: 'init', state: [story]});
+			saveMiddleware(updated, action);
+			expect(doUpdateTransactionMock).toHaveBeenCalledTimes(1);
+			doUpdateTransactionMock.mock.calls[0][0](transaction);
+			expect(saveStoryMock).toHaveBeenCalledWith(transaction, updated[0]);
+			expect(savePassageMock.mock.calls).toEqual(updated[0].passages.map(passage => [transaction, passage]));
+			expect(deletePassageByIdMock).not.toHaveBeenCalled();
+		});
+
 		it('saves the story and child passages using a transaction', () => {
 			const transaction = {passageIds: '', storyIds: ''};
 

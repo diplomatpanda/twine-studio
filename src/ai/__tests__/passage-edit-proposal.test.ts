@@ -2,6 +2,7 @@ import {fakeStory} from '../../test-util';
 import {
 	canApplyPassageEdit,
 	parseConditionalChoiceProposal,
+	parseNewBranchProposal,
 	parsePassageEditProposal,
 	PassageEditSnapshot
 } from '../passage-edit-proposal';
@@ -135,5 +136,67 @@ describe('AI conditional choice proposal boundary', () => {
 		expect(() => parseConditionalChoiceProposal(response({label: '[[Injected]]'}), snapshot, story)).toThrow();
 		expect(() => parseConditionalChoiceProposal(response({comparison: 'execute'}), snapshot, story)).toThrow();
 		expect(() => parseConditionalChoiceProposal(response({proposedText: 'malicious'}), snapshot, story)).toThrow();
+	});
+});
+
+describe('AI new branch proposal boundary', () => {
+	function fixture() {
+		const story = fakeStory(1);
+		story.storyFormat = 'SugarCube';
+		story.storyFormatVersion = '2.36.1';
+		story.passages[0].text = 'A fork in the road.';
+		const snapshot: PassageEditSnapshot = {
+			storyId: story.id, passageId: story.passages[0].id,
+			storyFormat: story.storyFormat, storyFormatVersion: story.storyFormatVersion,
+			text: story.passages[0].text,
+			storyPassages: story.passages
+		};
+		const operation = {
+			type: 'appendNewBranch', passageId: snapshot.passageId,
+			name: 'Cabin', label: 'Investigate the cabin',
+			rationale: 'This creates a new route.'
+		};
+		const response = (changes: Record<string, unknown> = {}) => JSON.stringify({
+			schemaVersion: 1, summary: 'Add a cabin route.',
+			operation: {...operation, ...changes}, warnings: []
+		});
+		return {story, snapshot, response};
+	}
+
+	it('generates one link and describes the new empty destination', () => {
+		const {story, snapshot, response} = fixture();
+		const proposal = parseNewBranchProposal(response(), snapshot, story);
+		expect(proposal.operation.proposedText).toBe(
+			'A fork in the road.\n[[Investigate the cabin|Cabin]]'
+		);
+		expect(proposal.newPassage).toEqual({name: 'Cabin'});
+		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(true);
+		expect(canApplyPassageEdit(snapshot, {...story, passages: [...story.passages]}, story.passages[0], proposal)).toBe(false);
+		story.passages.push({...story.passages[0], id: 'new-id', name: 'Cabin'});
+		expect(canApplyPassageEdit(snapshot, story, story.passages[0], proposal)).toBe(false);
+	});
+
+	it('generates a Harlowe branch link without model-authored syntax', () => {
+		const {story, snapshot, response} = fixture();
+		story.storyFormat = snapshot.storyFormat = 'Harlowe';
+		story.storyFormatVersion = snapshot.storyFormatVersion = '3.3.9';
+		const proposal = parseNewBranchProposal(response(), snapshot, story);
+		expect(proposal.operation.proposedText).toBe(
+			'A fork in the road.\n[[Investigate the cabin->Cabin]]'
+		);
+	});
+
+	it('rejects existing, reserved, unsafe, and already linked names', () => {
+		const {story, snapshot, response} = fixture();
+		expect(() => parseNewBranchProposal(response({name: story.passages[0].name}), snapshot, story)).toThrow(/already in use/);
+		expect(() => parseNewBranchProposal(response({name: 'StoryData'}), snapshot, story)).toThrow(/reserved/);
+		expect(parseNewBranchProposal(response({name: 'Story JavaScript'}), snapshot, story).newPassage).toEqual({name: 'Story JavaScript'});
+		expect(() => parseNewBranchProposal(response({name: 'PassageDone'}), snapshot, story)).toThrow(/reserved/);
+		expect(() => parseNewBranchProposal(response({name: 'StoryInterface'}), snapshot, story)).toThrow(/reserved/);
+		expect(() => parseNewBranchProposal(response({name: 'Cabin]]'}), snapshot, story)).toThrow();
+		expect(() => parseNewBranchProposal(response({label: '<<script>>'}), snapshot, story)).toThrow();
+		expect(() => parseNewBranchProposal(response({proposedText: 'arbitrary code'}), snapshot, story)).toThrow();
+		snapshot.text = '[[Cabin]]';
+		expect(() => parseNewBranchProposal(response(), snapshot, story)).toThrow(/already in use/);
 	});
 });
