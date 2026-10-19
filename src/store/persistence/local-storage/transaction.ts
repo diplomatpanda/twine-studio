@@ -137,6 +137,7 @@ const conflictingDraftIds = new Set<string>();
 const orphanDraftIds = new Set<string>();
 const unreadableStoryRecords = new Set<string>();
 let observedJournal: string | null = null;
+const observedInheritedJournals = new Map<string, string | null>();
 const observedStories = new Map<string, string | null>();
 let lockRequestPending = false;
 const conflictMessage =
@@ -159,6 +160,9 @@ function markStoryConflict() {
 export function startStoryStorageGuard() {
 	storyGuardActive = true;
 	observedStories.clear();
+	observedInheritedJournals.clear();
+	for (const key of inheritedJournalKeys())
+		observedInheritedJournals.set(key, window.localStorage.getItem(key));
 	for (let i = 0; i < window.localStorage.length; i++) {
 		const key = window.localStorage.key(i)!;
 		if (isStoryKey(key))
@@ -182,6 +186,9 @@ function checkStoryStorageGuard(changes: Changes) {
 	const currentJournal = window.localStorage.getItem(journalKey);
 	if (currentJournal !== observedJournal)
 		markStoryConflict();
+	for (const [key, observed] of observedInheritedJournals)
+		if (window.localStorage.getItem(key) !== observed)
+			markStoryConflict();
 	for (const key of changes.keys()) {
 		if (
 			isStoryKey(key) &&
@@ -402,8 +409,11 @@ function flushStorageChangesUnderLock(
 		// journal version included in this commit, never a newer write to that key.
 		for (const key of [legacyJournalKey, ...inheritedKeys]) {
 			const recovered = recoveredJournals.get(key);
-			if (recovered && window.localStorage.getItem(key) === recovered)
+			if (recovered && window.localStorage.getItem(key) === recovered) {
 				window.localStorage.removeItem(key);
+				if (storyGuardActive && observedInheritedJournals.has(key))
+					observedInheritedJournals.set(key, null);
+			}
 		}
 		if (journalHistoryAvailable) {
 			try {

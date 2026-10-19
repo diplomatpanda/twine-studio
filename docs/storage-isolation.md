@@ -24,7 +24,10 @@ write fails, loading overlays the durable journal onto the records, preventing
 a partially written story or index from becoming the visible state.
 The page keeps a session history of journal owners so a second reload before
 retry can still recover the earlier durable journal. Cleanup removes an inherited
-journal only when its bytes still match the version applied by that commit.
+journal only when its bytes still match the version applied by that commit. A
+duplicated tab also checks that an inherited journal has not changed since it
+opened; if the original tab changes it, the duplicate stops saving and retains
+its draft for backup.
 When session storage is unavailable, recovery scans the page-specific journal
 keys in local storage; a unit test verifies a durable interrupted save across
 reload in that condition. This fallback is not cross-tab coordination.

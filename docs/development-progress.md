@@ -87,7 +87,10 @@ versions inside it. The held-lock same-passage journey passes Chromium, Firefox
 and WebKit: one queued save commits, while the conflicting tab retains its
 journal. A fresh tab waits for earlier lock holders and replays a valid closed
 tab journal. Conflicting or ambiguous journals stop for raw export. Duplicated
-tab handoff and hard failure modes remain release work.
+tabs now stop saving when their inherited journal changes, preserving a stale
+draft instead of applying it. The duplicated-tab conflict passes all three
+browser engines. Full handoff after the original tab closes and hard failure
+modes remain release work.
 
 Build → Publish to File now checks ordinary internal links for missing passage
 names and shows each source and target. Authors can edit a source, cancel or

@@ -137,3 +137,46 @@ test('a new tab waits for an active save before checking unknown journals', asyn
 		.toHaveCount(0);
 	await expect.poll(() => savedPassages(second)).toContain('Saved after lock release.');
 });
+
+test('a duplicated tab cannot save over its original tab changing journal', async ({page}) => {
+	await page.goto('http://127.0.0.1:5189');
+	await page.getByRole('button', {name: 'Skip', exact: true}).click();
+	await page.getByRole('button', {name: 'New', exact: true}).click();
+	await page.getByRole('textbox').fill('Duplicated tab story');
+	await page.getByRole('button', {name: 'Create', exact: true}).click();
+	await expect.poll(() => savedPassages(page)).toContain('Untitled Passage');
+	const passageKey = await page.evaluate(() => Object.keys(localStorage)
+		.find(key => key.startsWith('twine-studio-passages-'))!);
+	const popupPromise = page.waitForEvent('popup');
+	await page.evaluate(() => window.open(location.origin, '_blank'));
+	const duplicate = await popupPromise;
+	await expect(duplicate.getByRole('button', {name: 'Duplicated tab story', exact: true}))
+		.toBeVisible();
+	await page.evaluate(() => {
+		void navigator.locks.request('twine-studio-storage-commit', () =>
+			new Promise<void>(resolve => {(window as any).releaseStorageLock = resolve;})
+		);
+	});
+	await expect.poll(() => page.evaluate(() =>
+		Boolean((window as any).releaseStorageLock))).toBe(true);
+	await page.evaluate(async key => {
+		const {writeStorageItem} = await import('/src/store/persistence/local-storage/transaction.ts');
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		writeStorageItem(key, JSON.stringify({...passage, text: 'Original tab draft.'}));
+	}, passageKey);
+	const duplicateResult = await duplicate.evaluate(async key => {
+		const {writeStorageItem, getStorageStatus} =
+			await import('/src/store/persistence/local-storage/transaction.ts');
+		const passage = JSON.parse(localStorage.getItem(key)!);
+		try {
+			writeStorageItem(key, JSON.stringify({...passage, text: 'Duplicated tab draft.'}));
+		} catch {
+			return getStorageStatus();
+		}
+		return getStorageStatus();
+	}, passageKey);
+	expect(duplicateResult).toMatchObject({dirty: true, conflict: true});
+	await page.evaluate(() => (window as any).releaseStorageLock());
+	await expect.poll(() => savedPassages(page)).toContain('Original tab draft.');
+	expect(await savedPassages(page)).not.toContain('Duplicated tab draft.');
+});

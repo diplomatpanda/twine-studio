@@ -68,6 +68,57 @@ describe('cross-tab browser commit lock', () => {
 		expect(second.getStorageStatus().dirty).toBe(false);
 	});
 
+	it('preserves a duplicated tab draft when its inherited journal changes', async () => {
+		first.writeStorageItem(sharedKey, 'first tab initial draft');
+		window.sessionStorage.setItem(
+			'twine-studio-journal-owner',
+			first.journalKey.slice('twine-studio-pending-transaction-'.length)
+		);
+		jest.resetModules();
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const duplicate: typeof import('../transaction') = require('../transaction');
+		const stopDuplicate = duplicate.startStoryStorageGuard();
+		try {
+			duplicate.writeStorageItem(sharedKey, 'duplicated tab draft');
+			first.writeStorageItem(sharedKey, 'first tab newer draft');
+			// Stress a callback order in which the duplicate obtains the lock first.
+			callbacks[1]();
+			await Promise.resolve();
+			expect(window.localStorage.getItem(sharedKey)).toBe('original');
+			expect(duplicate.getStorageStatus()).toMatchObject({dirty: true, conflict: true});
+			expect(window.localStorage.getItem(duplicate.journalKey))
+				.toContain('duplicated tab draft');
+			callbacks[0]();
+			expect(window.localStorage.getItem(sharedKey)).toBe('first tab newer draft');
+		} finally {
+			stopDuplicate();
+		}
+	});
+
+	it('allows a duplicate to keep saving after it safely adopts an unchanged journal', () => {
+		first.writeStorageItem(sharedKey, 'original tab pending');
+		window.sessionStorage.setItem(
+			'twine-studio-journal-owner',
+			first.journalKey.slice('twine-studio-pending-transaction-'.length)
+		);
+		jest.resetModules();
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		const duplicate: typeof import('../transaction') = require('../transaction');
+		const stopDuplicate = duplicate.startStoryStorageGuard();
+		try {
+			duplicate.writeStorageItem(sharedKey, 'duplicate takes over');
+			callbacks[1]();
+			expect(window.localStorage.getItem(sharedKey)).toBe('duplicate takes over');
+			expect(window.localStorage.getItem(first.journalKey)).toBeNull();
+			duplicate.writeStorageItem(sharedKey, 'duplicate keeps writing');
+			callbacks[2]();
+			expect(window.localStorage.getItem(sharedKey)).toBe('duplicate keeps writing');
+			expect(duplicate.getStorageStatus().conflict).toBe(false);
+		} finally {
+			stopDuplicate();
+		}
+	});
+
 	it('leaves an exit-time journal recoverable while the lock is held', () => {
 		first.writeStorageItem(sharedKey, 'last edit before pagehide');
 		expect(window.localStorage.getItem(sharedKey)).toBe('original');

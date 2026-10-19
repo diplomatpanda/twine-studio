@@ -7,9 +7,9 @@ Twine Studio mission. No release has been published or deployed.
 
 Validated on Windows with Node 22.14.0/npm 10.9.2:
 
-- The latest full Jest checkpoint passed **266 suites and 1,958 tests**, with 4
-  skipped and 41 TODOs. It includes the browser lock and closed-tab journal
-  recovery changes.
+- The latest full Jest checkpoint passed **266 suites and 1,960 tests**, with 4
+  skipped and 41 TODOs. It includes the browser lock, closed-tab journal
+  recovery, and duplicated-tab guard changes.
 - Final desktop queue checks: **4 suites, 90 tests passed**, including rename
   tracking retry, app-preference ordering, late writes during shutdown, deletion/
   retry exclusion and restoration while deletion is still in progress.
@@ -103,7 +103,7 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
   closed-tab journal with no session history now replays under that lock when
   its bases still match. Conflicting or unverifiable journals stop startup and
   offer raw export. A fresh tab waits for an active tab's queued commit before
-  classifying its journal. The two affected browser files pass **54 tests** across
+  classifying its journal. The two affected browser files pass **57 tests** across
   Chromium, Firefox and WebKit on this revision.
 - Desktop shutdown awaits renderer publication, IPC delivery, pending debounce
   and active per-story disk writes. Three consecutive native-window close and
@@ -144,9 +144,12 @@ Validated on Windows with Node 22.14.0/npm 10.9.2:
 - Desktop normal-close mutation coverage now passes. Abrupt termination, real
   full disks, external concurrent file edits and power failure remain unverified.
 - Browser commits are serialized by Web Locks in supported secure contexts.
-  Duplicated-tab journal handoff and recovery when Web Locks are unavailable
-  still need stronger validation. Closed-tab journals are replayed only when
-  their recorded bases are compatible; ambiguous journals require raw export.
+  A duplicated-tab conflict journey now passes Chromium, Firefox and WebKit:
+  a changed inherited journal blocks the duplicate's stale save and retains its
+  draft. Full handoff after the original tab closes and recovery when Web Locks
+  are unavailable still need stronger validation. Closed-tab journals are
+  replayed only when their recorded bases are compatible; ambiguous journals
+  require raw export.
   Firefox's normal reload-before-debounce journey passed ten focused repeats.
   Session drafts cover the observed missing unload warning, but tab closure,
   blocked or exhausted session storage, and concurrent saves still need

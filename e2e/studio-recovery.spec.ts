@@ -58,6 +58,8 @@ test('a fresh tab replays a journal left by a closed tab', async ({page, context
 	await page.getByRole('button', {name: 'New', exact: true}).click();
 	await page.getByRole('textbox').fill('Recovered closed tab');
 	await page.getByRole('button', {name: 'Create', exact: true}).click();
+	await expect.poll(() => page.evaluate(() => Object.keys(localStorage)
+		.some(key => key.startsWith('twine-studio-passages-')))).toBe(true);
 	const passageKey = await page.evaluate(() => Object.keys(localStorage)
 		.find(key => key.startsWith('twine-studio-passages-'))!);
 	await expect.poll(() => page.evaluate(key => localStorage.getItem(key), passageKey))
